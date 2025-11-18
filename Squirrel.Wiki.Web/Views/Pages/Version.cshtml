@@ -1,0 +1,115 @@
+@model Squirrel.Wiki.Web.Models.PageViewModel
+@{
+    ViewData["Title"] = $"{Model.Title} - Version {ViewData["VersionNumber"]}";
+    var versionNumber = ViewData["VersionNumber"];
+    var isHistorical = ViewData["IsHistoricalVersion"] as bool? ?? false;
+}
+
+<div class="page-version-view">
+    <div class="alert alert-info mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-clock-history"></i>
+                <strong>Historical Version:</strong> You are viewing version <strong>@versionNumber</strong> of this page.
+                <br>
+                <small class="text-muted">
+                    Last modified by <strong>@Model.ModifiedBy</strong> on @Model.ModifiedOn.ToString("MMM dd, yyyy 'at' HH:mm")
+                </small>
+            </div>
+            <div>
+                <a href="@Url.Action("Index", "Wiki", new { id = Model.Id })" class="btn btn-sm btn-primary">
+                    <i class="bi bi-file-text"></i> View Current Version
+                </a>
+                <a href="@Url.Action("History", "Pages", new { id = Model.Id })" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-clock-history"></i> View History
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <article class="wiki-page">
+        <header class="page-header mb-4">
+            <h1 class="page-title">@Model.Title</h1>
+            
+            <div class="page-meta text-muted">
+                <span>
+                    <i class="bi bi-person"></i> Created by <strong>@Model.CreatedBy</strong>
+                </span>
+                <span class="ms-3">
+                    <i class="bi bi-calendar"></i> @Model.CreatedOn.ToString("MMM dd, yyyy")
+                </span>
+                @if (Model.CategoryId.HasValue && !string.IsNullOrEmpty(Model.CategoryName))
+                {
+                    <span class="ms-3">
+                        <i class="bi bi-folder"></i>
+                        <a href="@Url.Action("Category", "Pages", new { id = Model.CategoryId })">@Model.CategoryName</a>
+                    </span>
+                }
+            </div>
+        </header>
+
+        <div class="page-content">
+            @Html.Raw(Model.HtmlContent)
+        </div>
+
+        @if (Model.Tags.Any())
+        {
+            <footer class="page-footer mt-4">
+                <div class="page-tags">
+                    <i class="bi bi-tags"></i>
+                    @foreach (var tag in Model.Tags)
+                    {
+                        <a href="@Url.Action("Tag", "Pages", new { tagName = tag })" class="badge bg-secondary text-decoration-none">
+                            @tag
+                        </a>
+                    }
+                </div>
+            </footer>
+        }
+    </article>
+</div>
+
+@section Styles {
+    <style>
+        .page-version-view .alert-info {
+            border-left: 4px solid #0dcaf0;
+        }
+        
+        .wiki-page {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+        }
+        
+        .page-header {
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 1rem;
+        }
+        
+        .page-title {
+            margin-bottom: 0.5rem;
+            color: #212529;
+        }
+        
+        .page-meta {
+            font-size: 0.9rem;
+        }
+        
+        .page-content {
+            margin-top: 2rem;
+            line-height: 1.6;
+        }
+        
+        .page-footer {
+            border-top: 1px solid #e9ecef;
+            padding-top: 1rem;
+        }
+        
+        .page-tags .badge {
+            margin-right: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            font-weight: normal;
+        }
+    </style>
+}

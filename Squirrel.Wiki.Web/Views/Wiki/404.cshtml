@@ -1,0 +1,46 @@
+@{
+    ViewData["Title"] = "Page Not Found";
+}
+
+<div class="error-page text-center py-5">
+    <div class="error-icon mb-4">
+        <i class="bi bi-file-earmark-x" style="font-size: 6rem; color: #6c757d;"></i>
+    </div>
+    
+    <h1 class="display-4 mb-3">404 - Page Not Found</h1>
+    
+    <p class="lead text-muted mb-4">
+        The page you're looking for doesn't exist or has been moved.
+    </p>
+    
+    <div class="error-actions">
+        <a href="@Url.Action("Index", "Home")" class="btn btn-primary btn-lg me-2">
+            <i class="bi bi-house"></i> Go Home
+        </a>
+        <a href="@Url.Action("AllPages", "Pages")" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-list"></i> Browse All Pages
+        </a>
+    </div>
+    
+    <div class="mt-5">
+        <p class="text-muted">
+            <small>
+                You can also try:
+                <a href="@Url.Action("Index", "Search")">searching for content</a> or
+                <a href="@Url.Action("New", "Pages")">creating a new page</a>.
+            </small>
+        </p>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .error-page {
+            min-height: 60vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+}

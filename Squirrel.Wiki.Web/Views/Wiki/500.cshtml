@@ -1,0 +1,44 @@
+@{
+    ViewData["Title"] = "Server Error";
+}
+
+<div class="error-page text-center py-5">
+    <div class="error-icon mb-4">
+        <i class="bi bi-exclamation-triangle" style="font-size: 6rem; color: #dc3545;"></i>
+    </div>
+    
+    <h1 class="display-4 mb-3">500 - Server Error</h1>
+    
+    <p class="lead text-muted mb-4">
+        Something went wrong on our end. We're working to fix it.
+    </p>
+    
+    <div class="error-actions">
+        <a href="@Url.Action("Index", "Home")" class="btn btn-primary btn-lg me-2">
+            <i class="bi bi-house"></i> Go Home
+        </a>
+        <button onclick="window.location.reload()" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-arrow-clockwise"></i> Try Again
+        </button>
+    </div>
+    
+    <div class="mt-5">
+        <p class="text-muted">
+            <small>
+                If this problem persists, please contact the site administrator.
+            </small>
+        </p>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .error-page {
+            min-height: 60vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+}

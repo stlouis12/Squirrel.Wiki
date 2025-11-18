@@ -1,0 +1,636 @@
+# Squirrel Wiki Seed Data Configuration
+# This file defines the initial data to be loaded into the database
+
+categories:
+  - name: Getting Started
+    slug: getting-started
+    description: Everything you need to get started with Squirrel Wiki
+    displayOrder: 1
+
+  - name: Documentation
+    slug: documentation
+    description: Comprehensive documentation and guides
+    displayOrder: 2
+
+  - name: Tutorials
+    slug: tutorials
+    description: Step-by-step tutorials and how-to guides
+    displayOrder: 3
+
+  - name: FAQ
+    slug: faq
+    description: Frequently asked questions
+    displayOrder: 4
+
+tags:
+  - name: wiki
+    normalizedName: wiki
+
+  - name: documentation
+    normalizedName: documentation
+
+  - name: tutorial
+    normalizedName: tutorial
+
+  - name: guide
+    normalizedName: guide
+
+  - name: getting-started
+    normalizedName: getting-started
+
+  - name: markdown
+    normalizedName: markdown
+
+  - name: admin
+    normalizedName: admin
+
+  - name: faq
+    normalizedName: faq
+
+pages:
+  - title: Welcome to Squirrel Wiki
+    slug: welcome
+    category: getting-started
+    tags:
+      - wiki
+      - getting-started
+    content: |
+      # Welcome to Squirrel Wiki
+
+      Welcome to **Squirrel Wiki v3.0** - a modern, fast, and feature-rich wiki application built on .NET 8.0!
+
+      ## What is Squirrel Wiki?
+
+      Squirrel Wiki is an open-source wiki application designed for teams and organizations who need a powerful knowledge management system. It's built with modern technologies and best practices to provide a reliable and scalable solution.
+
+      ## Key Features
+
+      - **Markdown Support**: Write content using familiar Markdown syntax
+      - **Full-Text Search**: Powered by Lucene.NET for fast and accurate search results
+      - **Categories & Tags**: Organize your content efficiently
+      - **Version History**: Track all changes to your pages
+      - **Role-Based Access**: Control who can view and edit content
+      - **Responsive Design**: Works great on desktop, tablet, and mobile devices
+
+      ## Getting Started
+
+      Check out these pages to get started:
+
+      - [Quick Start Guide](quick-start) - Get up and running in minutes
+      - [Creating Pages](creating-pages) - Learn how to create and edit wiki pages
+      - [Markdown Guide](markdown-guide) - Master Markdown syntax
+
+      ## Need Help?
+
+      Visit our [FAQ](faq) section or check the [Documentation](/Pages/Category/documentation) for more information.
+
+      ---
+
+      *This is a sample page created during database initialization. Feel free to edit or delete it!*
+
+  - title: Quick Start Guide
+    slug: quick-start
+    category: getting-started
+    tags:
+      - guide
+      - getting-started
+    content: |
+      # Quick Start Guide
+
+      Get started with Squirrel Wiki in just a few minutes!
+
+      ## 1. Log In
+
+      Use one of the test accounts to log in:
+
+      - **Admin**: admin@squirrel.wiki / Admin123!
+      - **Editor**: editor@squirrel.wiki / Editor123!
+      - **Viewer**: viewer@squirrel.wiki / Viewer123!
+
+      ## 2. Create Your First Page
+
+      1. Click the **New Page** button in the navigation
+      2. Enter a title for your page
+      3. Select a category (optional)
+      4. Write your content using Markdown
+      5. Add tags to help organize your content
+      6. Click **Save** to publish your page
+
+      ## 3. Edit Existing Pages
+
+      1. Navigate to any page
+      2. Click the **Edit** button
+      3. Make your changes
+      4. Click **Save** to update the page
+
+      ## 4. Search Content
+
+      Use the search box in the navigation to find pages quickly. The search engine indexes:
+
+      - Page titles
+      - Page content
+      - Tags
+      - Categories
+
+      ## 5. Organize with Categories
+
+      Categories help you organize related pages together. You can:
+
+      - Browse pages by category
+      - Create hierarchical category structures
+      - Assign pages to multiple categories
+
+      ## Next Steps
+
+      - Learn more about [Markdown syntax](markdown-guide)
+      - Explore the [Documentation](/Pages/Category/documentation)
+      - Check out [Creating Pages](creating-pages) for advanced features
+
+      Happy wiki-ing! 🐿️
+
+  - title: Creating Pages
+    slug: creating-pages
+    category: documentation
+    tags:
+      - documentation
+      - guide
+    content: |
+      # Creating Pages
+
+      Learn how to create and manage wiki pages effectively.
+
+      ## Page Basics
+
+      Every page in Squirrel Wiki has:
+
+      - **Title**: The name of your page
+      - **Slug**: URL-friendly version of the title
+      - **Content**: The main body text (written in Markdown)
+      - **Category**: Optional categorization
+      - **Tags**: Keywords for organization and search
+      - **Version History**: All previous versions are saved
+
+      ## Creating a New Page
+
+      ### Step 1: Navigate to New Page
+
+      Click the **New Page** button in the main navigation.
+
+      ### Step 2: Enter Page Details
+
+      - **Title**: Choose a descriptive title
+      - **Category**: Select an appropriate category
+      - **Tags**: Add relevant tags (comma-separated)
+
+      ### Step 3: Write Content
+
+      Use Markdown to format your content. See the [Markdown Guide](markdown-guide) for syntax help.
+
+      ### Step 4: Preview and Save
+
+      - Click **Preview** to see how your page will look
+      - Click **Save** to publish your page
+
+      ## Editing Pages
+
+      To edit an existing page:
+
+      1. Navigate to the page
+      2. Click the **Edit** button
+      3. Make your changes
+      4. Click **Save**
+
+      All changes are tracked in the version history.
+
+      ## Page Permissions
+
+      - **Viewers**: Can read pages
+      - **Editors**: Can create and edit pages
+      - **Admins**: Can delete pages and manage settings
+
+      ## Best Practices
+
+      1. **Use descriptive titles**: Make it easy to find pages
+      2. **Add tags**: Help with organization and search
+      3. **Link related pages**: Create a connected knowledge base
+      4. **Keep content updated**: Review and update pages regularly
+      5. **Use categories**: Group related content together
+
+      ## Advanced Features
+
+      - **Page locking**: Prevent accidental edits
+      - **Version comparison**: See what changed between versions
+      - **Page templates**: Create reusable page structures
+
+      ---
+
+      Need help? Check the [FAQ](faq) or contact your wiki administrator.
+
+  - title: Markdown Guide
+    slug: markdown-guide
+    category: documentation
+    tags:
+      - markdown
+      - documentation
+      - guide
+    content: |
+      # Markdown Guide
+
+      Squirrel Wiki uses Markdown for formatting page content. Here's a quick reference guide.
+
+      ## Headers
+
+      ```markdown
+      # H1 Header
+      ## H2 Header
+      ### H3 Header
+      #### H4 Header
+      ##### H5 Header
+      ###### H6 Header
+      ```
+
+      ## Text Formatting
+
+      - **Bold**: `**bold text**` or `__bold text__`
+      - *Italic*: `*italic text*` or `_italic text_`
+      - ***Bold and Italic***: `***bold and italic***`
+      - ~~Strikethrough~~: `~~strikethrough~~`
+
+      ## Lists
+
+      ### Unordered Lists
+
+      ```markdown
+      - Item 1
+      - Item 2
+        - Nested item 2.1
+        - Nested item 2.2
+      - Item 3
+      ```
+
+      ### Ordered Lists
+
+      ```markdown
+      1. First item
+      2. Second item
+      3. Third item
+      ```
+
+      ## Links
+
+      ```markdown
+      [Link text](https://example.com)
+      [Link to another page](page-slug)
+      ```
+
+      ## Images
+
+      ```markdown
+      ![Alt text](image-url.jpg)
+      ![Logo](/images/logo.png)
+      ```
+
+      ## Code
+
+      ### Inline Code
+
+      Use backticks: `code here`
+
+      ### Code Blocks
+
+      Use triple backticks with optional language:
+
+      ```csharp
+      public class Example
+      {
+          public string Name { get; set; }
+      }
+      ```
+
+      ## Blockquotes
+
+      ```markdown
+      > This is a blockquote
+      > It can span multiple lines
+      ```
+
+      ## Tables
+
+      ```markdown
+      | Header 1 | Header 2 | Header 3 |
+      |----------|----------|----------|
+      | Cell 1   | Cell 2   | Cell 3   |
+      | Cell 4   | Cell 5   | Cell 6   |
+      ```
+
+      ## Horizontal Rules
+
+      ```markdown
+      ---
+      or
+      ***
+      or
+      ___
+      ```
+
+      ## Task Lists
+
+      ```markdown
+      - [x] Completed task
+      - [ ] Incomplete task
+      - [ ] Another task
+      ```
+
+      ## Tips
+
+      1. **Preview your changes**: Always preview before saving
+      2. **Use headers**: Structure your content with headers
+      3. **Add links**: Connect related pages
+      4. **Format code**: Use code blocks for technical content
+      5. **Keep it simple**: Don't over-format
+
+      ## Learn More
+
+      - [Creating Pages](creating-pages)
+      - [Quick Start Guide](quick-start)
+
+      ---
+
+      *For more advanced Markdown features, check the official Markdown documentation.*
+
+  - title: Frequently Asked Questions
+    slug: faq
+    category: faq
+    tags:
+      - faq
+      - guide
+      - getting-started
+    content: |
+      # Frequently Asked Questions (FAQ)
+
+      Find answers to common questions about Squirrel Wiki.
+
+      ## General Questions
+
+      ### What is Squirrel Wiki?
+
+      Squirrel Wiki is a modern, open-source wiki application built on .NET 8.0. It's designed for teams and organizations who need a powerful, fast, and easy-to-use knowledge management system.
+
+      ### Is Squirrel Wiki free?
+
+      Yes! Squirrel Wiki is completely free and open-source. You can use it, modify it, and distribute it under the terms of its license.
+
+      ### What are the system requirements?
+
+      - **.NET 8.0 Runtime** or later
+      - **Database**: SQLite (default), PostgreSQL, MySQL, or SQL Server
+      - **Web Server**: Any server that supports ASP.NET Core (IIS, Nginx, Apache, Kestrel)
+      - **Browser**: Any modern browser (Chrome, Firefox, Safari, Edge)
+
+      ## Getting Started
+
+      ### How do I create my first page?
+
+      1. Log in to your wiki
+      2. Click the **New Page** button in the navigation
+      3. Enter a title and content using Markdown
+      4. Optionally select a category and add tags
+      5. Click **Save** to publish
+
+      See the [Quick Start Guide](quick-start) for more details.
+
+      ### What is Markdown and do I need to learn it?
+
+      Markdown is a simple, lightweight markup language that's easy to learn. You can create formatted text using plain text syntax. For example:
+      - `**bold**` creates **bold** text
+      - `*italic*` creates *italic* text
+      - `# Heading` creates a heading
+
+      Check out our [Markdown Guide](markdown-guide) for a complete reference.
+
+      ### Can I import content from another wiki?
+
+      Currently, you'll need to manually create pages or use the database seeding system. Future versions may include import tools for common wiki formats.
+
+      ## Pages and Content
+
+      ### How do I edit a page?
+
+      Navigate to any page and click the **Edit** button. Make your changes and click **Save**. All changes are tracked in the version history.
+
+      ### Can I see who edited a page?
+
+      Yes! Each page has a version history that shows all edits, who made them, and when. Click the **History** button on any page to view it.
+
+      ### What happens if I make a mistake?
+
+      Don't worry! Every version of a page is saved. You can view the history and restore any previous version if needed.
+
+      ### Can I lock a page to prevent edits?
+
+      Yes, administrators can lock pages to prevent accidental edits. This is useful for important documentation or policies.
+
+      ### How do I delete a page?
+
+      Only administrators can delete pages. Navigate to the page and click the **Delete** button. Be careful - this action cannot be undone!
+
+      ## Organization
+
+      ### What's the difference between categories and tags?
+
+      - **Categories**: Hierarchical organization structure. Each page can belong to one category.
+      - **Tags**: Flexible keywords for cross-referencing. Pages can have multiple tags.
+
+      Use categories for main organization and tags for additional classification.
+
+      ### How do I create a new category?
+
+      Administrators can create categories through the **Admin** → **Categories** menu. Categories help organize related pages together.
+
+      ### Can I have nested categories?
+
+      Yes! Squirrel Wiki supports hierarchical categories. You can create parent and child categories to organize content in a tree structure.
+
+      ### How many tags can I add to a page?
+
+      There's no hard limit, but we recommend 3-7 relevant tags per page for best organization and searchability.
+
+      ## Search
+
+      ### How does search work?
+
+      Squirrel Wiki uses Lucene.NET for full-text search. It indexes:
+      - Page titles
+      - Page content
+      - Tags
+      - Categories
+
+      The search is fast and supports advanced queries.
+
+      ### Can I search within a specific category?
+
+      Yes! Use the category browser to view all pages in a category, or use the search with category filters.
+
+      ### Why isn't my new page showing up in search?
+
+      The search index updates automatically, but there may be a brief delay. Try refreshing the page or waiting a few seconds.
+
+      ## Permissions and Users
+
+      ### What are the different user roles?
+
+      - **Viewer**: Can read pages only
+      - **Editor**: Can create and edit pages
+      - **Admin**: Full access including user management, settings, and deletions
+
+      ### How do I change my password?
+
+      Click on your username in the top-right corner and select **Profile**. You can update your password there.
+
+      ### Can I control who sees specific pages?
+
+      Currently, all pages are visible to all users. Role-based page permissions may be added in future versions.
+
+      ### How do I add new users?
+
+      Administrators can add users through the **Admin** → **Users** menu. You can set their role and permissions there.
+
+      ## Customization
+
+      ### Can I customize the look and feel?
+
+      Yes! Administrators can:
+      - Change the site name in **Settings**
+      - Customize menus (navigation, sidebar, footer)
+      - Modify the theme (future feature)
+
+      ### How do I customize the navigation menu?
+
+      Go to **Admin** → **Menus** and edit the Main Navigation menu. You can add, remove, or reorganize menu items using MenuMarkup syntax.
+
+      ### Can I add a custom footer?
+
+      Yes! Go to **Admin** → **Menus**, create or edit a Footer menu, and customize the left and right zones with your content.
+
+      ### What are the special URL tokens?
+
+      Special tokens in menus automatically link to system pages:
+      - `%HOME%` - Home page
+      - `%ALLPAGES%` - All pages list
+      - `%ALLTAGS%` - All tags list
+      - `%ALLCATEGORIES%` - All categories list
+      - `%SEARCH%` - Search page
+      - `%NEWPAGE%` - Create new page
+      - `%RECENTLYUPDATED%` - Recently updated pages
+      - `%EMBEDDED_SEARCH%` - Embedded search box
+
+      ## Technical Questions
+
+      ### What database does Squirrel Wiki use?
+
+      By default, Squirrel Wiki uses SQLite for easy setup. For production deployments, you can use:
+      - PostgreSQL (recommended for production)
+      - MySQL/MariaDB
+      - SQL Server
+
+      ### Can I run Squirrel Wiki in Docker?
+
+      Yes! Squirrel Wiki is designed to be container-friendly. You can easily deploy it using Docker or Kubernetes.
+
+      ### How do I backup my wiki?
+
+      For SQLite: Simply backup the database file (usually in `App_Data/squirrel.db`)
+
+      For other databases: Use your database's backup tools. Also backup the `App_Data` folder for attachments.
+
+      ### Is Squirrel Wiki suitable for production use?
+
+      Yes! Squirrel Wiki is built on .NET 8.0 with production-ready features:
+      - Fast full-text search
+      - Efficient caching
+      - Database connection pooling
+      - Scalable architecture
+
+      ### Can I contribute to Squirrel Wiki?
+
+      Absolutely! Squirrel Wiki is open-source. Check the GitHub repository for contribution guidelines.
+
+      ## Troubleshooting
+
+      ### I forgot my admin password. What do I do?
+
+      Contact your system administrator. They can reset passwords through the admin panel or directly in the database.
+
+      ### Pages aren't saving. What's wrong?
+
+      Check that:
+      1. You're logged in as an Editor or Admin
+      2. The page isn't locked
+      3. Your session hasn't expired
+      4. The database is writable
+
+      ### Search isn't working. How do I fix it?
+
+      Try:
+      1. Rebuilding the search index (Admin → System Info)
+      2. Checking that the Lucene index directory is writable
+      3. Reviewing the application logs for errors
+
+      ### The wiki is running slowly. How can I improve performance?
+
+      - Enable caching in settings
+      - Use a production database (PostgreSQL/MySQL instead of SQLite)
+      - Ensure adequate server resources
+      - Consider using Redis for distributed caching
+
+      ## Still Need Help?
+
+      If you can't find the answer to your question:
+
+      1. Check the [Documentation](/Pages/Category/documentation) section
+      2. Review the [Getting Started](getting-started) guides
+      3. Contact your wiki administrator
+      4. Visit the GitHub repository for community support
+
+      ---
+
+      *This FAQ is regularly updated. If you have suggestions for additional questions, please contact your administrator.*
+
+menus:
+  - name: Main Navigation
+    type: MainNavigation
+    description: Primary navigation menu displayed at the top of every page
+    isEnabled: true
+    displayOrder: 1
+    markup: |
+      * [Home](%HOME%)
+      * [Getting Started]
+      ** [Quick Start](quick-start)
+      ** [Creating Pages](creating-pages)
+      * [Documentation]
+      ** [Markdown Guide](markdown-guide)
+      * [All Pages](%ALLPAGES%)
+      * [Tags](%ALLTAGS%)
+      * [Search](%SEARCH%)
+      * [New Page](%NEWPAGE%)
+
+  - name: Side Bar
+    type: Sidebar
+    description: Optional Side Navigation bar displayed at the left side of every page
+    isEnabled: false
+    displayOrder: 2
+    markup: |
+      * [Browse]
+      ** [All Pages](/Pages/AllPages)
+      ** [Recent](%RECENTLYUPDATED%)
+      * [Search](%EMBEDDED_SEARCH%)
+      * [Categories](%ALLCATEGORIES%)
+      * [Tags](%ALLTAGS%)
+
+  - name: Site Footer
+    type: Footer
+    description: Two-zone footer displayed at the bottom of every page
+    isEnabled: true
+    displayOrder: 3
+    footerLeftZone: "© 2025 Squirrel Wiki - Built with [[.NET 8.0|https://dotnet.microsoft.com]]"
+    footerRightZone: "Inspired by and based on [[GitHub|https://github.com/roadkillwiki/roadkill]]"

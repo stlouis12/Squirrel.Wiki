@@ -1,0 +1,164 @@
+@model Squirrel.Wiki.Web.Models.PageListViewModel
+@{
+    ViewData["Title"] = "All Pages";
+}
+
+<div class="page-list">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="bi bi-file-earmark-text"></i> All Pages
+            @if (!string.IsNullOrEmpty(Model.FilterBy))
+            {
+                <small class="text-muted">
+                    - @Model.FilterBy: @Model.FilterValue
+                </small>
+            }
+        </h1>
+        <a href="@Url.Action("New", "Pages")" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> New Page
+        </a>
+    </div>
+
+    @if (Model.Pages.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Tags</th>
+                        <th>Created By</th>
+                        <th>Last Modified</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var pageItem in Model.Pages)
+                    {
+                        <tr>
+                            <td>
+                                <a href="@Url.Action("Index", "Wiki", new { id = pageItem.Id, slug = pageItem.Slug })" class="fw-bold">
+                                    @pageItem.Title
+                                </a>
+                                @if (pageItem.IsLocked)
+                                {
+                                    <i class="bi bi-lock text-warning ms-1" title="This page is locked"></i>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(pageItem.CategoryName))
+                                {
+                                    <span class="badge bg-secondary">@pageItem.CategoryName</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                @if (pageItem.Tags.Any())
+                                {
+                                    @foreach (var tag in pageItem.Tags)
+                                    {
+                                        <a href="@Url.Action("Tag", "Pages", new { tagName = tag })" class="badge bg-info text-decoration-none me-1">
+                                            @tag
+                                        </a>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                <a href="@Url.Action("ByUser", "Pages", new { username = pageItem.CreatedBy })">
+                                    @pageItem.CreatedBy
+                                </a>
+                            </td>
+                            <td>
+                                <small class="text-muted" title="@pageItem.ModifiedOn.ToString("F")">
+                                    @pageItem.ModifiedOn.ToString("MMM dd, yyyy")
+                                </small>
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="@Url.Action("Index", "Wiki", new { id = pageItem.Id, slug = pageItem.Slug })" 
+                                       class="btn btn-outline-primary" title="View">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="@Url.Action("Edit", "Pages", new { id = pageItem.Id })" 
+                                       class="btn btn-outline-secondary" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="@Url.Action("History", "Pages", new { id = pageItem.Id })" 
+                                       class="btn btn-outline-info" title="History">
+                                        <i class="bi bi-clock-history"></i>
+                                    </a>
+                                    @if (User.IsInRole("Admin"))
+                                    {
+                                        <button type="button" class="btn btn-outline-danger" title="Delete" 
+                                                onclick="confirmDelete(@pageItem.Id, '@pageItem.Title')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No pages found.
+            <a href="@Url.Action("New", "Pages")" class="alert-link">Create the first page</a>.
+        </div>
+    }
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deletePageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Page</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the page "<strong id="deletePageTitle"></strong>"?</p>
+                <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="post" asp-action="Delete" asp-controller="Pages" style="display: inline;">
+                    <input type="hidden" id="deletePageId" name="id" />
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Add tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+        
+        // Delete confirmation
+        function confirmDelete(pageId, pageTitle) {
+            document.getElementById('deletePageId').value = pageId;
+            document.getElementById('deletePageTitle').textContent = pageTitle;
+            var deleteModal = new bootstrap.Modal(document.getElementById('deletePageModal'));
+            deleteModal.show();
+        }
+    </script>
+}

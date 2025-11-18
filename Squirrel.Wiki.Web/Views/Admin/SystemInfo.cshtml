@@ -1,0 +1,298 @@
+@model dynamic
+@{
+    ViewData["Title"] = "System Information";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="bi bi-info-circle"></i> System Information</h1>
+            <p class="text-muted">Detailed system and application information</p>
+        </div>
+        <div class="col-auto">
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Environment Information -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-server"></i> Environment Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <tbody>
+                                <tr>
+                                    <th style="width: 30%;">Machine Name</th>
+                                    <td>@Model.Environment.MachineName</td>
+                                </tr>
+                                <tr>
+                                    <th>Operating System</th>
+                                    <td>@Model.Environment.OSVersion</td>
+                                </tr>
+                                <tr>
+                                    <th>Processor Count</th>
+                                    <td>@Model.Environment.ProcessorCount cores</td>
+                                </tr>
+                                <tr>
+                                    <th>64-bit Operating System</th>
+                                    <td>
+                                        @if (Model.Environment.Is64BitOperatingSystem)
+                                        {
+                                            <span class="badge bg-success">Yes</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning">No (32-bit)</span>
+                                        }
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>64-bit Process</th>
+                                    <td>
+                                        @if (Model.Environment.Is64BitProcess)
+                                        {
+                                            <span class="badge bg-success">Yes</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning">No (32-bit)</span>
+                                        }
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>.NET Runtime Version</th>
+                                    <td>@Model.Environment.RuntimeVersion</td>
+                                </tr>
+                                <tr>
+                                    <th>Working Set (Memory)</th>
+                                    <td>@((Model.Environment.WorkingSet / 1024 / 1024).ToString("N0")) MB</td>
+                                </tr>
+                                <tr>
+                                    <th>System Page Size</th>
+                                    <td>@Model.Environment.SystemPageSize bytes</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Information -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-app-indicator"></i> Application Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <tbody>
+                                <tr>
+                                    <th style="width: 30%;">Application Name</th>
+                                    <td>Squirrel Wiki</td>
+                                </tr>
+                                <tr>
+                                    <th>Version</th>
+                                    <td>
+                                        <span class="badge bg-primary">@Model.Application.Version</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Framework</th>
+                                    <td>@Model.Application.Framework</td>
+                                </tr>
+                                <tr>
+                                    <th>Start Time</th>
+                                    <td>@Model.Application.StartTime.ToString("F")</td>
+                                </tr>
+                                <tr>
+                                    <th>Uptime</th>
+                                    <td>
+                                        @{
+                                            var uptime = (TimeSpan)Model.Application.Uptime;
+                                            if (uptime.TotalDays >= 1)
+                                            {
+                                                <span class="badge bg-success">@uptime.Days days, @uptime.Hours hours, @uptime.Minutes minutes</span>
+                                            }
+                                            else if (uptime.TotalHours >= 1)
+                                            {
+                                                <span class="badge bg-info">@uptime.Hours hours, @uptime.Minutes minutes</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">@uptime.Minutes minutes, @uptime.Seconds seconds</span>
+                                            }
+                                        }
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Current User</th>
+                                    <td>@User.Identity?.Name</td>
+                                </tr>
+                                <tr>
+                                    <th>User Role</th>
+                                    <td>
+                                        @if (User.IsInRole("Admin"))
+                                        {
+                                            <span class="badge bg-danger">Admin</span>
+                                        }
+                                        else if (User.IsInRole("Editor"))
+                                        {
+                                            <span class="badge bg-warning">Editor</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Viewer</span>
+                                        }
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration Information -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <tbody>
+                                <tr>
+                                    <th style="width: 30%;">Environment</th>
+                                    <td>
+                                        @{
+                                            var env = Context.RequestServices.GetRequiredService<IWebHostEnvironment>();
+                                            if (env.IsDevelopment())
+                                            {
+                                                <span class="badge bg-warning">Development</span>
+                                            }
+                                            else if (env.IsStaging())
+                                            {
+                                                <span class="badge bg-info">Staging</span>
+                                            }
+                                            else if (env.IsProduction())
+                                            {
+                                                <span class="badge bg-success">Production</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">@env.EnvironmentName</span>
+                                            }
+                                        }
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Content Root Path</th>
+                                    <td><code>@env.ContentRootPath</code></td>
+                                </tr>
+                                <tr>
+                                    <th>Web Root Path</th>
+                                    <td><code>@env.WebRootPath</code></td>
+                                </tr>
+                                <tr>
+                                    <th>Application Name</th>
+                                    <td>@env.ApplicationName</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Request Information -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-globe"></i> Current Request</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <tbody>
+                                <tr>
+                                    <th style="width: 30%;">Request URL</th>
+                                    <td><code>@Context.Request.Scheme://@Context.Request.Host@Context.Request.Path@Context.Request.QueryString</code></td>
+                                </tr>
+                                <tr>
+                                    <th>Request Method</th>
+                                    <td><span class="badge bg-primary">@Context.Request.Method</span></td>
+                                </tr>
+                                <tr>
+                                    <th>Protocol</th>
+                                    <td>@Context.Request.Protocol</td>
+                                </tr>
+                                <tr>
+                                    <th>Content Type</th>
+                                    <td>@(Context.Request.ContentType ?? "N/A")</td>
+                                </tr>
+                                <tr>
+                                    <th>Remote IP Address</th>
+                                    <td>@Context.Connection.RemoteIpAddress</td>
+                                </tr>
+                                <tr>
+                                    <th>User Agent</th>
+                                    <td><small>@Context.Request.Headers["User-Agent"]</small></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-link-45deg"></i> Quick Links</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="/health" class="btn btn-outline-primary w-100" target="_blank">
+                                <i class="bi bi-heart-pulse"></i> Health Checks
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="/swagger" class="btn btn-outline-primary w-100" target="_blank">
+                                <i class="bi bi-code-square"></i> API Documentation
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a asp-action="Index" class="btn btn-outline-secondary w-100">
+                                <i class="bi bi-speedometer2"></i> Dashboard
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a asp-controller="Settings" asp-action="Index" class="btn btn-outline-secondary w-100">
+                                <i class="bi bi-sliders"></i> Settings
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

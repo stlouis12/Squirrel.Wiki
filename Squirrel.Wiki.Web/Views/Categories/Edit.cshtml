@@ -1,0 +1,219 @@
+@model Squirrel.Wiki.Web.Models.Admin.EditCategoryViewModel
+@{
+    ViewData["Title"] = Model.IsNew ? "Create Category" : "Edit Category";
+}
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>
+                <i class="bi bi-@(Model.IsNew ? "plus-circle" : "pencil")"></i> 
+                @(Model.IsNew ? "Create Category" : "Edit Category")
+            </h1>
+            @if (!string.IsNullOrEmpty(Model.CurrentPath))
+            {
+                <p class="text-muted">
+                    <i class="bi bi-diagram-3"></i> Current path: <code>@Model.CurrentPath</code>
+                </p>
+            }
+        </div>
+        <div class="col-auto">
+            <a asp-action="Index" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Categories
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle"></i> Category Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Save" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Id" />
+                        
+                        <div class="mb-3">
+                            <label asp-for="Name" class="form-label">
+                                Category Name <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="Name" class="form-control" placeholder="e.g., Documentation, API, Tutorials" />
+                            <span asp-validation-for="Name" class="text-danger"></span>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle"></i> Use letters, numbers, spaces, hyphens, and underscores only.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label">Description</label>
+                            <textarea asp-for="Description" class="form-control" rows="3" 
+                                      placeholder="Brief description of this category (optional)"></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="ParentId" class="form-label">Parent Category</label>
+                            <select asp-for="ParentId" class="form-select" id="parentCategorySelect">
+                                @foreach (var parent in Model.AvailableParents)
+                                {
+                                    <option value="@parent.Id" 
+                                            disabled="@parent.IsDisabled"
+                                            data-level="@parent.Level"
+                                            data-path="@parent.FullPath">
+                                        @parent.Name
+                                    </option>
+                                }
+                            </select>
+                            <span asp-validation-for="ParentId" class="text-danger"></span>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle"></i> Select a parent category to create a subcategory, or choose "(None - Root Level)" for a top-level category.
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(Model.CurrentPath))
+                        {
+                            <div class="alert alert-info">
+                                <h6><i class="bi bi-diagram-3"></i> Category Path Preview</h6>
+                                <div class="mb-2">
+                                    <strong>Current:</strong> <code id="currentPath">@Model.CurrentPath</code>
+                                </div>
+                                <div>
+                                    <strong>New:</strong> <code id="newPath">@Model.CurrentPath</code>
+                                </div>
+                            </div>
+                        }
+                        else if (Model.ParentId.HasValue)
+                        {
+                            <div class="alert alert-info">
+                                <h6><i class="bi bi-diagram-3"></i> Category Path Preview</h6>
+                                <div>
+                                    <strong>Path:</strong> <code id="newPath"></code>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-@(Model.IsNew ? "plus-circle" : "save")"></i> 
+                                @(Model.IsNew ? "Create Category" : "Save Changes")
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightbulb"></i> Tips</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Naming Guidelines</h6>
+                    <ul class="small">
+                        <li>Use clear, descriptive names</li>
+                        <li>Keep names concise (under 50 characters)</li>
+                        <li>Use title case (e.g., "Getting Started")</li>
+                        <li>Avoid special characters</li>
+                    </ul>
+
+                    <h6 class="mt-3">Hierarchy Best Practices</h6>
+                    <ul class="small">
+                        <li>Limit depth to 3-4 levels</li>
+                        <li>Group related content together</li>
+                        <li>Use consistent naming patterns</li>
+                        <li>Plan structure before creating</li>
+                    </ul>
+
+                    <h6 class="mt-3">URL Structure</h6>
+                    <p class="small">
+                        Categories create hierarchical URLs:
+                    </p>
+                    <code class="small d-block mb-2">/wiki/docs/api/rest</code>
+                    <p class="small text-muted">
+                        Based on: Documentation → API → REST
+                    </p>
+                </div>
+            </div>
+
+            @if (!Model.IsNew)
+            {
+                <div class="card mt-3">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Danger Zone</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="small">
+                            Changing the parent category will move this category and all its subcategories to a new location in the hierarchy.
+                        </p>
+                        <p class="small text-danger mb-0">
+                            <strong>Warning:</strong> This will update all page URLs under this category.
+                        </p>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var nameInput = document.getElementById('Name');
+            var parentSelect = document.getElementById('parentCategorySelect');
+            var newPathElement = document.getElementById('newPath');
+            
+            function updatePathPreview() {
+                if (!newPathElement) return;
+                
+                var categoryName = nameInput.value.trim() || '[Category Name]';
+                var selectedOption = parentSelect.options[parentSelect.selectedIndex];
+                var parentPath = selectedOption.getAttribute('data-path');
+                
+                if (parentPath && parentPath !== '') {
+                    newPathElement.textContent = parentPath + ':' + categoryName;
+                } else {
+                    newPathElement.textContent = categoryName;
+                }
+            }
+            
+            // Update preview on input changes
+            if (nameInput && parentSelect && newPathElement) {
+                nameInput.addEventListener('input', updatePathPreview);
+                parentSelect.addEventListener('change', updatePathPreview);
+                
+                // Initial update
+                updatePathPreview();
+            }
+            
+            // Form validation
+            var form = document.querySelector('form');
+            form.addEventListener('submit', function(e) {
+                var name = nameInput.value.trim();
+                
+                if (!name) {
+                    e.preventDefault();
+                    nameInput.focus();
+                    return false;
+                }
+                
+                // Check for valid characters
+                var validPattern = /^[a-zA-Z0-9\s\-_]+$/;
+                if (!validPattern.test(name)) {
+                    e.preventDefault();
+                    alert('Category name can only contain letters, numbers, spaces, hyphens, and underscores.');
+                    nameInput.focus();
+                    return false;
+                }
+            });
+        });
+    </script>
+}

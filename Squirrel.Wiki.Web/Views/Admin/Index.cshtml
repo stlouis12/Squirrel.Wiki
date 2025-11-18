@@ -1,0 +1,301 @@
+@model Squirrel.Wiki.Web.Models.Admin.DashboardViewModel
+@{
+    ViewData["Title"] = "Admin Dashboard";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="bi bi-speedometer2"></i> Admin Dashboard</h1>
+            <p class="text-muted">System overview and management tools</p>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">Total Pages</h6>
+                            <h2 class="card-title mb-0">@Model.Statistics.TotalPages</h2>
+                        </div>
+                        <div class="text-primary">
+                            <i class="bi bi-file-text" style="font-size: 2.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">Total Users</h6>
+                            <h2 class="card-title mb-0">@Model.Statistics.TotalUsers</h2>
+                        </div>
+                        <div class="text-success">
+                            <i class="bi bi-people" style="font-size: 2.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">Categories</h6>
+                            <h2 class="card-title mb-0">@Model.Statistics.TotalCategories</h2>
+                        </div>
+                        <div class="text-info">
+                            <i class="bi bi-folder" style="font-size: 2.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">Tags</h6>
+                            <h2 class="card-title mb-0">@Model.Statistics.TotalTags</h2>
+                        </div>
+                        <div class="text-warning">
+                            <i class="bi bi-tags" style="font-size: 2.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Stats -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-activity"></i> Recent Activity</h5>
+                    <div class="row text-center mt-3">
+                        <div class="col-6">
+                            <h3 class="text-primary">@Model.Statistics.RecentEdits24Hours</h3>
+                            <p class="text-muted mb-0">Edits (24h)</p>
+                        </div>
+                        <div class="col-6">
+                            <h3 class="text-info">@Model.Statistics.RecentEdits7Days</h3>
+                            <p class="text-muted mb-0">Edits (7d)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-tools"></i> Quick Actions</h5>
+                    <div class="d-grid gap-2 mt-3">
+                        <form asp-action="ClearCache" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-outline-warning w-100" onclick="return confirm('Are you sure you want to clear the cache?')">
+                                <i class="bi bi-trash"></i> Clear Cache
+                            </button>
+                        </form>
+                        <form asp-action="RebuildSearchIndex" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-outline-info w-100" onclick="return confirm('This may take a while. Continue?')">
+                                <i class="bi bi-arrow-clockwise"></i> Rebuild Search Index
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Health -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-heart-pulse"></i> System Health</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi @Model.Health.Database.StatusIcon text-@Model.Health.Database.StatusClass me-2" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <strong>Database</strong>
+                                    <br>
+                                    <small class="text-muted">@Model.Health.Database.Message</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi @Model.Health.Cache.StatusIcon text-@Model.Health.Cache.StatusClass me-2" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <strong>Cache</strong>
+                                    <br>
+                                    <small class="text-muted">@Model.Health.Cache.Message</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi @Model.Health.SearchIndex.StatusIcon text-@Model.Health.SearchIndex.StatusClass me-2" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <strong>Search Index</strong>
+                                    <br>
+                                    <small class="text-muted">@Model.Health.SearchIndex.Message</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi @Model.Health.DiskSpace.StatusIcon text-@Model.Health.DiskSpace.StatusClass me-2" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <strong>Disk Space</strong>
+                                    <br>
+                                    <small class="text-muted">@Model.Health.DiskSpace.Message</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi @Model.Health.Memory.StatusIcon text-@Model.Health.Memory.StatusClass me-2" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <strong>Memory</strong>
+                                    <br>
+                                    <small class="text-muted">@Model.Health.Memory.Message</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activities -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Activities</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.RecentActivities.Any())
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var activity in Model.RecentActivities)
+                            {
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <div>
+                                            <i class="bi @(activity.Type == "PageCreated" ? "bi-file-plus" : "bi-pencil") text-primary"></i>
+                                            @if (!string.IsNullOrEmpty(activity.Url))
+                                            {
+                                                <a href="@activity.Url">@activity.Description</a>
+                                            }
+                                            else
+                                            {
+                                                <span>@activity.Description</span>
+                                            }
+                                            <br>
+                                            <small class="text-muted">by @activity.User</small>
+                                        </div>
+                                        <small class="text-muted">@activity.Timestamp.ToString("g")</small>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">No recent activities</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Links -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> Administration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Settings")" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-sliders"></i> Site Settings
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Menus")" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-palette"></i> Site Customization
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Categories")" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-folder-fill"></i> Manage Categories
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Users")" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-people"></i> Manage Users
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("SystemInfo", "Admin")" class="btn btn-outline-secondary w-100">
+                                <i class="bi bi-info-circle"></i> System Information
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="/health" class="btn btn-outline-secondary w-100" target="_blank">
+                                <i class="bi bi-heart-pulse"></i> Health Checks
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="/swagger" class="btn btn-outline-secondary w-100" target="_blank">
+                                <i class="bi bi-code-square"></i> API Documentation
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

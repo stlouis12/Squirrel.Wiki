@@ -1,0 +1,35 @@
+@model Squirrel.Wiki.Core.Services.FooterContent
+
+@if (Model.HasContent)
+{
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            <div class="row">
+                @if (!string.IsNullOrWhiteSpace(Model.LeftZone) && !string.IsNullOrWhiteSpace(Model.RightZone))
+                {
+                    @* Two-column layout when both left and right zones have content *@
+                    <div class="col-md-6">
+                        @Html.Raw(Model.LeftZone)
+                    </div>
+                    <div class="col-md-6 text-end">
+                        @Html.Raw(Model.RightZone)
+                    </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(Model.LeftZone))
+                {
+                    @* Single column for left zone only *@
+                    <div class="col-12">
+                        @Html.Raw(Model.LeftZone)
+                    </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(Model.RightZone))
+                {
+                    @* Single column for right zone only *@
+                    <div class="col-12 text-end">
+                        @Html.Raw(Model.RightZone)
+                    </div>
+                }
+            </div>
+        </div>
+    </footer>
+}

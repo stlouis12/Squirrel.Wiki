@@ -1,0 +1,35 @@
+@model Squirrel.Wiki.Core.Models.CategoryTreeDto
+
+<div class="category-node">
+    <div class="category-item">
+        <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+                <div>
+                    <i class="bi bi-folder-fill text-primary"></i>
+                    <a href="@Url.Action("Category", "Pages", new { id = Model.Id })">
+                        <strong>@Model.Name</strong>
+                    </a>
+                    <span class="badge bg-secondary page-count-badge ms-2">
+                        @Model.PageCount @(Model.PageCount == 1 ? "page" : "pages")
+                    </span>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.Description))
+                {
+                    <div class="category-description">
+                        @Model.Description
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    
+    @if (Model.Children != null && Model.Children.Any())
+    {
+        <div class="category-children">
+            @foreach (var child in Model.Children)
+            {
+                @await Html.PartialAsync("_CategoryBrowserNode", child)
+            }
+        </div>
+    }
+</div>
