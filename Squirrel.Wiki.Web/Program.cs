@@ -56,6 +56,34 @@ builder.Services.Configure<Squirrel.Wiki.Core.Services.SearchSettings>(options =
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 var databaseProvider = builder.Configuration["Database:Provider"] ?? "PostgreSQL";
 
+// For SQLite, resolve relative paths to be relative to the executable directory
+if (databaseProvider.Equals("SQLite", StringComparison.OrdinalIgnoreCase) && 
+    !string.IsNullOrEmpty(connectionString))
+{
+    // Parse the connection string to extract the Data Source
+    var builder2 = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString);
+    var dataSource = builder2.DataSource;
+    
+    // If the path is relative (doesn't start with / or contain :), make it relative to executable
+    if (!string.IsNullOrEmpty(dataSource) && 
+        !Path.IsPathRooted(dataSource))
+    {
+        var absolutePath = Path.Combine(AppContext.BaseDirectory, dataSource);
+        
+        // Ensure the directory exists
+        var directory = Path.GetDirectoryName(absolutePath);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+            Log.Information("Created database directory: {Directory}", directory);
+        }
+        
+        builder2.DataSource = absolutePath;
+        connectionString = builder2.ConnectionString;
+        Log.Information("SQLite database path resolved to: {Path}", absolutePath);
+    }
+}
+
 builder.Services.AddDbContext<SquirrelDbContext>(options =>
 {
     switch (databaseProvider.ToLowerInvariant())
