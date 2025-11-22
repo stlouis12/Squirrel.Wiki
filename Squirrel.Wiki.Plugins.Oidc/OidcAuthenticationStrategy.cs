@@ -14,7 +14,7 @@ public class OidcAuthenticationStrategy : IAuthenticationStrategy
     private readonly Dictionary<string, string> _config;
     private readonly ILogger<OidcAuthenticationStrategy> _logger;
 
-    public AuthenticationProvider Provider => AuthenticationProvider.OpenIdConnect;
+    public AuthenticationProvider Provider => AuthenticationProvider.External;
 
     public OidcAuthenticationStrategy(
         IServiceProvider services,
@@ -28,7 +28,7 @@ public class OidcAuthenticationStrategy : IAuthenticationStrategy
 
     public bool CanHandle(AuthenticationRequest request)
     {
-        return request.Provider == AuthenticationProvider.OpenIdConnect &&
+        return request.Provider == AuthenticationProvider.External &&
                !string.IsNullOrWhiteSpace(request.ExternalId);
     }
 
@@ -110,7 +110,7 @@ public class OidcAuthenticationStrategy : IAuthenticationStrategy
             SetProperty(user, "Username", request.Username ?? request.Email ?? request.ExternalId!);
             SetProperty(user, "Email", request.Email ?? string.Empty);
             SetProperty(user, "DisplayName", request.DisplayName ?? request.Username ?? "Unknown");
-            SetProperty(user, "Provider", AuthenticationProvider.OpenIdConnect);
+            SetProperty(user, "Provider", AuthenticationProvider.External);
             SetProperty(user, "IsAdmin", request.Groups.Contains(adminGroup));
             SetProperty(user, "IsEditor", request.Groups.Contains(editorGroup));
             SetProperty(user, "IsActive", true);

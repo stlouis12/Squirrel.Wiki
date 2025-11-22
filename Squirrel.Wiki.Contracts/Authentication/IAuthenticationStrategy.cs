@@ -27,7 +27,7 @@ public interface IAuthenticationStrategy
 public enum AuthenticationProvider
 {
     Local = 0,
-    OpenIdConnect = 1
+    External = 1  // External providers (OIDC, SAML, OAuth, etc.) via plugins
 }
 
 /// <summary>
