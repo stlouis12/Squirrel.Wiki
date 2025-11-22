@@ -220,10 +220,6 @@ builder.Services.AddScoped<IPluginService>(sp =>
 // Add health checks
 builder.Services.AddHealthChecks();
 
-// Add API documentation
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
 var app = builder.Build();
 
 // Initialize database (apply migrations and seed data)
@@ -313,8 +309,6 @@ app.UseRequestLocalization(new RequestLocalizationOptions
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-    app.UseSwagger();
-    app.UseSwaggerUI();
 }
 else
 {

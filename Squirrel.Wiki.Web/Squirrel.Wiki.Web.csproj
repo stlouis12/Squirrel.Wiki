@@ -9,7 +9,6 @@
   <ItemGroup>
     <!-- ASP.NET Core -->
     <PackageReference Include="DiffPlex" Version="1.9.0" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
     
     <!-- Entity Framework Core Design (for migrations) -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11">
@@ -24,9 +23,6 @@
     <!-- Data Protection -->
     <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="8.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.Extensions" Version="8.0.11" />
-    
-    <!-- API Documentation -->
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.3" />
     
     <!-- Observability -->
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.2" />
