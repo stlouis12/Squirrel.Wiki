@@ -4,82 +4,112 @@
 }
 
 <div class="wiki-page">
-    <div class="page-header mb-4">
-        <div class="d-flex justify-content-between align-items-start">
-            <div>
-                <h1 class="page-title">@Model.Title</h1>
-                @if (Model.CategoryPath.Any())
-                {
-                    <div class="page-category">
-                        <i class="bi bi-folder text-secondary"></i>
-                        @for (int i = 0; i < Model.CategoryPath.Count; i++)
-                        {
-                            var category = Model.CategoryPath[i];
-                            <a href="@Url.Action("Category", "Pages", new { id = category.Id })" 
-                               class="badge bg-secondary text-decoration-none" 
-                               title="@Localizer["ViewAllPagesIn"] @category.Name">@category.Name</a>
-                            @if (i < Model.CategoryPath.Count - 1)
+    @if (!Model.IsHomePage)
+    {
+        <div class="page-header mb-4">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h1 class="page-title">@Model.Title</h1>
+                    @if (Model.CategoryPath.Any())
+                    {
+                        <div class="page-category">
+                            <i class="bi bi-folder text-secondary"></i>
+                            @for (int i = 0; i < Model.CategoryPath.Count; i++)
                             {
-                                <span class="text-muted mx-1">\</span>
+                                var category = Model.CategoryPath[i];
+                                <a href="@Url.Action("Category", "Pages", new { id = category.Id })" 
+                                   class="badge bg-secondary text-decoration-none" 
+                                   title="@Localizer["ViewAllPagesIn"] @category.Name">@category.Name</a>
+                                @if (i < Model.CategoryPath.Count - 1)
+                                {
+                                    <span class="text-muted mx-1">\</span>
+                                }
                             }
+                        </div>
+                    }
+                </div>
+            
+                @if (Model.CanEdit || Model.CanDelete)
+                {
+                    <div class="page-actions">
+                        @if (Model.CanEdit)
+                        {
+                            <a href="@Url.Action("Edit", "Pages", new { id = Model.Id })" class="btn btn-primary">
+                                <i class="bi bi-pencil"></i> @Localizer["Edit"]
+                            </a>
                         }
+                        @if (Model.CanDelete)
+                        {
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                <i class="bi bi-trash"></i> @Localizer["Delete"]
+                            </button>
+                        }
+                        <a href="@Url.Action("History", "Pages", new { id = Model.Id })" class="btn btn-outline-secondary">
+                            <i class="bi bi-clock-history"></i> @Localizer["History"]
+                        </a>
                     </div>
                 }
             </div>
             
-            @if (Model.CanEdit || Model.CanDelete)
+            @if (Model.Tags.Any())
             {
-                <div class="page-actions">
-                    @if (Model.CanEdit)
+                <div class="page-tags mt-3">
+                    @foreach (var tag in Model.Tags)
                     {
-                        <a href="@Url.Action("Edit", "Pages", new { id = Model.Id })" class="btn btn-primary">
-                            <i class="bi bi-pencil"></i> @Localizer["Edit"]
+                        <a href="@Url.Action("Tag", "Pages", new { tagName = tag })" class="badge bg-info text-decoration-none me-1">
+                            <i class="bi bi-tag"></i> @tag
                         </a>
                     }
-                    @if (Model.CanDelete)
-                    {
-                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
-                            <i class="bi bi-trash"></i> @Localizer["Delete"]
-                        </button>
-                    }
-                    <a href="@Url.Action("History", "Pages", new { id = Model.Id })" class="btn btn-outline-secondary">
-                        <i class="bi bi-clock-history"></i> @Localizer["History"]
-                    </a>
                 </div>
             }
         </div>
-        
-        @if (Model.Tags.Any())
+    }
+    else
+    {
+        @* For home page, only show edit/delete actions if user has permissions *@
+        @if (Model.CanEdit || Model.CanDelete)
         {
-            <div class="page-tags mt-3">
-                @foreach (var tag in Model.Tags)
+            <div class="page-actions mb-3 text-end">
+                @if (Model.CanEdit)
                 {
-                    <a href="@Url.Action("Tag", "Pages", new { tagName = tag })" class="badge bg-info text-decoration-none me-1">
-                        <i class="bi bi-tag"></i> @tag
+                    <a href="@Url.Action("Edit", "Pages", new { id = Model.Id })" class="btn btn-sm btn-primary">
+                        <i class="bi bi-pencil"></i> @Localizer["Edit"]
                     </a>
                 }
+                @if (Model.CanDelete)
+                {
+                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                        <i class="bi bi-trash"></i> @Localizer["Delete"]
+                    </button>
+                }
+                <a href="@Url.Action("History", "Pages", new { id = Model.Id })" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-clock-history"></i> @Localizer["History"]
+                </a>
             </div>
         }
-    </div>
+    }
 
     <div class="page-content">
         @Html.Raw(Model.HtmlContent)
     </div>
 
-    <div class="page-footer mt-4 pt-3 border-top">
-        <div class="row">
-            <div class="col-md-6">
-                <small class="text-muted">
-                    <i class="bi bi-person"></i> @Localizer["CreatedByOn"] <strong>@Model.CreatedBy</strong> @Localizer["On"].ToString().ToLower() @Model.CreatedOn.ToString("MMMM dd, yyyy")
-                </small>
-            </div>
-            <div class="col-md-6 text-md-end">
-                <small class="text-muted">
-                    <i class="bi bi-clock"></i> @Localizer["LastModifiedByOn"] <strong>@Model.ModifiedBy</strong> @Localizer["On"].ToString().ToLower() @Model.ModifiedOn.ToString("MMMM dd, yyyy 'at' HH:mm")
-                </small>
+    @if (!Model.IsHomePage)
+    {
+        <div class="page-footer mt-4 pt-3 border-top">
+            <div class="row">
+                <div class="col-md-6">
+                    <small class="text-muted">
+                        <i class="bi bi-person"></i> @Localizer["CreatedByOn"] <strong>@Model.CreatedBy</strong> @Localizer["On"].ToString().ToLower() @Model.CreatedOn.ToString("MMMM dd, yyyy")
+                    </small>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <small class="text-muted">
+                        <i class="bi bi-clock"></i> @Localizer["LastModifiedByOn"] <strong>@Model.ModifiedBy</strong> @Localizer["On"].ToString().ToLower() @Model.ModifiedOn.ToString("MMMM dd, yyyy 'at' HH:mm")
+                    </small>
+                </div>
             </div>
         </div>
-    </div>
+    }
 </div>
 
 @if (Model.CanDelete)

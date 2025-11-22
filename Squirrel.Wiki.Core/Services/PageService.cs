@@ -155,6 +155,7 @@ public class PageService : IPageService
             Title = createDto.Title,
             Slug = slug,
             CategoryId = createDto.CategoryId,
+            Visibility = createDto.Visibility,
             IsLocked = createDto.IsLocked,
             IsDeleted = false,
             CreatedOn = DateTime.UtcNow,
@@ -205,6 +206,7 @@ public class PageService : IPageService
             ? await GenerateSlugAsync(updateDto.Title, id, cancellationToken)
             : updateDto.Slug;
         page.CategoryId = updateDto.CategoryId;
+        page.Visibility = updateDto.Visibility;
         page.IsLocked = updateDto.IsLocked;
         page.ModifiedOn = DateTime.UtcNow;
         page.ModifiedBy = username;
@@ -495,6 +497,7 @@ public class PageService : IPageService
             Content = dto.Content,
             Slug = dto.Slug,
             CategoryId = dto.CategoryId,
+            Visibility = dto.Visibility,
             Tags = dto.Tags,
             IsLocked = dto.IsLocked
         };
@@ -510,6 +513,7 @@ public class PageService : IPageService
             Content = dto.Content,
             Slug = dto.Slug,
             CategoryId = dto.CategoryId,
+            Visibility = dto.Visibility,
             Tags = dto.Tags,
             IsLocked = dto.IsLocked,
             ChangeComment = dto.ChangeComment
@@ -538,6 +542,7 @@ public class PageService : IPageService
             Title = page.Title,
             Slug = page.Slug,
             CategoryId = page.CategoryId,
+            Visibility = page.Visibility,
             IsLocked = page.IsLocked,
             IsDeleted = page.IsDeleted,
             CreatedOn = page.CreatedOn,

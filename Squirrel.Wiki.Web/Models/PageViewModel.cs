@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Squirrel.Wiki.Core.Database.Entities;
 
 namespace Squirrel.Wiki.Web.Models;
 
@@ -35,6 +36,9 @@ public class PageViewModel
     [Display(Name = "Lock page (admin only)")]
     public bool IsLocked { get; set; }
 
+    [Display(Name = "Visibility")]
+    public PageVisibility Visibility { get; set; } = PageVisibility.Inherit;
+
     public string CreatedBy { get; set; } = string.Empty;
 
     public DateTime CreatedOn { get; set; }
@@ -51,6 +55,7 @@ public class PageViewModel
     public bool CanEdit { get; set; }
     public bool CanDelete { get; set; }
     public bool IsNew => Id == 0;
+    public bool IsHomePage { get; set; }
 }
 
 /// <summary>

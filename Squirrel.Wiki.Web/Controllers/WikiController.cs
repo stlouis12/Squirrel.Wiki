@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Core.Models;
+using Squirrel.Wiki.Core.Security;
+using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Web.Models;
 
 namespace Squirrel.Wiki.Web.Controllers;
@@ -13,17 +15,23 @@ public class WikiController : Controller
     private readonly IPageService _pageService;
     private readonly IMarkdownService _markdownService;
     private readonly ICategoryService _categoryService;
+    private readonly IAuthorizationService _authorizationService;
+    private readonly IPageRepository _pageRepository;
     private readonly ILogger<WikiController> _logger;
 
     public WikiController(
         IPageService pageService,
         IMarkdownService markdownService,
         ICategoryService categoryService,
+        IAuthorizationService authorizationService,
+        IPageRepository pageRepository,
         ILogger<WikiController> logger)
     {
         _pageService = pageService;
         _markdownService = markdownService;
         _categoryService = categoryService;
+        _authorizationService = authorizationService;
+        _pageRepository = pageRepository;
         _logger = logger;
     }
 
@@ -35,8 +43,8 @@ public class WikiController : Controller
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The page view</returns>
     [HttpGet("/wiki/{id:int}/{slug?}")]
-    [ResponseCache(Duration = 300, VaryByQueryKeys = new[] { "id" })]
-    public async Task<IActionResult> Index(int id, string? slug, CancellationToken cancellationToken)
+    [ResponseCache(Duration = 300, VaryByQueryKeys = new[] { "id" }, VaryByHeader = "Cookie")]
+    public async Task<IActionResult> Index(int id, string? slug, bool isHomePage = false, CancellationToken cancellationToken = default)
     {
         if (id < 1)
         {
@@ -51,6 +59,23 @@ public class WikiController : Controller
             {
                 _logger.LogWarning("Page with ID {PageId} not found", id);
                 return NotFound($"The page with ID {id} could not be found");
+            }
+
+            // Check authorization to view this page
+            var pageEntity = await _pageRepository.GetByIdAsync(id, cancellationToken);
+            if (pageEntity == null || !await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
+            {
+                _logger.LogWarning("User {User} denied access to page {PageId}", 
+                    User.Identity?.Name ?? "Anonymous", id);
+                
+                if (!_authorizationService.IsAuthenticated())
+                {
+                    // Redirect to login if not authenticated
+                    return RedirectToAction("Login", "Account", new { returnUrl = Request.Path });
+                }
+                
+                // Return 403 Forbidden if authenticated but not authorized
+                return StatusCode(403, "You do not have permission to view this page");
             }
 
             // Get the latest content
@@ -75,6 +100,10 @@ public class WikiController : Controller
                 },
                 cancellationToken);
 
+            // Check edit and delete permissions for this specific page
+            var username = User.Identity?.Name;
+            var userRole = User.IsInRole("Admin") ? "Admin" : User.IsInRole("Editor") ? "Editor" : User.IsInRole("Viewer") ? "Viewer" : null;
+            
             // Map to view model
             var viewModel = new PageViewModel
             {
@@ -89,8 +118,9 @@ public class WikiController : Controller
                 CreatedOn = pageDto.CreatedOn,
                 ModifiedBy = pageDto.ModifiedBy,
                 ModifiedOn = pageDto.ModifiedOn,
-                CanEdit = true, // TODO: Check user permissions
-                CanDelete = false // TODO: Check user permissions (admin only)
+                CanEdit = await _authorizationService.CanEditPageAsync(pageDto, username, userRole),
+                CanDelete = await _authorizationService.CanDeletePageAsync(pageDto, userRole),
+                IsHomePage = isHomePage
             };
 
             // Get tags

@@ -1,3 +1,5 @@
+using Squirrel.Wiki.Core.Database.Entities;
+
 namespace Squirrel.Wiki.Core.Models;
 
 /// <summary>
@@ -16,6 +18,7 @@ public class PageDto
     public int Version { get; set; }
     public bool IsLocked { get; set; }
     public bool IsDeleted { get; set; }
+    public PageVisibility Visibility { get; set; } = PageVisibility.Inherit;
     public DateTime CreatedOn { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
     public DateTime ModifiedOn { get; set; }
@@ -30,6 +33,7 @@ public class PageCreateDto
     public string Title { get; set; } = string.Empty;
     public string? Slug { get; set; }
     public int? CategoryId { get; set; }
+    public PageVisibility Visibility { get; set; } = PageVisibility.Inherit;
     public List<string> Tags { get; set; } = new();
     public string Content { get; set; } = string.Empty;
     public bool IsLocked { get; set; }
@@ -43,6 +47,7 @@ public class PageUpdateDto
     public string Title { get; set; } = string.Empty;
     public string? Slug { get; set; }
     public int? CategoryId { get; set; }
+    public PageVisibility Visibility { get; set; } = PageVisibility.Inherit;
     public List<string> Tags { get; set; } = new();
     public string Content { get; set; } = string.Empty;
     public bool IsLocked { get; set; }

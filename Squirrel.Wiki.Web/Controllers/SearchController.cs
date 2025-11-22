@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Core.Security;
+using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Web.Models;
 
 namespace Squirrel.Wiki.Web.Controllers;
@@ -10,13 +12,19 @@ namespace Squirrel.Wiki.Web.Controllers;
 public class SearchController : Controller
 {
     private readonly ISearchService _searchService;
+    private readonly Squirrel.Wiki.Core.Security.IAuthorizationService _authorizationService;
+    private readonly IPageRepository _pageRepository;
     private readonly ILogger<SearchController> _logger;
 
     public SearchController(
         ISearchService searchService,
+        Squirrel.Wiki.Core.Security.IAuthorizationService authorizationService,
+        IPageRepository pageRepository,
         ILogger<SearchController> logger)
     {
         _searchService = searchService;
+        _authorizationService = authorizationService;
+        _pageRepository = pageRepository;
         _logger = logger;
     }
 
@@ -56,23 +64,34 @@ public class SearchController : Controller
             _logger.LogInformation("Search completed - Query: '{Query}', Results: {ResultCount}, Total: {TotalResults}", 
                 q, results.Results.Count(), results.TotalResults);
             
+            // Filter results based on authorization
+            var authorizedResults = new List<SearchResultItemViewModel>();
+            foreach (var result in results.Results)
+            {
+                var pageEntity = await _pageRepository.GetByIdAsync(result.PageId, cancellationToken);
+                if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
+                {
+                    authorizedResults.Add(new SearchResultItemViewModel
+                    {
+                        PageId = result.PageId,
+                        Title = result.Title,
+                        Slug = result.Slug ?? string.Empty,
+                        Excerpt = result.Excerpt ?? string.Empty,
+                        ModifiedBy = result.ModifiedBy ?? string.Empty,
+                        ModifiedOn = result.ModifiedOn,
+                        Score = result.Score
+                    });
+                }
+            }
+            
             var viewModel = new SearchResultsViewModel
             {
                 Query = q,
                 Page = page,
                 PageSize = pageSize,
-                TotalResults = results.TotalResults,
-                TotalPages = (int)Math.Ceiling((double)results.TotalResults / pageSize),
-                Results = results.Results.Select(r => new SearchResultItemViewModel
-                {
-                    PageId = r.PageId,
-                    Title = r.Title,
-                    Slug = r.Slug ?? string.Empty,
-                    Excerpt = r.Excerpt ?? string.Empty,
-                    ModifiedBy = r.ModifiedBy ?? string.Empty,
-                    ModifiedOn = r.ModifiedOn,
-                    Score = r.Score
-                }).ToList()
+                TotalResults = authorizedResults.Count, // Use filtered count
+                TotalPages = (int)Math.Ceiling((double)authorizedResults.Count / pageSize),
+                Results = authorizedResults
             };
 
             return View(viewModel);
@@ -111,15 +130,24 @@ public class SearchController : Controller
         {
             var results = await _searchService.SearchAsync(q, 1, limit, cancellationToken);
             
-            var suggestions = results.Results.Select(r => new
+            // Filter results based on authorization
+            var authorizedSuggestions = new List<object>();
+            foreach (var result in results.Results)
             {
-                id = r.PageId,
-                title = r.Title,
-                slug = r.Slug,
-                excerpt = TruncateExcerpt(r.Excerpt, 100)
-            }).ToList();
+                var pageEntity = await _pageRepository.GetByIdAsync(result.PageId, cancellationToken);
+                if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
+                {
+                    authorizedSuggestions.Add(new
+                    {
+                        id = result.PageId,
+                        title = result.Title,
+                        slug = result.Slug,
+                        excerpt = TruncateExcerpt(result.Excerpt, 100)
+                    });
+                }
+            }
 
-            return Json(suggestions);
+            return Json(authorizedSuggestions);
         }
         catch (Exception ex)
         {
@@ -133,7 +161,7 @@ public class SearchController : Controller
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    // TODO: Add [Authorize(Policy = "RequireAdmin")] when authentication is implemented
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
     public async Task<IActionResult> RebuildIndex(CancellationToken cancellationToken)
     {
         try

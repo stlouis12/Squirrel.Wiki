@@ -25,6 +25,14 @@ public class Page
     
     public bool IsDeleted { get; set; }
     
+    /// <summary>
+    /// Visibility setting for this page. 
+    /// Public = visible to anonymous users even if global anonymous reading is disabled
+    /// Private = requires authentication even if global anonymous reading is enabled
+    /// Inherit = follows the global AllowAnonymousReading setting (default)
+    /// </summary>
+    public PageVisibility Visibility { get; set; } = PageVisibility.Inherit;
+    
     // Navigation properties
     public Category? Category { get; set; }
     

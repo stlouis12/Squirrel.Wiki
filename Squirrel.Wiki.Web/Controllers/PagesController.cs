@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Core.Models;
+using Squirrel.Wiki.Core.Security;
+using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Web.Models;
 using DiffPlex;
 using DiffPlex.DiffBuilder;
@@ -19,6 +21,8 @@ public class PagesController : Controller
     private readonly ICategoryService _categoryService;
     private readonly IMarkdownService _markdownService;
     private readonly ISearchService _searchService;
+    private readonly Squirrel.Wiki.Core.Security.IAuthorizationService _authorizationService;
+    private readonly IPageRepository _pageRepository;
     private readonly ILogger<PagesController> _logger;
 
     public PagesController(
@@ -27,6 +31,8 @@ public class PagesController : Controller
         ICategoryService categoryService,
         IMarkdownService markdownService,
         ISearchService searchService,
+        Squirrel.Wiki.Core.Security.IAuthorizationService authorizationService,
+        IPageRepository pageRepository,
         ILogger<PagesController> logger)
     {
         _pageService = pageService;
@@ -34,28 +40,102 @@ public class PagesController : Controller
         _categoryService = categoryService;
         _markdownService = markdownService;
         _searchService = searchService;
+        _authorizationService = authorizationService;
+        _pageRepository = pageRepository;
         _logger = logger;
     }
 
     /// <summary>
-    /// Displays a list of all pages
+    /// Displays a list of all pages, optionally filtered by recent updates, tag, user, or category
     /// </summary>
+    /// <param name="recent">If specified, shows only the N most recently updated pages</param>
+    /// <param name="tag">If specified, filters pages by tag</param>
+    /// <param name="user">If specified, filters pages by author</param>
+    /// <param name="categoryId">If specified, filters pages by category ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     [HttpGet]
-    [ResponseCache(Duration = 300)]
-    public async Task<IActionResult> AllPages(CancellationToken cancellationToken)
+    [ResponseCache(Duration = 300, VaryByQueryKeys = new[] { "recent", "tag", "user", "categoryId" })]
+    public async Task<IActionResult> AllPages(int? recent, string? tag, string? user, int? categoryId, CancellationToken cancellationToken)
     {
         try
         {
-            var pages = await _pageService.GetAllPagesAsync(cancellationToken);
+            IEnumerable<PageDto> allPages;
+            string? filterBy = null;
+            string? filterValue = null;
+            
+            // Determine which filter to apply
+            if (!string.IsNullOrEmpty(tag))
+            {
+                // Filter by tag
+                tag = Uri.UnescapeDataString(tag);
+                allPages = await _pageService.GetPagesByTagAsync(tag, cancellationToken);
+                filterBy = "Tag";
+                filterValue = tag;
+            }
+            else if (!string.IsNullOrEmpty(user))
+            {
+                // Filter by user
+                user = Uri.UnescapeDataString(user);
+                allPages = await _pageService.GetPagesByAuthorAsync(user, cancellationToken);
+                filterBy = "User";
+                filterValue = user;
+            }
+            else if (categoryId.HasValue)
+            {
+                // Filter by category
+                allPages = await _pageService.GetByCategoryAsync(categoryId.Value, cancellationToken);
+                var allCategories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
+                var category = allCategories.FirstOrDefault(c => c.Id == categoryId.Value);
+                filterBy = "Category";
+                filterValue = category?.Name ?? $"ID {categoryId.Value}";
+            }
+            else
+            {
+                // No filter - get all pages
+                allPages = await _pageService.GetAllPagesAsync(cancellationToken);
+            }
+            
             var categories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
             var categoryDict = categories.ToDictionary(c => c.Id, c => c.Name);
             
+            // Filter pages based on authorization
+            var authorizedPages = new List<PageDto>();
+            foreach (var page in allPages)
+            {
+                var pageEntity = await _pageRepository.GetByIdAsync(page.Id, cancellationToken);
+                if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
+                {
+                    authorizedPages.Add(page);
+                }
+            }
+            
+            // Apply recent filter if specified (can be combined with other filters)
+            IEnumerable<PageDto> filteredPages = authorizedPages;
+            if (recent.HasValue && recent.Value > 0)
+            {
+                filteredPages = authorizedPages
+                    .OrderByDescending(p => p.ModifiedOn)
+                    .Take(recent.Value);
+                
+                // Update filter display
+                if (filterBy != null)
+                {
+                    filterBy = $"{filterBy} (Recently Updated)";
+                    filterValue = $"{filterValue} - Last {recent.Value} updates";
+                }
+                else
+                {
+                    filterBy = "Recently Updated";
+                    filterValue = $"Last {recent.Value} updates";
+                }
+            }
+            
             var pageSummaries = new List<PageSummaryViewModel>();
             
-            foreach (var page in pages)
+            foreach (var page in filteredPages)
             {
                 // Get tags for this page
-                var tags = await _pageService.GetPageTagsAsync(page.Id, cancellationToken);
+                var pageTags = await _pageService.GetPageTagsAsync(page.Id, cancellationToken);
                 
                 var summary = new PageSummaryViewModel
                 {
@@ -65,7 +145,7 @@ public class PagesController : Controller
                     CategoryName = page.CategoryId.HasValue && categoryDict.ContainsKey(page.CategoryId.Value) 
                         ? categoryDict[page.CategoryId.Value] 
                         : null,
-                    Tags = tags.Select(t => t.Name).ToList(),
+                    Tags = pageTags.Select(t => t.Name).ToList(),
                     CreatedBy = page.CreatedBy,
                     CreatedOn = page.CreatedOn,
                     ModifiedBy = page.ModifiedBy,
@@ -78,6 +158,8 @@ public class PagesController : Controller
             
             var viewModel = new PageListViewModel
             {
+                FilterBy = filterBy,
+                FilterValue = filterValue,
                 Pages = pageSummaries
             };
 
@@ -91,7 +173,7 @@ public class PagesController : Controller
     }
 
     /// <summary>
-    /// Displays all tags with page counts
+    /// Displays all tags with page counts (filtered by authorization)
     /// </summary>
     [HttpGet]
     [ResponseCache(Duration = 300)]
@@ -99,24 +181,40 @@ public class PagesController : Controller
     {
         try
         {
-            var tagsWithCounts = await _tagService.GetAllWithCountsAsync(cancellationToken);
+            // Get all tags
+            var allTags = await _tagService.GetAllTagsAsync(cancellationToken);
             
-            // Filter to only show tags that have at least one page
-            // Group by normalized name to handle any duplicate tags in the database
-            var viewModel = tagsWithCounts
-                .Where(t => t.PageCount > 0) // Only show tags with pages
-                .GroupBy(t => t.Name.ToLowerInvariant())
-                .Select(g => g.First()) // Take the first tag from each group
-                .Select(t => new TagViewModel
+            var tagViewModels = new List<TagViewModel>();
+            
+            // For each tag, count only the pages the user can see
+            foreach (var tag in allTags.OrderBy(t => t.Name))
+            {
+                var tagPages = await _pageService.GetPagesByTagAsync(tag.Name, cancellationToken);
+                
+                // Filter pages based on authorization
+                var authorizedCount = 0;
+                foreach (var page in tagPages)
                 {
-                    Id = t.Id,
-                    Name = t.Name,
-                    PageCount = t.PageCount
-                })
-                .OrderBy(t => t.Name)
-                .ToList();
+                    var pageEntity = await _pageRepository.GetByIdAsync(page.Id, cancellationToken);
+                    if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
+                    {
+                        authorizedCount++;
+                    }
+                }
+                
+                // Only include tags that have at least one visible page
+                if (authorizedCount > 0)
+                {
+                    tagViewModels.Add(new TagViewModel
+                    {
+                        Id = tag.Id,
+                        Name = tag.Name,
+                        PageCount = authorizedCount
+                    });
+                }
+            }
 
-            return View(viewModel);
+            return View(tagViewModels);
         }
         catch (Exception ex)
         {
@@ -163,11 +261,14 @@ public class PagesController : Controller
             
             var pages = await _pageService.GetPagesByAuthorAsync(username, cancellationToken);
             
+            // Filter pages based on authorization
+            var authorizedPages = await FilterAuthorizedPagesAsync(pages, cancellationToken);
+            
             var viewModel = new PageListViewModel
             {
                 FilterBy = "User",
                 FilterValue = username,
-                Pages = pages.Select(p => new PageSummaryViewModel
+                Pages = authorizedPages.Select(p => new PageSummaryViewModel
                 {
                     Id = p.Id,
                     Title = p.Title,
@@ -191,113 +292,22 @@ public class PagesController : Controller
     }
 
     /// <summary>
-    /// Displays all pages in a specific category, or shows hierarchical category browser if no parameters
+    /// Displays hierarchical category browser
+    /// Note: To view pages in a category, use AllPages action with categoryId parameter
     /// </summary>
     [HttpGet]
-    public async Task<IActionResult> Category(int? id, string? categoryName, CancellationToken cancellationToken)
+    [ResponseCache(Duration = 300, VaryByHeader = "Cookie")]
+    public async Task<IActionResult> Category(CancellationToken cancellationToken)
     {
         try
         {
-            var categories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
-            
-            // If no parameters provided, show hierarchical category browser
-            if (!id.HasValue && string.IsNullOrEmpty(categoryName))
-            {
-                var categoryTree = await _categoryService.GetCategoryTreeAsync(cancellationToken);
-                return View("CategoryBrowser", categoryTree);
-            }
-            
-            CategoryDto? category = null;
-            
-            // Prefer ID lookup if provided
-            if (id.HasValue)
-            {
-                category = categories.FirstOrDefault(c => c.Id == id.Value);
-            }
-            // Fall back to name lookup
-            else if (!string.IsNullOrEmpty(categoryName))
-            {
-                categoryName = Uri.UnescapeDataString(categoryName);
-                category = categories.FirstOrDefault(c => 
-                    c.Name.Equals(categoryName, StringComparison.OrdinalIgnoreCase) ||
-                    c.Slug.Equals(categoryName, StringComparison.OrdinalIgnoreCase));
-            }
-            
-            if (category == null)
-            {
-                var identifier = id.HasValue ? $"ID {id.Value}" : $"'{categoryName}'";
-                return NotFound($"Category {identifier} not found");
-            }
-            
-            var pages = await _pageService.GetByCategoryAsync(category.Id, cancellationToken);
-            
-            var viewModel = new PageListViewModel
-            {
-                FilterBy = "Category",
-                FilterValue = category.Name,
-                Pages = pages.Select(p => new PageSummaryViewModel
-                {
-                    Id = p.Id,
-                    Title = p.Title,
-                    Slug = p.Slug,
-                    CreatedBy = p.CreatedBy,
-                    CreatedOn = p.CreatedOn,
-                    ModifiedBy = p.ModifiedBy,
-                    ModifiedOn = p.ModifiedOn,
-                    IsLocked = p.IsLocked
-                }).ToList()
-            };
-
-            ViewData["CategoryName"] = category.Name;
-            return View(viewModel);
+            var categoryTree = await _categoryService.GetCategoryTreeAsync(cancellationToken);
+            return View("CategoryBrowser", categoryTree);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error loading pages by category {CategoryId}/{CategoryName}", id, categoryName);
-            return StatusCode(500, "An error occurred while loading pages");
-        }
-    }
-
-    /// <summary>
-    /// Displays all pages with a specific tag
-    /// </summary>
-    [HttpGet]
-    public async Task<IActionResult> Tag(string tagName, CancellationToken cancellationToken)
-    {
-        try
-        {
-            if (string.IsNullOrEmpty(tagName))
-            {
-                return BadRequest("Tag name is required");
-            }
-            
-            tagName = Uri.UnescapeDataString(tagName);
-            var pages = await _pageService.GetPagesByTagAsync(tagName, cancellationToken);
-            
-            var viewModel = new PageListViewModel
-            {
-                FilterBy = "Tag",
-                FilterValue = tagName,
-                Pages = pages.Select(p => new PageSummaryViewModel
-                {
-                    Id = p.Id,
-                    Title = p.Title,
-                    Slug = p.Slug,
-                    CreatedBy = p.CreatedBy,
-                    CreatedOn = p.CreatedOn,
-                    ModifiedBy = p.ModifiedBy,
-                    ModifiedOn = p.ModifiedOn,
-                    IsLocked = p.IsLocked
-                }).ToList()
-            };
-
-            ViewData["Tagname"] = tagName;
-            return View(viewModel);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading pages by tag {Tag}", tagName);
-            return StatusCode(500, "An error occurred while loading pages");
+            _logger.LogError(ex, "Error loading category browser");
+            return StatusCode(500, "An error occurred while loading categories");
         }
     }
 
@@ -365,6 +375,8 @@ public class PagesController : Controller
                 Title = model.Title,
                 Content = model.Content,
                 CategoryId = model.CategoryId,
+                Visibility = model.Visibility,
+                IsLocked = model.IsLocked,
                 Tags = string.IsNullOrWhiteSpace(model.RawTags) 
                     ? new List<string>() 
                     : model.RawTags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
@@ -442,6 +454,7 @@ public class PagesController : Controller
                 CategoryId = page.CategoryId,
                 CategoryName = categoryFullPath,
                 IsLocked = page.IsLocked,
+                Visibility = page.Visibility,
                 RawTags = string.Join(", ", tags.Select(t => t.Name)),
                 Tags = tags.Select(t => t.Name).ToList(),
                 CreatedBy = page.CreatedBy,
@@ -491,6 +504,8 @@ public class PagesController : Controller
                 Title = model.Title,
                 Content = model.Content,
                 CategoryId = model.CategoryId,
+                Visibility = model.Visibility,
+                IsLocked = model.IsLocked,
                 Tags = string.IsNullOrWhiteSpace(model.RawTags) 
                     ? new List<string>() 
                     : model.RawTags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
@@ -570,66 +585,6 @@ public class PagesController : Controller
         {
             _logger.LogError(ex, "Error generating preview");
             return Content("<p>Error generating preview</p>", "text/html");
-        }
-    }
-
-    /// <summary>
-    /// Displays recently updated pages
-    /// </summary>
-    [HttpGet]
-    [ResponseCache(Duration = 60)]
-    public async Task<IActionResult> RecentlyUpdated(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var pages = await _pageService.GetAllPagesAsync(cancellationToken);
-            var categories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
-            var categoryDict = categories.ToDictionary(c => c.Id, c => c.Name);
-            
-            var recentPages = pages
-                .OrderByDescending(p => p.ModifiedOn)
-                .Take(10)
-                .ToList();
-            
-            var pageSummaries = new List<PageSummaryViewModel>();
-            
-            foreach (var page in recentPages)
-            {
-                // Get tags for this page
-                var tags = await _pageService.GetPageTagsAsync(page.Id, cancellationToken);
-                
-                var summary = new PageSummaryViewModel
-                {
-                    Id = page.Id,
-                    Title = page.Title,
-                    Slug = page.Slug,
-                    CategoryName = page.CategoryId.HasValue && categoryDict.ContainsKey(page.CategoryId.Value) 
-                        ? categoryDict[page.CategoryId.Value] 
-                        : null,
-                    Tags = tags.Select(t => t.Name).ToList(),
-                    CreatedBy = page.CreatedBy,
-                    CreatedOn = page.CreatedOn,
-                    ModifiedBy = page.ModifiedBy,
-                    ModifiedOn = page.ModifiedOn,
-                    IsLocked = page.IsLocked
-                };
-                
-                pageSummaries.Add(summary);
-            }
-            
-            var viewModel = new PageListViewModel
-            {
-                FilterBy = "Recently Updated",
-                FilterValue = "Last 10 updates",
-                Pages = pageSummaries
-            };
-
-            return View("AllPages", viewModel);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading recently updated pages");
-            return StatusCode(500, "An error occurred while loading pages");
         }
     }
 
@@ -811,6 +766,25 @@ public class PagesController : Controller
             TempData["Error"] = $"An error occurred while reverting the page: {ex.Message}";
             return RedirectToAction(nameof(History), new { id });
         }
+    }
+
+    /// <summary>
+    /// Filters a list of pages to only include those the current user is authorized to view
+    /// </summary>
+    private async Task<List<PageDto>> FilterAuthorizedPagesAsync(IEnumerable<PageDto> pages, CancellationToken cancellationToken)
+    {
+        var authorizedPages = new List<PageDto>();
+        
+        foreach (var page in pages)
+        {
+            var pageEntity = await _pageRepository.GetByIdAsync(page.Id, cancellationToken);
+            if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
+            {
+                authorizedPages.Add(page);
+            }
+        }
+        
+        return authorizedPages;
     }
 
     /// <summary>

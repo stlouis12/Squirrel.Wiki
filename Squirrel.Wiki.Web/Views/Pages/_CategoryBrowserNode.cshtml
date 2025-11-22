@@ -6,7 +6,7 @@
             <div class="flex-grow-1">
                 <div>
                     <i class="bi bi-folder-fill text-primary"></i>
-                    <a href="@Url.Action("Category", "Pages", new { id = Model.Id })">
+                    <a href="@Url.Action("AllPages", "Pages", new { categoryId = Model.Id })">
                         <strong>@Model.Name</strong>
                     </a>
                     <span class="badge bg-secondary page-count-badge ms-2">

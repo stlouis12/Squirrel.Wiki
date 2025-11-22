@@ -120,24 +120,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddAuthorization(options =>
 {
-    // In development, allow all authenticated users (or even anonymous) to act as editors
-    // In production, require actual roles
-    if (builder.Environment.IsDevelopment())
-    {
-        options.AddPolicy("RequireAdmin", policy => 
-            policy.RequireAssertion(context => true)); // Allow all in dev
-        
-        options.AddPolicy("RequireEditor", policy =>
-            policy.RequireAssertion(context => true)); // Allow all in dev
-    }
-    else
-    {
-        options.AddPolicy("RequireAdmin", policy => 
-            policy.RequireRole("Admin"));
-        
-        options.AddPolicy("RequireEditor", policy =>
-            policy.RequireRole("Editor", "Admin"));
-    }
+    // Require actual roles for both development and production
+    options.AddPolicy("RequireAdmin", policy => 
+        policy.RequireRole("Admin"));
+    
+    options.AddPolicy("RequireEditor", policy =>
+        policy.RequireRole("Editor", "Admin"));
 });
 
 // Add HttpContextAccessor for UserContext
@@ -184,6 +172,7 @@ builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<IMenuService, MenuService>();
 builder.Services.AddScoped<ISearchService, LuceneSearchService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
+builder.Services.AddScoped<IUrlTokenResolver, UrlTokenResolver>();
 builder.Services.AddScoped<FooterMarkupParser>();
 
 // Register Authentication Services
@@ -196,6 +185,7 @@ builder.Services.AddScoped<Squirrel.Wiki.Contracts.Authentication.IAuthenticatio
 
 // Register Security Services
 builder.Services.AddSingleton<ISecretEncryptionService, SecretEncryptionService>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Security.IAuthorizationService, Squirrel.Wiki.Core.Security.AuthorizationService>();
 
 // Register Plugin Services
 // Use AppContext.BaseDirectory to get the actual running directory (bin/Debug/net8.0 or bin/Release/net8.0)

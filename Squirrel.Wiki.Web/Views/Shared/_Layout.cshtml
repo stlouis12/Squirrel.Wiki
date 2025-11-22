@@ -51,39 +51,45 @@
                                             <i class="bi bi-person"></i> @Localizer["Profile"]
                                         </a>
                                     </li>
-                                    @if (User.IsInRole("Admin"))
+                                    @if (User.IsInRole("Admin") || User.IsInRole("Editor"))
                                     {
                                         <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <a class="dropdown-item" asp-controller="Admin" asp-action="Index">
-                                                <i class="bi bi-speedometer2"></i> @Localizer["Dashboard"]
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" asp-controller="Settings" asp-action="Index">
-                                                <i class="bi bi-sliders"></i> @Localizer["Settings"]
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" asp-controller="Menus" asp-action="Index">
-                                                <i class="bi bi-menu-button-wide"></i> @Localizer["Menus"]
-                                            </a>
-                                        </li>
+                                        @if (User.IsInRole("Admin"))
+                                        {
+                                            <li>
+                                                <a class="dropdown-item" asp-controller="Admin" asp-action="Index">
+                                                    <i class="bi bi-speedometer2"></i> @Localizer["Dashboard"]
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" asp-controller="Settings" asp-action="Index">
+                                                    <i class="bi bi-sliders"></i> @Localizer["Settings"]
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" asp-controller="Menus" asp-action="Index">
+                                                    <i class="bi bi-menu-button-wide"></i> @Localizer["Menus"]
+                                                </a>
+                                            </li>
+                                        }
                                         <li>
                                             <a class="dropdown-item" asp-controller="Categories" asp-action="Index">
                                                 <i class="bi bi-folder-fill"></i> @Localizer["Categories"]
                                             </a>
                                         </li>
-                                        <li>
-                                            <a class="dropdown-item" asp-controller="Users" asp-action="Index">
-                                                <i class="bi bi-people"></i> @Localizer["Users"]
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" asp-controller="Plugins" asp-action="Index">
-                                                <i class="bi bi-plug"></i> Plugins
-                                            </a>
-                                        </li>
+                                        @if (User.IsInRole("Admin"))
+                                        {
+                                            <li>
+                                                <a class="dropdown-item" asp-controller="Users" asp-action="Index">
+                                                    <i class="bi bi-people"></i> @Localizer["Users"]
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" asp-controller="Plugins" asp-action="Index">
+                                                    <i class="bi bi-plug"></i> Plugins
+                                                </a>
+                                            </li>
+                                        }
                                     }
                                     <li><hr class="dropdown-divider"></li>
                                     <li>

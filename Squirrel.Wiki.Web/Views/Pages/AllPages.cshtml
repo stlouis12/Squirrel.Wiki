@@ -14,9 +14,32 @@
                 </small>
             }
         </h1>
-        <a href="@Url.Action("New", "Pages")" class="btn btn-success">
-            <i class="bi bi-plus-circle"></i> @Localizer["NewPage"]
-        </a>
+        <div class="btn-group" role="group">
+            @if (!string.IsNullOrEmpty(Model.FilterBy))
+            {
+                <a href="@Url.Action("AllPages", "Pages")" class="btn btn-outline-secondary">
+                    <i class="bi bi-list"></i> View All Pages
+                </a>
+                @if (Model.FilterBy.Contains("Tag"))
+                {
+                    <a href="@Url.Action("AllTags", "Pages")" class="btn btn-outline-info">
+                        <i class="bi bi-tags"></i> View All Tags
+                    </a>
+                }
+                @if (Model.FilterBy.Contains("Category"))
+                {
+                    <a href="@Url.Action("Category", "Pages")" class="btn btn-outline-primary">
+                        <i class="bi bi-folder-fill"></i> View All Categories
+                    </a>
+                }
+            }
+            @if (User.IsInRole("Admin") || User.IsInRole("Editor"))
+            {
+                <a href="@Url.Action("New", "Pages")" class="btn btn-success">
+                    <i class="bi bi-plus-circle"></i> @Localizer["NewPage"]
+                </a>
+            }
+        </div>
     </div>
 
     @if (Model.Pages.Any())
@@ -61,7 +84,7 @@
                                 {
                                     @foreach (var tag in pageItem.Tags)
                                     {
-                                        <a href="@Url.Action("Tag", "Pages", new { tagName = tag })" class="badge bg-info text-decoration-none me-1">
+                                        <a href="@Url.Action("AllPages", "Pages", new { tag = tag })" class="badge bg-info text-decoration-none me-1">
                                             @tag
                                         </a>
                                     }
@@ -87,15 +110,18 @@
                                        class="btn btn-outline-primary" title="@Localizer["View"]">
                                         <i class="bi bi-eye"></i>
                                     </a>
-                                    <a href="@Url.Action("Edit", "Pages", new { id = pageItem.Id })" 
-                                       class="btn btn-outline-secondary" title="@Localizer["Edit"]">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
+                                    @if (User.IsInRole("Admin") || (User.IsInRole("Editor") && !pageItem.IsLocked))
+                                    {
+                                        <a href="@Url.Action("Edit", "Pages", new { id = pageItem.Id })" 
+                                           class="btn btn-outline-secondary" title="@Localizer["Edit"]">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    }
                                     <a href="@Url.Action("History", "Pages", new { id = pageItem.Id })" 
                                        class="btn btn-outline-info" title="@Localizer["History"]">
                                         <i class="bi bi-clock-history"></i>
                                     </a>
-                                    @if (User.IsInRole("Admin"))
+                                    @if (User.IsInRole("Admin") || (User.IsInRole("Editor") && !pageItem.IsLocked))
                                     {
                                         <button type="button" class="btn btn-outline-danger" title="@Localizer["Delete"]" 
                                                 onclick="confirmDelete(@pageItem.Id, '@pageItem.Title')">

@@ -28,7 +28,7 @@
                     @foreach (var tag in Model.OrderBy(t => t.Name))
                     {
                         var fontSize = Math.Min(2.5, 1 + (tag.PageCount / 10.0));
-                        <a href="@Url.Action("Tag", "Pages", new { tagName = tag.Name })" 
+                        <a href="@Url.Action("AllPages", "Pages", new { tag = tag.Name })" 
                            class="tag-cloud-item me-2 mb-2 d-inline-block"
                            style="font-size: @(fontSize)rem;"
                            title="@tag.PageCount @(tag.PageCount != 1 ? Localizer["Pages"] : Localizer["Page"])">
@@ -59,7 +59,7 @@
                             {
                                 <tr>
                                     <td>
-                                        <a href="@Url.Action("Tag", "Pages", new { tagName = tag.Name })" class="fw-bold">
+                                        <a href="@Url.Action("AllPages", "Pages", new { tag = tag.Name })" class="fw-bold">
                                             <i class="bi bi-tag"></i> @tag.Name
                                         </a>
                                     </td>
@@ -67,7 +67,7 @@
                                         <span class="badge bg-primary">@tag.PageCount</span>
                                     </td>
                                     <td class="text-center">
-                                        <a href="@Url.Action("Tag", "Pages", new { tagName = tag.Name })" 
+                                        <a href="@Url.Action("AllPages", "Pages", new { tag = tag.Name })" 
                                            class="btn btn-sm btn-outline-primary">
                                             <i class="bi bi-eye"></i> @Localizer["ViewPages"]
                                         </a>

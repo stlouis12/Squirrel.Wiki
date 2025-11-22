@@ -25,9 +25,9 @@ public class HomeController : Controller
             
             if (homePage != null)
             {
-                // Redirect to the custom Home wiki page
+                // Redirect to the custom Home wiki page with a flag to hide title/metadata
                 _logger.LogInformation("Redirecting to custom Home page (ID: {PageId})", homePage.Id);
-                return RedirectToAction("Index", "Wiki", new { id = homePage.Id, slug = homePage.Slug });
+                return RedirectToAction("Index", "Wiki", new { id = homePage.Id, slug = homePage.Slug, isHomePage = true });
             }
         }
         catch (Exception ex)

@@ -163,21 +163,15 @@ public class UsersController : Controller
                 return View(model);
             }
 
-            // Ensure at least one role is selected
-            if (model.Roles == null || !model.Roles.Any())
-            {
-                ModelState.AddModelError(nameof(model.Roles), "At least one role must be selected.");
-                return View(model);
-            }
-
             // Create user
+            // If no roles are selected, user will be a Viewer (read-only)
             var user = await _userService.CreateLocalUserAsync(
                 username: model.Username,
                 email: model.Email,
                 password: model.Password!,
                 displayName: model.DisplayName,
-                isAdmin: model.Roles.Contains("Admin"),
-                isEditor: model.Roles.Contains("Editor") || model.Roles.Contains("Admin")
+                isAdmin: model.Roles?.Contains("Admin") ?? false,
+                isEditor: (model.Roles?.Contains("Editor") ?? false) || (model.Roles?.Contains("Admin") ?? false)
             );
 
             // Set additional properties
@@ -262,22 +256,16 @@ public class UsersController : Controller
                 return RedirectToAction(nameof(Index));
             }
 
-            // Ensure at least one role is selected
-            if (model.Roles == null || !model.Roles.Any())
-            {
-                ModelState.AddModelError(nameof(model.Roles), "At least one role must be selected.");
-                return View(model);
-            }
-
             // Update user via DTO
+            // If no roles are selected, user will be a Viewer (read-only)
             var updateDto = new UserUpdateDto
             {
                 Email = model.Email,
                 DisplayName = model.DisplayName,
                 FirstName = model.FirstName,
                 LastName = model.LastName,
-                IsAdmin = model.Roles.Contains("Admin"),
-                IsEditor = model.Roles.Contains("Editor") || model.Roles.Contains("Admin")
+                IsAdmin = model.Roles?.Contains("Admin") ?? false,
+                IsEditor = (model.Roles?.Contains("Editor") ?? false) || (model.Roles?.Contains("Admin") ?? false)
             };
 
             await _userService.UpdateAsync(user.Id, updateDto);

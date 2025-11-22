@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Squirrel.Wiki.Core.Database.Entities;
+using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Models;
+using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Web.Models;
 
@@ -14,17 +16,29 @@ public class SidebarNavigationViewComponent : ViewComponent
     private readonly IMenuService _menuService;
     private readonly ITagService _tagService;
     private readonly ICategoryService _categoryService;
+    private readonly IPageService _pageService;
+    private readonly Squirrel.Wiki.Core.Security.IAuthorizationService _authorizationService;
+    private readonly IPageRepository _pageRepository;
+    private readonly IUrlTokenResolver _urlTokenResolver;
     private readonly ILogger<SidebarNavigationViewComponent> _logger;
 
     public SidebarNavigationViewComponent(
         IMenuService menuService,
         ITagService tagService,
         ICategoryService categoryService,
+        IPageService pageService,
+        Squirrel.Wiki.Core.Security.IAuthorizationService authorizationService,
+        IPageRepository pageRepository,
+        IUrlTokenResolver urlTokenResolver,
         ILogger<SidebarNavigationViewComponent> logger)
     {
         _menuService = menuService;
         _tagService = tagService;
         _categoryService = categoryService;
+        _pageService = pageService;
+        _authorizationService = authorizationService;
+        _pageRepository = pageRepository;
+        _urlTokenResolver = urlTokenResolver;
         _logger = logger;
     }
 
@@ -88,6 +102,12 @@ public class SidebarNavigationViewComponent : ViewComponent
         // Check for special tokens
         if (menuItem.Url != null)
         {
+            // Check authorization for restricted tokens
+            if (!ShouldIncludeMenuItem(menuItem.Url))
+            {
+                return null; // Skip this item if user doesn't have permission
+            }
+
             // Handle %ALLTAGS% token
             if (menuItem.Url.Equals("%ALLTAGS%", StringComparison.OrdinalIgnoreCase))
             {
@@ -101,9 +121,26 @@ public class SidebarNavigationViewComponent : ViewComponent
             }
 
             // Handle %EMBEDDED_SEARCH% token
-            if (menuItem.Url.Equals("%EMBEDDED_SEARCH%", StringComparison.OrdinalIgnoreCase))
+            if (menuItem.Url.Equals("%EMBEDDED_SEARCH%", StringComparison.OrdinalIgnoreCase)
+                || menuItem.Url.Equals("%SEARCH%", StringComparison.OrdinalIgnoreCase))
             {
                 return BuildEmbeddedSearchItemAsync(menuItem.Text);
+            }
+
+            // Handle other standard tokens by resolving them
+            if ((menuItem.Url.StartsWith("%") && menuItem.Url.EndsWith("%")) || menuItem.Url.StartsWith("tag:") || menuItem.Url.StartsWith("category:"))
+            {
+                // Resolve standard URL tokens
+                var resolvedUrl = ResolveUrlToken(menuItem.Url);
+                if (resolvedUrl != null)
+                {
+                    return new SidebarItemViewModel
+                    {
+                        Text = menuItem.Text,
+                        Url = resolvedUrl,
+                        Type = SidebarItemType.Link
+                    };
+                }
             }
         }
 
@@ -159,18 +196,35 @@ public class SidebarNavigationViewComponent : ViewComponent
 
         try
         {
-            // Get all tags with counts
-            var tags = await _tagService.GetAllWithCountsAsync();
+            // Get all tags
+            var tags = await _tagService.GetAllTagsAsync();
             
-            // Only include tags that have pages
-            foreach (var tag in tags.Where(t => t.PageCount > 0).OrderBy(t => t.Name))
+            // For each tag, count only the pages the user can see
+            foreach (var tag in tags.OrderBy(t => t.Name))
             {
-                item.Children.Add(new SidebarItemViewModel
+                var tagPages = await _pageService.GetPagesByTagAsync(tag.Name);
+                
+                // Filter pages based on authorization
+                var authorizedCount = 0;
+                foreach (var page in tagPages)
                 {
-                    Text = $"{tag.Name} ({tag.PageCount})",
-                    Url = $"/Pages/Tag?tagName={Uri.EscapeDataString(tag.Name)}",
-                    Type = SidebarItemType.Link
-                });
+                    var pageEntity = await _pageRepository.GetByIdAsync(page.Id);
+                    if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity))
+                    {
+                        authorizedCount++;
+                    }
+                }
+                
+                // Only include tags that have at least one visible page
+                if (authorizedCount > 0)
+                {
+                    item.Children.Add(new SidebarItemViewModel
+                    {
+                        Text = $"{tag.Name} ({authorizedCount})",
+                        Url = $"/Pages/AllPages?tag={Uri.EscapeDataString(tag.Name)}",
+                        Type = SidebarItemType.Link
+                    });
+                }
             }
         }
         catch (Exception ex)
@@ -198,10 +252,10 @@ public class SidebarNavigationViewComponent : ViewComponent
             // Get the category tree
             var categoryTree = await _categoryService.GetCategoryTreeAsync();
             
-            // Convert category tree to sidebar items
+            // Convert category tree to sidebar items with filtered counts
             foreach (var category in categoryTree)
             {
-                var categoryItem = ConvertCategoryTreeToSidebarItem(category);
+                var categoryItem = await ConvertCategoryTreeToSidebarItemAsync(category);
                 item.Children.Add(categoryItem);
             }
         }
@@ -214,23 +268,36 @@ public class SidebarNavigationViewComponent : ViewComponent
     }
 
     /// <summary>
-    /// Recursively converts a category tree to sidebar items
+    /// Recursively converts a category tree to sidebar items with authorization-filtered counts
     /// </summary>
-    private SidebarItemViewModel ConvertCategoryTreeToSidebarItem(CategoryTreeDto category)
+    private async Task<SidebarItemViewModel> ConvertCategoryTreeToSidebarItemAsync(CategoryTreeDto category)
     {
+        // Get pages in this category and count only those the user can see
+        var categoryPages = await _pageService.GetByCategoryAsync(category.Id);
+        var authorizedCount = 0;
+        
+        foreach (var page in categoryPages)
+        {
+            var pageEntity = await _pageRepository.GetByIdAsync(page.Id);
+            if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity))
+            {
+                authorizedCount++;
+            }
+        }
+        
         var item = new SidebarItemViewModel
         {
-            Text = category.PageCount > 0 
-                ? $"{category.Name} ({category.PageCount})" 
+            Text = authorizedCount > 0 
+                ? $"{category.Name} ({authorizedCount})" 
                 : category.Name,
-            Url = $"/Pages/Category?id={category.Id}",
+            Url = $"/Pages/AllPages?categoryId={category.Id}",
             Type = category.Children.Any() ? SidebarItemType.Header : SidebarItemType.Link
         };
 
         // Process children recursively
         foreach (var child in category.Children)
         {
-            item.Children.Add(ConvertCategoryTreeToSidebarItem(child));
+            item.Children.Add(await ConvertCategoryTreeToSidebarItemAsync(child));
         }
 
         return item;
@@ -247,5 +314,43 @@ public class SidebarNavigationViewComponent : ViewComponent
             Type = SidebarItemType.EmbeddedSearch,
             Url = null
         };
+    }
+
+    /// <summary>
+    /// Resolves standard URL tokens to their actual URLs - delegates to shared UrlTokenResolver service
+    /// </summary>
+    private string? ResolveUrlToken(string token)
+    {
+        // Use the shared URL token resolver service
+        // Note: This is a synchronous wrapper around an async method
+        // In a view component context, we need to handle this carefully
+        var resolved = _urlTokenResolver.ResolveTokenAsync(token).GetAwaiter().GetResult();
+        return resolved;
+    }
+
+    /// <summary>
+    /// Determines if a menu item should be included based on user authorization
+    /// </summary>
+    private bool ShouldIncludeMenuItem(string url)
+    {
+        var userRole = HttpContext.User.Identity?.IsAuthenticated == true 
+            ? HttpContext.User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Role)?.Value 
+            : null;
+
+        // Check for %ADMIN% token - only for Admin role
+        if (url.Equals("%ADMIN%", StringComparison.OrdinalIgnoreCase))
+        {
+            return userRole?.Equals("Admin", StringComparison.OrdinalIgnoreCase) == true;
+        }
+
+        // Check for %NEWPAGE% token - only for Admin and Editor roles
+        if (url.Equals("%NEWPAGE%", StringComparison.OrdinalIgnoreCase))
+        {
+            return userRole?.Equals("Admin", StringComparison.OrdinalIgnoreCase) == true ||
+                   userRole?.Equals("Editor", StringComparison.OrdinalIgnoreCase) == true;
+        }
+
+        // All other items are visible to everyone
+        return true;
     }
 }

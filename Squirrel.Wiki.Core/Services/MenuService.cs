@@ -20,6 +20,7 @@ public class MenuService : IMenuService
     private readonly IMarkdownService _markdownService;
     private readonly IDistributedCache _cache;
     private readonly IUserContext _userContext;
+    private readonly IUrlTokenResolver _urlTokenResolver;
     private readonly ILogger<MenuService> _logger;
     private const string CacheKeyPrefix = "menu:";
     private const string CacheKeyActive = "menu:active";
@@ -36,7 +37,7 @@ public class MenuService : IMenuService
         { "%HOME%", "/Home" },
         { "%CATEGORIES%", "/Categories" },
         { "%SITEMAP%", "/Sitemap" },
-        { "%RECENTLYUPDATED%", "/Pages/RecentlyUpdated" },
+        { "%RECENTLYUPDATED%", "/Pages/AllPages?recent=10" },
         { "%ADMIN%", "/Admin" }
     };
 
@@ -47,6 +48,7 @@ public class MenuService : IMenuService
         IMarkdownService markdownService,
         IDistributedCache cache,
         IUserContext userContext,
+        IUrlTokenResolver urlTokenResolver,
         ILogger<MenuService> logger)
     {
         _menuRepository = menuRepository;
@@ -55,6 +57,7 @@ public class MenuService : IMenuService
         _markdownService = markdownService;
         _cache = cache;
         _userContext = userContext;
+        _urlTokenResolver = urlTokenResolver;
         _logger = logger;
     }
 
@@ -618,88 +621,12 @@ public class MenuService : IMenuService
     }
 
     /// <summary>
-    /// Resolve a URL - handle tokens, category/tag links, and page slugs
-    /// PHASE 8.2: Enhanced to support nested category paths (e.g., category:documentation:gettingstarted:installation)
+    /// Resolve a URL - delegates to shared UrlTokenResolver service
     /// </summary>
     private async Task<string> ResolveUrlAsync(string url, CancellationToken cancellationToken)
     {
-        // Check if it's a token (e.g., %ALLPAGES%)
-        if (URL_TOKENS.TryGetValue(url, out var tokenUrl))
-        {
-            return tokenUrl;
-        }
-
-        // Check if it's already a full path (starts with / or http)
-        if (url.StartsWith("/") || url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
-            url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-        {
-            return url;
-        }
-
-        // PHASE 8.2: Enhanced category: prefix support for nested paths
-        // Supports: category:documentation (simple)
-        //           category:documentation:gettingstarted (nested)
-        //           category:documentation:gettingstarted:installation (deeply nested)
-        if (url.StartsWith("category:", StringComparison.OrdinalIgnoreCase))
-        {
-            var categoryPath = url.Substring("category:".Length).Trim();
-            
-            try
-            {
-                // Try to resolve the category by path using the new Phase 8.1 service method
-                var category = await _categoryService.GetByPathAsync(categoryPath, cancellationToken);
-                
-                if (category != null)
-                {
-                    // Use category ID for reliable navigation
-                    _logger.LogDebug("Resolved category path '{CategoryPath}' (ID: {CategoryId}) to URL '/Pages/Category?id={CategoryId}'", 
-                        categoryPath, category.Id, category.Id);
-                    
-                    return $"/Pages/Category?id={category.Id}";
-                }
-                else
-                {
-                    // Category not found - log warning and return fallback URL using category name
-                    _logger.LogWarning("Category path '{CategoryPath}' not found in menu markup. Using fallback URL with category name.", categoryPath);
-                    
-                    // Use the last segment of the path as the category name for fallback
-                    var categoryName = categoryPath.Split(':', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? categoryPath;
-                    return $"/Pages/Category?categoryName={Uri.EscapeDataString(categoryName)}";
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to resolve category path '{CategoryPath}' in menu", categoryPath);
-                
-                // Return fallback URL on error using category name
-                var categoryName = categoryPath.Split(':', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? categoryPath;
-                return $"/Pages/Category?categoryName={Uri.EscapeDataString(categoryName)}";
-            }
-        }
-
-        // Check for tag: prefix (e.g., tag:tutorial)
-        if (url.StartsWith("tag:", StringComparison.OrdinalIgnoreCase))
-        {
-            var tagName = url.Substring("tag:".Length).Trim();
-            return $"/Pages/Tag?tagName={Uri.EscapeDataString(tagName)}";
-        }
-
-        // Assume it's a page slug - try to resolve it
-        try
-        {
-            var page = await _pageRepository.GetBySlugAsync(url, cancellationToken);
-            if (page != null)
-            {
-                return $"/wiki/{page.Id}/{page.Slug}";
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to resolve page slug '{Slug}' in menu", url);
-        }
-
-        // If we can't resolve it, return as-is (might be an external link or typo)
-        return url;
+        var resolved = await _urlTokenResolver.ResolveTokenAsync(url, cancellationToken);
+        return resolved ?? url;
     }
 
     private string CleanupMenuHtml(string html)

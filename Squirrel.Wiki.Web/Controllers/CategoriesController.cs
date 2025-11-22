@@ -11,7 +11,7 @@ namespace Squirrel.Wiki.Web.Controllers;
 /// Controller for category management
 /// PHASE 8.3: Category Management UI
 /// </summary>
-[Authorize(Policy = "RequireAdmin")]
+[Authorize(Policy = "RequireEditor")]
 public class CategoriesController : Controller
 {
     private readonly ICategoryService _categoryService;
