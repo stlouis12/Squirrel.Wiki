@@ -24,6 +24,7 @@ public class PagesController : Controller
     private readonly ISearchService _searchService;
     private readonly Squirrel.Wiki.Core.Security.IAuthorizationService _authorizationService;
     private readonly IPageRepository _pageRepository;
+    private readonly ISettingsService _settingsService;
     private readonly ILogger<PagesController> _logger;
 
     public PagesController(
@@ -34,6 +35,7 @@ public class PagesController : Controller
         ISearchService searchService,
         Squirrel.Wiki.Core.Security.IAuthorizationService authorizationService,
         IPageRepository pageRepository,
+        ISettingsService settingsService,
         ILogger<PagesController> logger)
     {
         _pageService = pageService;
@@ -43,6 +45,7 @@ public class PagesController : Controller
         _searchService = searchService;
         _authorizationService = authorizationService;
         _pageRepository = pageRepository;
+        _settingsService = settingsService;
         _logger = logger;
     }
 
@@ -324,12 +327,18 @@ public class PagesController : Controller
             var allTags = await _tagService.GetAllTagsAsync(cancellationToken);
             var allCategories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
 
+            // Load settings
+            var defaultTemplate = await _settingsService.GetSettingAsync<string>("DefaultPageTemplate", cancellationToken);
+            var maxTitleLength = await _settingsService.GetSettingAsync<int?>("MaxPageTitleLength", cancellationToken);
+
             var viewModel = new PageViewModel
             {
                 Title = title,
+                Content = defaultTemplate ?? string.Empty,
                 RawTags = tags,
                 AllTags = allTags.Select(t => new TagViewModel { Id = t.Id, Name = t.Name }).ToList(),
-                AllCategories = MapCategoriesToViewModel(allCategories)
+                AllCategories = MapCategoriesToViewModel(allCategories),
+                MaxTitleLength = maxTitleLength ?? 200
             };
 
             return View("Edit", viewModel);
@@ -437,6 +446,9 @@ public class PagesController : Controller
             var allTags = await _tagService.GetAllTagsAsync(cancellationToken);
             var allCategories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
 
+            // Load settings
+            var maxTitleLength = await _settingsService.GetSettingAsync<int?>("MaxPageTitleLength", cancellationToken);
+
             // Get full category path if page has a category
             string? categoryFullPath = null;
             if (page.CategoryId.HasValue)
@@ -463,7 +475,8 @@ public class PagesController : Controller
                 ModifiedBy = page.ModifiedBy,
                 ModifiedOn = page.ModifiedOn,
                 AllTags = allTags.Select(t => new TagViewModel { Id = t.Id, Name = t.Name }).ToList(),
-                AllCategories = MapCategoriesToViewModel(allCategories)
+                AllCategories = MapCategoriesToViewModel(allCategories),
+                MaxTitleLength = maxTitleLength ?? 200
             };
 
             return View(viewModel);

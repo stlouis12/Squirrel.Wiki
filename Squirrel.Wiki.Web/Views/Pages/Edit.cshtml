@@ -22,8 +22,9 @@
                 <!-- Title -->
                 <div class="mb-3">
                     <label asp-for="Title" class="form-label">@Localizer["Title"] <span class="text-danger">*</span></label>
-                    <input asp-for="Title" class="form-control form-control-lg" placeholder="@Localizer["EnterPageTitle"]" autofocus />
+                    <input asp-for="Title" class="form-control form-control-lg" placeholder="@Localizer["EnterPageTitle"]" maxlength="@Model.MaxTitleLength" autofocus />
                     <span asp-validation-for="Title" class="text-danger"></span>
+                    <small class="form-text text-muted">@Localizer["Maximum"] @Model.MaxTitleLength @Localizer["characters"]</small>
                 </div>
 
                 <!-- Content Editor -->

@@ -51,6 +51,9 @@ public class PageViewModel
     public List<TagViewModel> AllTags { get; set; } = new();
     public List<CategoryViewModel> AllCategories { get; set; } = new();
 
+    // Settings
+    public int MaxTitleLength { get; set; } = 200;
+
     // For display
     public bool CanEdit { get; set; }
     public bool CanDelete { get; set; }
