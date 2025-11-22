@@ -12,6 +12,26 @@ namespace Squirrel.Wiki.Core.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
+                name: "squirrel_authentication_plugins",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    PluginId = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
+                    Version = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
+                    IsEnabled = table.Column<bool>(type: "INTEGER", nullable: false, defaultValue: false),
+                    IsConfigured = table.Column<bool>(type: "INTEGER", nullable: false, defaultValue: false),
+                    LoadOrder = table.Column<int>(type: "INTEGER", nullable: false, defaultValue: 0),
+                    IsCorePlugin = table.Column<bool>(type: "INTEGER", nullable: false, defaultValue: false),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_squirrel_authentication_plugins", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "squirrel_categories",
                 columns: table => new
                 {
@@ -36,6 +56,20 @@ namespace Squirrel.Wiki.Core.Migrations
                         principalTable: "squirrel_categories",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "squirrel_data_protection_keys",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    FriendlyName = table.Column<string>(type: "TEXT", nullable: true),
+                    Xml = table.Column<string>(type: "TEXT", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_squirrel_data_protection_keys", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -68,7 +102,9 @@ namespace Squirrel.Wiki.Core.Migrations
                     Key = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
                     Value = table.Column<string>(type: "TEXT", nullable: false),
                     ModifiedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    ModifiedBy = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false)
+                    ModifiedBy = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
+                    IsFromEnvironment = table.Column<bool>(type: "INTEGER", nullable: false),
+                    EnvironmentVariableName = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -94,18 +130,54 @@ namespace Squirrel.Wiki.Core.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ExternalId = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
                     Email = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
                     Username = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    PasswordHash = table.Column<string>(type: "TEXT", maxLength: 255, nullable: true),
+                    ExternalId = table.Column<string>(type: "TEXT", maxLength: 255, nullable: true),
+                    Provider = table.Column<int>(type: "INTEGER", nullable: false),
                     DisplayName = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
+                    FirstName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
+                    LastName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
+                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false, defaultValue: true),
+                    IsLocked = table.Column<bool>(type: "INTEGER", nullable: false, defaultValue: false),
+                    FailedLoginAttempts = table.Column<int>(type: "INTEGER", nullable: false, defaultValue: 0),
+                    LockedUntil = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    PasswordResetToken = table.Column<string>(type: "TEXT", maxLength: 255, nullable: true),
+                    PasswordResetExpiry = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    CreatedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    LastLoginOn = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    LastPasswordChangeOn = table.Column<DateTime>(type: "TEXT", nullable: true),
                     IsAdmin = table.Column<bool>(type: "INTEGER", nullable: false),
-                    IsEditor = table.Column<bool>(type: "INTEGER", nullable: false),
-                    LastLoginOn = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    CreatedOn = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    IsEditor = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_squirrel_users", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "squirrel_authentication_plugin_settings",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    PluginId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Key = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    Value = table.Column<string>(type: "TEXT", maxLength: 4000, nullable: true),
+                    IsFromEnvironment = table.Column<bool>(type: "INTEGER", nullable: false, defaultValue: false),
+                    EnvironmentVariableName = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true),
+                    IsSecret = table.Column<bool>(type: "INTEGER", nullable: false, defaultValue: false),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_squirrel_authentication_plugin_settings", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_squirrel_authentication_plugin_settings_squirrel_authentication_plugins_PluginId",
+                        column: x => x.PluginId,
+                        principalTable: "squirrel_authentication_plugins",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -133,6 +205,63 @@ namespace Squirrel.Wiki.Core.Migrations
                         principalTable: "squirrel_categories",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "squirrel_plugin_audit_logs",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    PluginId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    PluginIdentifier = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    PluginName = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
+                    Operation = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
+                    UserId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    Username = table.Column<string>(type: "TEXT", maxLength: 256, nullable: false),
+                    Changes = table.Column<string>(type: "text", nullable: true),
+                    IpAddress = table.Column<string>(type: "TEXT", maxLength: 45, nullable: true),
+                    UserAgent = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true),
+                    Timestamp = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    Success = table.Column<bool>(type: "INTEGER", nullable: false),
+                    ErrorMessage = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),
+                    Notes = table.Column<string>(type: "TEXT", maxLength: 1000, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_squirrel_plugin_audit_logs", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_squirrel_plugin_audit_logs_squirrel_authentication_plugins_PluginId",
+                        column: x => x.PluginId,
+                        principalTable: "squirrel_authentication_plugins",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_squirrel_plugin_audit_logs_squirrel_users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "squirrel_users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "squirrel_user_roles",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Role = table.Column<int>(type: "INTEGER", nullable: false),
+                    AssignedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    AssignedBy = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_squirrel_user_roles", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_squirrel_user_roles_squirrel_users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "squirrel_users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -181,6 +310,23 @@ namespace Squirrel.Wiki.Core.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_authentication_plugin_settings_PluginId",
+                table: "squirrel_authentication_plugin_settings",
+                column: "PluginId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_authentication_plugin_settings_PluginId_Key",
+                table: "squirrel_authentication_plugin_settings",
+                columns: new[] { "PluginId", "Key" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_authentication_plugins_PluginId",
+                table: "squirrel_authentication_plugins",
+                column: "PluginId",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_squirrel_categories_DisplayOrder",
@@ -251,6 +397,31 @@ namespace Squirrel.Wiki.Core.Migrations
                 column: "Title");
 
             migrationBuilder.CreateIndex(
+                name: "IX_squirrel_plugin_audit_logs_Operation",
+                table: "squirrel_plugin_audit_logs",
+                column: "Operation");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_plugin_audit_logs_PluginId",
+                table: "squirrel_plugin_audit_logs",
+                column: "PluginId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_plugin_audit_logs_PluginId_Timestamp",
+                table: "squirrel_plugin_audit_logs",
+                columns: new[] { "PluginId", "Timestamp" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_plugin_audit_logs_Timestamp",
+                table: "squirrel_plugin_audit_logs",
+                column: "Timestamp");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_plugin_audit_logs_UserId",
+                table: "squirrel_plugin_audit_logs",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_squirrel_site_configurations_Key",
                 table: "squirrel_site_configurations",
                 column: "Key",
@@ -268,25 +439,48 @@ namespace Squirrel.Wiki.Core.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_squirrel_user_roles_UserId",
+                table: "squirrel_user_roles",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_user_roles_UserId_Role",
+                table: "squirrel_user_roles",
+                columns: new[] { "UserId", "Role" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_squirrel_users_Email",
                 table: "squirrel_users",
-                column: "Email");
+                column: "Email",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_squirrel_users_ExternalId",
                 table: "squirrel_users",
-                column: "ExternalId",
-                unique: true);
+                column: "ExternalId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_users_Provider",
+                table: "squirrel_users",
+                column: "Provider");
 
             migrationBuilder.CreateIndex(
                 name: "IX_squirrel_users_Username",
                 table: "squirrel_users",
-                column: "Username");
+                column: "Username",
+                unique: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "squirrel_authentication_plugin_settings");
+
+            migrationBuilder.DropTable(
+                name: "squirrel_data_protection_keys");
+
             migrationBuilder.DropTable(
                 name: "squirrel_menus");
 
@@ -297,16 +491,25 @@ namespace Squirrel.Wiki.Core.Migrations
                 name: "squirrel_page_tags");
 
             migrationBuilder.DropTable(
+                name: "squirrel_plugin_audit_logs");
+
+            migrationBuilder.DropTable(
                 name: "squirrel_site_configurations");
 
             migrationBuilder.DropTable(
-                name: "squirrel_users");
+                name: "squirrel_user_roles");
 
             migrationBuilder.DropTable(
                 name: "squirrel_pages");
 
             migrationBuilder.DropTable(
                 name: "squirrel_tags");
+
+            migrationBuilder.DropTable(
+                name: "squirrel_authentication_plugins");
+
+            migrationBuilder.DropTable(
+                name: "squirrel_users");
 
             migrationBuilder.DropTable(
                 name: "squirrel_categories");

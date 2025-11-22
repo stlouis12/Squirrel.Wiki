@@ -1,6 +1,6 @@
 @using DiffPlex.DiffBuilder.Model
 @{
-    ViewData["Title"] = $"Compare Versions - {ViewData["PageTitle"]}";
+    ViewData["Title"] = $"{Localizer["CompareVersions"]} - {ViewData["PageTitle"]}";
     var pageTitle = ViewData["PageTitle"] as string;
     var pageId = ViewData["PageId"];
     var version1Number = ViewData["Version1Number"];
@@ -11,28 +11,28 @@
 <div class="page-compare">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>
-            <i class="bi bi-file-diff"></i> Compare Versions
+            <i class="bi bi-file-diff"></i> @Localizer["CompareVersions"]
         </h1>
         <a href="@Url.Action("History", "Pages", new { id = pageId })" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Back to History
+            <i class="bi bi-arrow-left"></i> @Localizer["BackToHistory"]
         </a>
     </div>
 
     <div class="alert alert-info">
         <i class="bi bi-info-circle"></i>
-        Comparing <strong>@pageTitle</strong>: Version <strong>@version1Number</strong> (left) vs Version <strong>@version2Number</strong> (right)
+        @Localizer["Comparing"] <strong>@pageTitle</strong>: @Localizer["Version"] <strong>@version1Number</strong> (@Localizer["Left"]) @Localizer["Vs"] @Localizer["Version"] <strong>@version2Number</strong> (@Localizer["Right"])
     </div>
 
     <div class="diff-container">
         <div class="diff-header">
             <div class="diff-column">
                 <h5 class="text-primary">
-                    <i class="bi bi-file-text"></i> Version @version1Number
+                    <i class="bi bi-file-text"></i> @Localizer["Version"] @version1Number
                 </h5>
             </div>
             <div class="diff-column">
                 <h5 class="text-info">
-                    <i class="bi bi-file-text"></i> Version @version2Number
+                    <i class="bi bi-file-text"></i> @Localizer["Version"] @version2Number
                 </h5>
             </div>
         </div>
@@ -73,12 +73,12 @@
     <div class="mt-4">
         <div class="card">
             <div class="card-body">
-                <h6 class="card-title">Legend</h6>
+                <h6 class="card-title">@Localizer["Legend"]</h6>
                 <div class="d-flex gap-3">
-                    <span><span class="badge bg-danger">Red</span> = Deleted lines</span>
-                    <span><span class="badge bg-success">Green</span> = Added lines</span>
-                    <span><span class="badge bg-warning text-dark">Yellow</span> = Modified lines</span>
-                    <span><span class="badge bg-light text-dark">Gray</span> = Unchanged lines</span>
+                    <span><span class="badge bg-danger">@Localizer["Red"]</span> = @Localizer["DeletedLines"]</span>
+                    <span><span class="badge bg-success">@Localizer["Green"]</span> = @Localizer["AddedLines"]</span>
+                    <span><span class="badge bg-warning text-dark">@Localizer["Yellow"]</span> = @Localizer["ModifiedLines"]</span>
+                    <span><span class="badge bg-light text-dark">@Localizer["Gray"]</span> = @Localizer["UnchangedLines"]</span>
                 </div>
             </div>
         </div>

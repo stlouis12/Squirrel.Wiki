@@ -1,0 +1,315 @@
+@using Squirrel.Wiki.Plugins
+@model Squirrel.Wiki.Web.Models.Admin.UserDetailsViewModel
+@{
+    ViewData["Title"] = $"{Localizer["UserDetails"]} - {Model.User.Username}";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>@Localizer["UserDetails"]</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-action="Index">@Localizer["Users"]</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">@Model.User.Username</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="col-auto">
+            <a asp-action="Edit" asp-route-id="@Model.User.Id" class="btn btn-primary">
+                <i class="bi bi-pencil"></i> @Localizer["EditUser"]
+            </a>
+            <a asp-action="Index" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> @Localizer["BackToList"]
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- User Information -->
+        <div class="col-md-8">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">@Localizer["UserInformation"]</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">@Localizer["Username"]:</div>
+                        <div class="col-md-8">@Model.User.Username</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">@Localizer["DisplayName"]:</div>
+                        <div class="col-md-8">@Model.User.DisplayName</div>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(Model.User.FirstName) || !string.IsNullOrWhiteSpace(Model.User.LastName))
+                    {
+                        <div class="row mb-3">
+                            <div class="col-md-4 fw-bold">@Localizer["FullName"]:</div>
+                            <div class="col-md-8">@Model.User.FirstName @Model.User.LastName</div>
+                        </div>
+                    }
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">@Localizer["Email"]:</div>
+                        <div class="col-md-8">
+                            <a href="mailto:@Model.User.Email">@Model.User.Email</a>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">@Localizer["AuthenticationProvider"]:</div>
+                        <div class="col-md-8">
+                            <span class="badge bg-info">@Model.User.Provider</span>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(Model.User.ExternalId))
+                    {
+                        <div class="row mb-3">
+                            <div class="col-md-4 fw-bold">@Localizer["ExternalId"]:</div>
+                            <div class="col-md-8"><code>@Model.User.ExternalId</code></div>
+                        </div>
+                    }
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">@Localizer["Roles"]:</div>
+                        <div class="col-md-8">
+                            @foreach (var role in Model.User.Roles)
+                            {
+                                <span class="badge bg-primary me-1">@role</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">@Localizer["AccountStatus"]:</div>
+                        <div class="col-md-8">
+                            @if (Model.User.IsLocked)
+                            {
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-lock-fill"></i> @Localizer["Locked"]
+                                </span>
+                                @if (Model.User.LockedUntil.HasValue)
+                                {
+                                    <small class="text-muted ms-2">
+                                        @Localizer["Until"] @Model.User.LockedUntil.Value.ToString("yyyy-MM-dd HH:mm")
+                                    </small>
+                                }
+                            }
+                            else if (!Model.User.IsActive)
+                            {
+                                <span class="badge bg-warning">
+                                    <i class="bi bi-pause-circle"></i> @Localizer["Inactive"]
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle"></i> @Localizer["Active"]
+                                </span>
+                            }
+                        </div>
+                    </div>
+                    @if (Model.User.FailedLoginAttempts > 0)
+                    {
+                        <div class="row mb-3">
+                            <div class="col-md-4 fw-bold">@Localizer["FailedLoginAttempts"]:</div>
+                            <div class="col-md-8">
+                                <span class="badge bg-warning">@Model.User.FailedLoginAttempts</span>
+                            </div>
+                        </div>
+                    }
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">@Localizer["CreatedOn"]:</div>
+                        <div class="col-md-8">@Model.User.CreatedOn.ToString("yyyy-MM-dd HH:mm")</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">@Localizer["LastLogin"]:</div>
+                        <div class="col-md-8">
+                            @if (Model.User.LastLoginOn.HasValue)
+                            {
+                                @Model.User.LastLoginOn.Value.ToString("yyyy-MM-dd HH:mm")
+                            }
+                            else
+                            {
+                                <span class="text-muted">@Localizer["Never"]</span>
+                            }
+                        </div>
+                    </div>
+                    @if (Model.User.LastPasswordChangeOn.HasValue && Model.User.Provider == AuthenticationProvider.Local)
+                    {
+                        <div class="row mb-3">
+                            <div class="col-md-4 fw-bold">@Localizer["LastPasswordChange"]:</div>
+                            <div class="col-md-8">@Model.User.LastPasswordChangeOn.Value.ToString("yyyy-MM-dd HH:mm")</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">@Localizer["Actions"]</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a asp-action="Edit" asp-route-id="@Model.User.Id" class="btn btn-primary">
+                            <i class="bi bi-pencil"></i> @Localizer["EditUser"]
+                        </a>
+
+                        @if (Model.User.Provider == AuthenticationProvider.Local)
+                        {
+                            <a asp-action="ResetPassword" asp-route-id="@Model.User.Id" class="btn btn-warning">
+                                <i class="bi bi-key"></i> @Localizer["ResetPassword"]
+                            </a>
+                        }
+
+                        @if (Model.User.IsLocked)
+                        {
+                            <form asp-action="Unlock" asp-route-id="@Model.User.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="bi bi-unlock"></i> @Localizer["UnlockAccount"]
+                                </button>
+                            </form>
+                        }
+
+                        @if (Model.User.IsActive)
+                        {
+                            <button type="button" class="btn btn-warning w-100" data-bs-toggle="modal" data-bs-target="#deactivateModal">
+                                <i class="bi bi-pause-circle"></i> @Localizer["Deactivate"]
+                            </button>
+                        }
+                        else
+                        {
+                            <form asp-action="Activate" asp-route-id="@Model.User.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="bi bi-play-circle"></i> @Localizer["Activate"]
+                                </button>
+                            </form>
+                        }
+
+                        <hr />
+
+                        <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                            <i class="bi bi-trash"></i> @Localizer["DeleteUser"]
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">@Localizer["QuickStats"]</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-12 mb-3">
+                            <div class="display-6">@Model.User.Roles.Count</div>
+                            <small class="text-muted">@Localizer["Roles"]</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Deactivate User Modal -->
+@if (Model.User.IsActive)
+{
+    <div class="modal fade" id="deactivateModal" tabindex="-1" aria-labelledby="deactivateModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title" id="deactivateModalLabel">
+                        <i class="bi bi-pause-circle"></i> @Localizer["DeactivateUser"]
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>@Localizer["AreYouSureDeactivateUser"] <strong>@Model.User.Username</strong>?</p>
+                    <div class="alert alert-warning" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>@Localizer["Warning"]:</strong> @Localizer["DeactivatingUserWill"]:
+                        <ul class="mb-0 mt-2">
+                            <li>@Localizer["PreventThemFromLoggingIn"]</li>
+                            <li>@Localizer["RevokeAccessToSystem"]</li>
+                            <li>@Localizer["KeepDataIntact"]</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> @Localizer["Cancel"]
+                    </button>
+                    <form asp-action="Deactivate" asp-route-id="@Model.User.Id" method="post" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-pause-circle"></i> @Localizer["DeactivateUser"]
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete User Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel">
+                    <i class="bi bi-trash"></i> @Localizer["DeleteUser"]
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>@Localizer["AreYouSureDeleteUser"] <strong>@Model.User.Username</strong>?</p>
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <strong>@Localizer["Warning"]:</strong> @Localizer["ThisActionWill"]:
+                    <ul class="mb-0 mt-2">
+                        <li>@Localizer["DeactivateUserAccount"]</li>
+                        <li>@Localizer["PreventThemFromLoggingIn"]</li>
+                        <li>@Localizer["KeepTheirDataForAudit"]</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">@Localizer["UserInformation"]</h6>
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">@Localizer["Username"]:</dt>
+                            <dd class="col-sm-8">@Model.User.Username</dd>
+                            
+                            <dt class="col-sm-4">@Localizer["DisplayName"]:</dt>
+                            <dd class="col-sm-8">@Model.User.DisplayName</dd>
+                            
+                            <dt class="col-sm-4">@Localizer["Email"]:</dt>
+                            <dd class="col-sm-8">@Model.User.Email</dd>
+                            
+                            <dt class="col-sm-4">@Localizer["Roles"]:</dt>
+                            <dd class="col-sm-8">
+                                @foreach (var role in Model.User.Roles)
+                                {
+                                    <span class="badge bg-primary me-1">@role</span>
+                                }
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> @Localizer["Cancel"]
+                </button>
+                <form asp-action="Delete" asp-route-id="@Model.User.Id" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> @Localizer["DeleteUser"]
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

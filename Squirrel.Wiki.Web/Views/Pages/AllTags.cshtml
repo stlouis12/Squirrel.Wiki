@@ -1,13 +1,13 @@
 @model List<Squirrel.Wiki.Web.Models.TagViewModel>
 @{
-    ViewData["Title"] = "All Tags";
+    ViewData["Title"] = Localizer["AllTags"];
 }
 
 <div class="tags-page">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1><i class="bi bi-tags"></i> All Tags</h1>
+        <h1><i class="bi bi-tags"></i> @Localizer["AllTags"]</h1>
         <a href="@Url.Action("AllPages", "Pages")" class="btn btn-outline-secondary">
-            <i class="bi bi-file-earmark-text"></i> View All Pages
+            <i class="bi bi-file-earmark-text"></i> @Localizer["ViewAllPages"]
         </a>
     </div>
 
@@ -15,13 +15,13 @@
     {
         <div class="alert alert-info mb-4">
             <i class="bi bi-info-circle"></i> 
-            Found <strong>@Model.Count</strong> tag@(Model.Count != 1 ? "s" : "") in the wiki
+            @Localizer["Found"] <strong>@Model.Count</strong> @(Model.Count != 1 ? Localizer["Tags"] : Localizer["Tags"]) @Localizer["InTheWiki"]
         </div>
 
         <!-- Tag Cloud View -->
         <div class="card mb-4">
             <div class="card-header">
-                <i class="bi bi-cloud"></i> Tag Cloud
+                <i class="bi bi-cloud"></i> @Localizer["TagCloud"]
             </div>
             <div class="card-body">
                 <div class="tag-cloud">
@@ -31,7 +31,7 @@
                         <a href="@Url.Action("Tag", "Pages", new { tagName = tag.Name })" 
                            class="tag-cloud-item me-2 mb-2 d-inline-block"
                            style="font-size: @(fontSize)rem;"
-                           title="@tag.PageCount page@(tag.PageCount != 1 ? "s" : "")">
+                           title="@tag.PageCount @(tag.PageCount != 1 ? Localizer["Pages"] : Localizer["Page"])">
                             @tag.Name
                         </a>
                     }
@@ -42,16 +42,16 @@
         <!-- Tag List View -->
         <div class="card">
             <div class="card-header">
-                <i class="bi bi-list-ul"></i> Tag List
+                <i class="bi bi-list-ul"></i> @Localizer["TagList"]
             </div>
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Tag Name</th>
-                                <th class="text-center">Page Count</th>
-                                <th class="text-center">Actions</th>
+                                <th>@Localizer["TagName"]</th>
+                                <th class="text-center">@Localizer["PageCount"]</th>
+                                <th class="text-center">@Localizer["Actions"]</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -69,7 +69,7 @@
                                     <td class="text-center">
                                         <a href="@Url.Action("Tag", "Pages", new { tagName = tag.Name })" 
                                            class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-eye"></i> View Pages
+                                            <i class="bi bi-eye"></i> @Localizer["ViewPages"]
                                         </a>
                                     </td>
                                 </tr>
@@ -86,7 +86,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h3 class="text-primary">@Model.Count</h3>
-                        <p class="text-muted mb-0">Total Tags</p>
+                        <p class="text-muted mb-0">@Localizer["TotalTags"]</p>
                     </div>
                 </div>
             </div>
@@ -94,7 +94,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h3 class="text-success">@Model.Sum(t => t.PageCount)</h3>
-                        <p class="text-muted mb-0">Tagged Pages</p>
+                        <p class="text-muted mb-0">@Localizer["TaggedPages"]</p>
                     </div>
                 </div>
             </div>
@@ -102,7 +102,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h3 class="text-info">@(Model.Any() ? Model.Average(t => t.PageCount).ToString("F1") : "0")</h3>
-                        <p class="text-muted mb-0">Avg Pages per Tag</p>
+                        <p class="text-muted mb-0">@Localizer["AvgPagesPerTag"]</p>
                     </div>
                 </div>
             </div>
@@ -112,11 +112,11 @@
     {
         <div class="alert alert-warning">
             <i class="bi bi-exclamation-triangle"></i> 
-            No tags found in the wiki.
+            @Localizer["NoTagsFound"]
             <hr />
             <p class="mb-0">
-                Tags are created when you add them to pages. 
-                <a href="@Url.Action("New", "Pages")" class="alert-link">Create a page</a> and add some tags to get started.
+                @Localizer["TagsCreatedWhenAdded"] 
+                <a href="@Url.Action("New", "Pages")" class="alert-link">@Localizer["CreatePageAndAddTags"]</a> @Localizer["AndAddSomeTags"]
             </p>
         </div>
     }

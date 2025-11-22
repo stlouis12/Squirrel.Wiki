@@ -1,3 +1,7 @@
+using Squirrel.Wiki.Plugins;
+
+using Squirrel.Wiki.Contracts.Authentication;
+
 namespace Squirrel.Wiki.Core.Models;
 
 // ============================================================================
@@ -10,11 +14,20 @@ public class UserDto
     public string Username { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
     public string ExternalId { get; set; } = string.Empty;
     public bool IsAdmin { get; set; }
     public bool IsEditor { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsLocked { get; set; }
+    public int FailedLoginAttempts { get; set; }
+    public DateTime? LockedUntil { get; set; }
+    public AuthenticationProvider Provider { get; set; }
+    public List<string> Roles { get; set; } = new();
     public DateTime CreatedOn { get; set; }
-    public DateTime LastLoginOn { get; set; }
+    public DateTime? LastLoginOn { get; set; }
+    public DateTime? LastPasswordChangeOn { get; set; }
 }
 
 public class UserCreateDto
@@ -30,17 +43,10 @@ public class UserUpdateDto
 {
     public string Email { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
     public bool IsAdmin { get; set; }
     public bool IsEditor { get; set; }
-}
-
-public class OidcUserDto
-{
-    public string ExternalId { get; set; } = string.Empty;
-    public string Username { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
-    public string DisplayName { get; set; } = string.Empty;
-    public List<string> Groups { get; set; } = new();
 }
 
 public class UserStatsDto
@@ -282,4 +288,31 @@ public class UpdatePageDto
     public bool IsLocked { get; set; }
     public string ModifiedBy { get; set; } = string.Empty;
     public string? ChangeComment { get; set; }
+}
+
+// ============================================================================
+// PASSWORD VALIDATION DTOs
+// ============================================================================
+
+/// <summary>
+/// Result of password validation
+/// </summary>
+public class PasswordValidationResult
+{
+    public bool IsValid { get; set; }
+    public List<string> Errors { get; set; } = new();
+
+    public static PasswordValidationResult Success()
+    {
+        return new PasswordValidationResult { IsValid = true };
+    }
+
+    public static PasswordValidationResult Failed(params string[] errors)
+    {
+        return new PasswordValidationResult
+        {
+            IsValid = false,
+            Errors = errors.ToList()
+        };
+    }
 }

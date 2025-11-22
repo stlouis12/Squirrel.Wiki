@@ -8,7 +8,7 @@
         <div class="col">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a asp-action="Index">Categories</a></li>
+                    <li class="breadcrumb-item"><a asp-action="Index">@Localizer["Categories"]</a></li>
                     @foreach (var crumb in Model.Breadcrumbs.Take(Model.Breadcrumbs.Count - 1))
                     {
                         <li class="breadcrumb-item">@crumb</li>
@@ -28,13 +28,13 @@
         <div class="col-auto">
             <div class="btn-group" role="group">
                 <a asp-action="Create" asp-route-parentId="@Model.Id" class="btn btn-success">
-                    <i class="bi bi-plus-circle"></i> Add Subcategory
+                    <i class="bi bi-plus-circle"></i> @Localizer["AddSubcategory"]
                 </a>
                 <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
-                    <i class="bi bi-pencil"></i> Edit
+                    <i class="bi bi-pencil"></i> @Localizer["Edit"]
                 </a>
                 <a asp-action="Index" class="btn btn-secondary">
-                    <i class="bi bi-arrow-left"></i> Back
+                    <i class="bi bi-arrow-left"></i> @Localizer["Back"]
                 </a>
             </div>
         </div>
@@ -48,7 +48,7 @@
                 <div class="card mb-4">
                     <div class="card-header">
                         <h5 class="mb-0">
-                            <i class="bi bi-folder"></i> Subcategories (@Model.SubcategoryCount)
+                            <i class="bi bi-folder"></i> @Localizer["Subcategories"] (@Model.SubcategoryCount)
                         </h5>
                     </div>
                     <div class="card-body">
@@ -67,10 +67,10 @@
                                         }
                                     </div>
                                     <div class="text-end">
-                                        <span class="badge bg-info me-2">@subcategory.PageCount pages</span>
+                                        <span class="badge bg-info me-2">@subcategory.PageCount @Localizer["PagesPlural"]</span>
                                         @if (subcategory.Children.Any())
                                         {
-                                            <span class="badge bg-secondary">@subcategory.SubcategoryCount subcategories</span>
+                                            <span class="badge bg-secondary">@subcategory.SubcategoryCount @Localizer["SubcategoriesPlural"]</span>
                                         }
                                     </div>
                                 </a>
@@ -86,7 +86,7 @@
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">
-                            <i class="bi bi-file-text"></i> Pages in this Category (@Model.DirectPageCount)
+                            <i class="bi bi-file-text"></i> @Localizer["PagesInThisCategoryCount"] (@Model.DirectPageCount)
                         </h5>
                     </div>
                     <div class="card-body">
@@ -94,10 +94,10 @@
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th>Title</th>
-                                        <th>Last Modified</th>
-                                        <th>Modified By</th>
-                                        <th class="text-end">Actions</th>
+                                        <th>@Localizer["Title"]</th>
+                                        <th>@Localizer["LastModified"]</th>
+                                        <th>@Localizer["ModifiedBy"]</th>
+                                        <th class="text-end">@Localizer["Actions"]</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -121,7 +121,7 @@
                                             </td>
                                             <td class="text-end">
                                                 <a asp-controller="Pages" asp-action="Edit" asp-route-id="@pageItem.Id" 
-                                                   class="btn btn-sm btn-outline-primary" title="Edit">
+                                                   class="btn btn-sm btn-outline-primary" title="@Localizer["Edit"]">
                                                     <i class="bi bi-pencil"></i>
                                                 </a>
                                             </td>
@@ -136,12 +136,12 @@
             else if (!Model.Subcategories.Any())
             {
                 <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> This category is empty. 
+                    <i class="bi bi-info-circle"></i> @Localizer["ThisCategoryIsEmpty"] 
                     <a asp-controller="Pages" asp-action="Create" asp-route-categoryId="@Model.Id" class="alert-link">
-                        Create a page
-                    </a> in this category or 
+                        @Localizer["CreateAPage"]
+                    </a> @Localizer["InThisCategory"] 
                     <a asp-action="Create" asp-route-parentId="@Model.Id" class="alert-link">
-                        add a subcategory
+                        @Localizer["AddASubcategory"]
                     </a>.
                 </div>
             }
@@ -151,26 +151,26 @@
             <!-- Category Information -->
             <div class="card mb-3">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> Information</h5>
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> @Localizer["Information"]</h5>
                 </div>
                 <div class="card-body">
                     <dl class="row mb-0">
-                        <dt class="col-sm-5">Full Path:</dt>
+                        <dt class="col-sm-5">@Localizer["FullPath"]</dt>
                         <dd class="col-sm-7">
                             <code class="small">@Model.FullPath</code>
                         </dd>
 
-                        <dt class="col-sm-5">Slug:</dt>
+                        <dt class="col-sm-5">@Localizer["Slug"]</dt>
                         <dd class="col-sm-7">
                             <code class="small">@Model.Slug</code>
                         </dd>
 
-                        <dt class="col-sm-5">Level:</dt>
+                        <dt class="col-sm-5">@Localizer["Level"]</dt>
                         <dd class="col-sm-7">@Model.Level</dd>
 
                         @if (Model.ParentId.HasValue)
                         {
-                            <dt class="col-sm-5">Parent:</dt>
+                            <dt class="col-sm-5">@Localizer["Parent"]</dt>
                             <dd class="col-sm-7">
                                 <a asp-action="Details" asp-route-id="@Model.ParentId">
                                     @Model.ParentName
@@ -178,19 +178,19 @@
                             </dd>
                         }
 
-                        <dt class="col-sm-5">Created:</dt>
+                        <dt class="col-sm-5">@Localizer["Created"]</dt>
                         <dd class="col-sm-7">
                             <small>
                                 @Model.CreatedOn.ToString("MMM dd, yyyy")<br />
-                                by @Model.CreatedBy
+                                @Localizer["By"] @Model.CreatedBy
                             </small>
                         </dd>
 
-                        <dt class="col-sm-5">Modified:</dt>
+                        <dt class="col-sm-5">@Localizer["Modified"]</dt>
                         <dd class="col-sm-7">
                             <small>
                                 @Model.ModifiedOn.ToString("MMM dd, yyyy")<br />
-                                by @Model.ModifiedBy
+                                @Localizer["By"] @Model.ModifiedBy
                             </small>
                         </dd>
                     </dl>
@@ -200,32 +200,32 @@
             <!-- Statistics -->
             <div class="card mb-3">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Statistics</h5>
+                    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> @Localizer["Statistics"]</h5>
                 </div>
                 <div class="card-body">
                     <div class="row text-center">
                         <div class="col-6 mb-3">
                             <div class="stat-box">
                                 <h3 class="text-primary">@Model.DirectPageCount</h3>
-                                <p class="text-muted small mb-0">Direct Pages</p>
+                                <p class="text-muted small mb-0">@Localizer["DirectPages"]</p>
                             </div>
                         </div>
                         <div class="col-6 mb-3">
                             <div class="stat-box">
                                 <h3 class="text-info">@Model.PageCount</h3>
-                                <p class="text-muted small mb-0">Total Pages</p>
+                                <p class="text-muted small mb-0">@Localizer["TotalPages"]</p>
                             </div>
                         </div>
                         <div class="col-12">
                             <div class="stat-box">
                                 <h3 class="text-success">@Model.SubcategoryCount</h3>
-                                <p class="text-muted small mb-0">Subcategories</p>
+                                <p class="text-muted small mb-0">@Localizer["Subcategories"]</p>
                             </div>
                         </div>
                     </div>
                     <hr />
                     <p class="small text-muted mb-0">
-                        <i class="bi bi-info-circle"></i> Total pages includes pages in all subcategories.
+                        <i class="bi bi-info-circle"></i> @Localizer["TotalPagesIncludesSubcategories"]
                     </p>
                 </div>
             </div>
@@ -233,21 +233,21 @@
             <!-- Quick Actions -->
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h5>
+                    <h5 class="mb-0"><i class="bi bi-lightning"></i> @Localizer["QuickActions"]</h5>
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
                         <a asp-controller="Pages" asp-action="Create" asp-route-categoryId="@Model.Id" 
                            class="btn btn-outline-primary">
-                            <i class="bi bi-file-plus"></i> Create Page Here
+                            <i class="bi bi-file-plus"></i> @Localizer["CreatePageHere"]
                         </a>
                         <a asp-action="Create" asp-route-parentId="@Model.Id" 
                            class="btn btn-outline-success">
-                            <i class="bi bi-folder-plus"></i> Add Subcategory
+                            <i class="bi bi-folder-plus"></i> @Localizer["AddSubcategoryAction"]
                         </a>
                         <a asp-controller="Pages" asp-action="Category" asp-route-slug="@Model.Slug" 
                            class="btn btn-outline-info">
-                            <i class="bi bi-eye"></i> View Public Page
+                            <i class="bi bi-eye"></i> @Localizer["ViewPublicPage"]
                         </a>
                     </div>
                 </div>

@@ -1,6 +1,6 @@
 @model Squirrel.Wiki.Web.Models.PageViewModel
 @{
-    ViewData["Title"] = $"{Model.Title} - Version {ViewData["VersionNumber"]}";
+    ViewData["Title"] = $"{Model.Title} - {Localizer["Version"]} {ViewData["VersionNumber"]}";
     var versionNumber = ViewData["VersionNumber"];
     var isHistorical = ViewData["IsHistoricalVersion"] as bool? ?? false;
 }
@@ -10,18 +10,18 @@
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <i class="bi bi-clock-history"></i>
-                <strong>Historical Version:</strong> You are viewing version <strong>@versionNumber</strong> of this page.
+                <strong>@Localizer["HistoricalVersion"]</strong> @Localizer["YouAreViewingVersion"] <strong>@versionNumber</strong> @Localizer["OfThisPage"]
                 <br>
                 <small class="text-muted">
-                    Last modified by <strong>@Model.ModifiedBy</strong> on @Model.ModifiedOn.ToString("MMM dd, yyyy 'at' HH:mm")
+                    @Localizer["LastModifiedByOn"] <strong>@Model.ModifiedBy</strong> @Localizer["On"].ToString().ToLower() @Model.ModifiedOn.ToString("MMM dd, yyyy 'at' HH:mm")
                 </small>
             </div>
             <div>
                 <a href="@Url.Action("Index", "Wiki", new { id = Model.Id })" class="btn btn-sm btn-primary">
-                    <i class="bi bi-file-text"></i> View Current Version
+                    <i class="bi bi-file-text"></i> @Localizer["ViewCurrentVersion"]
                 </a>
                 <a href="@Url.Action("History", "Pages", new { id = Model.Id })" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-clock-history"></i> View History
+                    <i class="bi bi-clock-history"></i> @Localizer["ViewHistory"]
                 </a>
             </div>
         </div>
@@ -33,7 +33,7 @@
             
             <div class="page-meta text-muted">
                 <span>
-                    <i class="bi bi-person"></i> Created by <strong>@Model.CreatedBy</strong>
+                    <i class="bi bi-person"></i> @Localizer["CreatedByOn"] <strong>@Model.CreatedBy</strong>
                 </span>
                 <span class="ms-3">
                     <i class="bi bi-calendar"></i> @Model.CreatedOn.ToString("MMM dd, yyyy")

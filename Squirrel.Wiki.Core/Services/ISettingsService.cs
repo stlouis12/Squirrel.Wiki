@@ -47,4 +47,11 @@ public interface ISettingsService
     /// <param name="ct">Cancellation token</param>
     /// <returns>True if the setting exists</returns>
     Task<bool> SettingExistsAsync(string key, CancellationToken ct = default);
+
+    /// <summary>
+    /// Synchronizes environment variable settings to the database
+    /// This should be called on application startup
+    /// </summary>
+    /// <param name="ct">Cancellation token</param>
+    Task SyncEnvironmentVariablesAsync(CancellationToken ct = default);
 }

@@ -1,6 +1,6 @@
 @model Squirrel.Wiki.Web.Models.PageListViewModel
 @{
-    ViewData["Title"] = $"Pages tagged with '{ViewData["Tagname"]}'";
+    ViewData["Title"] = $"{Localizer["PagesTaggedWith"]} '{ViewData["Tagname"]}'";
 }
 
 <div class="container mt-4">
@@ -8,14 +8,14 @@
         <div class="col-12">
             <h1 class="mb-4">
                 <i class="bi bi-tag-fill text-primary"></i>
-                Pages tagged with '<span class="text-primary">@ViewData["Tagname"]</span>'
+                @Localizer["PagesTaggedWith"] '<span class="text-primary">@ViewData["Tagname"]</span>'
             </h1>
 
             @if (Model.Pages.Any())
             {
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle"></i>
-                    Found <strong>@Model.Pages.Count</strong> page(s) with this tag.
+                    @Localizer["FoundPagesWithTag"] <strong>@Model.Pages.Count</strong> @Localizer["PagesWithThisTag"]
                 </div>
 
                 <div class="list-group">
@@ -29,21 +29,21 @@
                                         @item.Title
                                         @if (item.IsLocked)
                                         {
-                                            <i class="bi bi-lock-fill text-warning" title="Locked"></i>
+                                            <i class="bi bi-lock-fill text-warning" title="@Localizer["Locked"]"></i>
                                         }
                                     </h5>
                                     <p class="mb-1 text-muted">
                                         <small>
-                                            <i class="bi bi-person"></i> Created by @item.CreatedBy
-                                            on @item.CreatedOn.ToString("MMM dd, yyyy")
+                                            <i class="bi bi-person"></i> @Localizer["CreatedByOn"] @item.CreatedBy
+                                            @Localizer["On"].ToString().ToLower() @item.CreatedOn.ToString("MMM dd, yyyy")
                                         </small>
                                     </p>
                                     @if (item.ModifiedOn != item.CreatedOn)
                                     {
                                         <p class="mb-0 text-muted">
                                             <small>
-                                                <i class="bi bi-pencil"></i> Last modified by @item.ModifiedBy
-                                                on @item.ModifiedOn.ToString("MMM dd, yyyy")
+                                                <i class="bi bi-pencil"></i> @Localizer["LastModifiedByOn"] @item.ModifiedBy
+                                                @Localizer["On"].ToString().ToLower() @item.ModifiedOn.ToString("MMM dd, yyyy")
                                             </small>
                                         </p>
                                     }
@@ -60,16 +60,16 @@
             {
                 <div class="alert alert-warning">
                     <i class="bi bi-exclamation-triangle"></i>
-                    No pages found with the tag '<strong>@ViewData["Tagname"]</strong>'.
+                    @Localizer["NoPagesFoundWithTag"] '<strong>@ViewData["Tagname"]</strong>'.
                 </div>
             }
 
             <div class="mt-4">
                 <a href="@Url.Action("AllTags", "Pages")" class="btn btn-secondary">
-                    <i class="bi bi-tags"></i> View All Tags
+                    <i class="bi bi-tags"></i> @Localizer["ViewAllTags"]
                 </a>
                 <a href="@Url.Action("AllPages", "Pages")" class="btn btn-secondary">
-                    <i class="bi bi-file-text"></i> View All Pages
+                    <i class="bi bi-file-text"></i> @Localizer["ViewAllPages"]
                 </a>
             </div>
         </div>

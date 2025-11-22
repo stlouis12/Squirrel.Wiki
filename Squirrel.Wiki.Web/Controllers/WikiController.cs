@@ -65,6 +65,16 @@ public class WikiController : Controller
             // Convert markdown to HTML
             var htmlContent = await _markdownService.ToHtmlAsync(contentDto.Content, cancellationToken);
 
+            // Convert internal slug-only links to full /wiki/{id}/{slug} URLs
+            htmlContent = await _markdownService.ConvertInternalLinksAsync(
+                htmlContent,
+                async (slug) =>
+                {
+                    var page = await _pageService.GetBySlugAsync(slug, cancellationToken);
+                    return page != null ? (page.Id, page.Slug) : (null, null);
+                },
+                cancellationToken);
+
             // Map to view model
             var viewModel = new PageViewModel
             {

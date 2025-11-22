@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Squirrel.Wiki.Contracts.Authentication;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Models;
@@ -12,15 +13,18 @@ public class UserService : IUserService
 {
     private readonly IUserRepository _userRepository;
     private readonly IPageRepository _pageRepository;
+    private readonly ISettingsService _settingsService;
     private readonly ILogger<UserService> _logger;
 
     public UserService(
         IUserRepository userRepository,
         IPageRepository pageRepository,
+        ISettingsService settingsService,
         ILogger<UserService> logger)
     {
         _userRepository = userRepository;
         _pageRepository = pageRepository;
+        _settingsService = settingsService;
         _logger = logger;
     }
 
@@ -121,54 +125,14 @@ public class UserService : IUserService
 
         user.Email = updateDto.Email;
         user.DisplayName = updateDto.DisplayName;
+        user.FirstName = updateDto.FirstName;
+        user.LastName = updateDto.LastName;
         user.IsAdmin = updateDto.IsAdmin;
         user.IsEditor = updateDto.IsEditor;
 
         await _userRepository.UpdateAsync(user, cancellationToken);
 
         _logger.LogInformation("Updated user {Username} (ID: {UserId})", user.Username, user.Id);
-
-        return MapToDto(user);
-    }
-
-    public async Task<UserDto> SyncFromOidcAsync(OidcUserDto oidcUser, CancellationToken cancellationToken = default)
-    {
-        // Try to find existing user by external ID
-        var user = await _userRepository.GetByExternalIdAsync(oidcUser.ExternalId, cancellationToken);
-
-        if (user == null)
-        {
-            // Create new user from OIDC data
-            user = new User
-            {
-                Id = Guid.NewGuid(),
-                ExternalId = oidcUser.ExternalId,
-                Username = oidcUser.Username,
-                Email = oidcUser.Email,
-                DisplayName = oidcUser.DisplayName,
-                IsAdmin = oidcUser.Groups.Contains("squirrel-admins"),
-                IsEditor = oidcUser.Groups.Contains("squirrel-editors"),
-                CreatedOn = DateTime.UtcNow,
-                LastLoginOn = DateTime.UtcNow
-            };
-
-            await _userRepository.AddAsync(user, cancellationToken);
-            _logger.LogInformation("Created new user from OIDC: {Username} (External ID: {ExternalId})", 
-                user.Username, user.ExternalId);
-        }
-        else
-        {
-            // Update existing user with latest OIDC data
-            user.Email = oidcUser.Email;
-            user.DisplayName = oidcUser.DisplayName;
-            user.IsAdmin = oidcUser.Groups.Contains("squirrel-admins");
-            user.IsEditor = oidcUser.Groups.Contains("squirrel-editors");
-            user.LastLoginOn = DateTime.UtcNow;
-
-            await _userRepository.UpdateAsync(user, cancellationToken);
-            _logger.LogInformation("Updated user from OIDC: {Username} (External ID: {ExternalId})", 
-                user.Username, user.ExternalId);
-        }
 
         return MapToDto(user);
     }
@@ -295,9 +259,8 @@ public class UserService : IUserService
         var pagesEdited = editHistory.Select(pc => pc.PageId).Distinct().Count();
 
         // Get last edit date
-        var lastEditDate = editHistory.Any() 
-            ? editHistory.Max(pc => pc.EditedOn) 
-            : (DateTime?)null;
+        var editDates = editHistory.Select(pc => pc.EditedOn).ToList();
+        DateTime? lastEditDate = editDates.Any() ? (DateTime?)editDates.Max() : null;
 
         return new UserStatsDto
         {
@@ -309,19 +272,377 @@ public class UserService : IUserService
         };
     }
 
+    // ============================================================================
+    // Local Authentication Methods
+    // ============================================================================
+
+    public async Task<UserDto?> AuthenticateAsync(string usernameOrEmail, string password, CancellationToken cancellationToken = default)
+    {
+        // Try to find user by email or username
+        var users = await _userRepository.GetAllAsync(cancellationToken);
+        var user = users.FirstOrDefault(u => 
+            u.Email.Equals(usernameOrEmail, StringComparison.OrdinalIgnoreCase) || 
+            u.Username.Equals(usernameOrEmail, StringComparison.OrdinalIgnoreCase));
+
+        if (user == null)
+        {
+            _logger.LogWarning("Authentication failed: User not found for {UsernameOrEmail}", usernameOrEmail);
+            return null;
+        }
+
+        // Only local users can authenticate with password
+        if (user.Provider != AuthenticationProvider.Local)
+        {
+            _logger.LogWarning("Authentication failed: User {Username} is not a local user", user.Username);
+            return null;
+        }
+
+        // Check if password hash exists
+        if (string.IsNullOrEmpty(user.PasswordHash))
+        {
+            _logger.LogWarning("Authentication failed: No password set for user {Username}", user.Username);
+            return null;
+        }
+
+        // Verify password
+        bool isPasswordValid = BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
+
+        if (!isPasswordValid)
+        {
+            // Get max login attempts from settings (default to 5 if not set)
+            var maxLoginAttempts = await _settingsService.GetSettingAsync<int>("MaxLoginAttempts", cancellationToken);
+            if (maxLoginAttempts <= 0)
+            {
+                maxLoginAttempts = 5; // Default fallback
+            }
+
+            // Increment failed login attempts
+            user.FailedLoginAttempts++;
+            
+            // Lock account after max failed attempts
+            if (user.FailedLoginAttempts >= maxLoginAttempts)
+            {
+                // Get account lock duration from settings (default to 30 minutes if not set)
+                var lockDurationMinutes = await _settingsService.GetSettingAsync<int>("AccountLockDurationMinutes", cancellationToken);
+                if (lockDurationMinutes <= 0)
+                {
+                    lockDurationMinutes = 30; // Default fallback
+                }
+
+                user.IsLocked = true;
+                user.LockedUntil = DateTime.UtcNow.AddMinutes(lockDurationMinutes);
+                await _userRepository.UpdateAsync(user, cancellationToken);
+                
+                _logger.LogWarning("Account locked for user {Username} due to {Attempts} failed login attempts. Locked until {LockedUntil}", 
+                    user.Username, user.FailedLoginAttempts, user.LockedUntil);
+                throw new InvalidOperationException($"Account has been locked due to multiple failed login attempts. Please try again after {user.LockedUntil:yyyy-MM-dd HH:mm}.");
+            }
+            
+            await _userRepository.UpdateAsync(user, cancellationToken);
+            _logger.LogWarning("Authentication failed: Invalid password for user {Username} (Attempt {Attempts}/{MaxAttempts})", 
+                user.Username, user.FailedLoginAttempts, maxLoginAttempts);
+            return null;
+        }
+
+        // Reset failed login attempts on successful authentication
+        user.FailedLoginAttempts = 0;
+        user.LastLoginOn = DateTime.UtcNow;
+        await _userRepository.UpdateAsync(user, cancellationToken);
+
+        _logger.LogInformation("User {Username} authenticated successfully", user.Username);
+        return MapToDto(user);
+    }
+
+    public async Task<UserDto> CreateLocalUserAsync(string username, string email, string password, string displayName, bool isAdmin = false, bool isEditor = false, CancellationToken cancellationToken = default)
+    {
+        // Validate password
+        var passwordValidation = await ValidatePasswordAsync(password);
+        if (!passwordValidation.IsValid)
+        {
+            throw new InvalidOperationException($"Password validation failed: {string.Join(", ", passwordValidation.Errors)}");
+        }
+
+        // Validate username availability
+        var existingByUsername = await _userRepository.GetByUsernameAsync(username, cancellationToken);
+        if (existingByUsername != null)
+        {
+            throw new InvalidOperationException($"Username '{username}' is already taken.");
+        }
+
+        // Validate email availability
+        var existingByEmail = await _userRepository.GetByEmailAsync(email, cancellationToken);
+        if (existingByEmail != null)
+        {
+            throw new InvalidOperationException($"Email '{email}' is already registered.");
+        }
+
+        // Create user with hashed password
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Username = username,
+            Email = email,
+            DisplayName = displayName,
+            Provider = AuthenticationProvider.Local,
+            PasswordHash = HashPassword(password),
+            IsAdmin = isAdmin,
+            IsEditor = isEditor,
+            IsActive = true,
+            IsLocked = false,
+            FailedLoginAttempts = 0,
+            CreatedOn = DateTime.UtcNow,
+            LastPasswordChangeOn = DateTime.UtcNow
+        };
+
+        await _userRepository.AddAsync(user, cancellationToken);
+
+        _logger.LogInformation("Created local user {Username} with ID {UserId}", user.Username, user.Id);
+
+        return MapToDto(user);
+    }
+
+    public async Task SetPasswordAsync(Guid userId, string newPassword, CancellationToken cancellationToken = default)
+    {
+        var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+        if (user == null)
+        {
+            throw new InvalidOperationException($"User with ID {userId} not found.");
+        }
+
+        if (user.Provider != AuthenticationProvider.Local)
+        {
+            throw new InvalidOperationException("Cannot set password for non-local authentication users.");
+        }
+
+        // Validate password
+        var passwordValidation = await ValidatePasswordAsync(newPassword);
+        if (!passwordValidation.IsValid)
+        {
+            throw new InvalidOperationException($"Password validation failed: {string.Join(", ", passwordValidation.Errors)}");
+        }
+
+        user.PasswordHash = HashPassword(newPassword);
+        user.LastPasswordChangeOn = DateTime.UtcNow;
+        user.PasswordResetToken = null;
+        user.PasswordResetExpiry = null;
+
+        await _userRepository.UpdateAsync(user, cancellationToken);
+
+        _logger.LogInformation("Password changed for user {Username} (ID: {UserId})", user.Username, user.Id);
+    }
+
+    public Task<PasswordValidationResult> ValidatePasswordAsync(string password)
+    {
+        var errors = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            errors.Add("Password is required.");
+        }
+        else
+        {
+            if (password.Length < 8)
+            {
+                errors.Add("Password must be at least 8 characters long.");
+            }
+
+            if (password.Length > 128)
+            {
+                errors.Add("Password must not exceed 128 characters.");
+            }
+
+            if (!password.Any(char.IsUpper))
+            {
+                errors.Add("Password must contain at least one uppercase letter.");
+            }
+
+            if (!password.Any(char.IsLower))
+            {
+                errors.Add("Password must contain at least one lowercase letter.");
+            }
+
+            if (!password.Any(char.IsDigit))
+            {
+                errors.Add("Password must contain at least one digit.");
+            }
+
+            if (!password.Any(ch => !char.IsLetterOrDigit(ch)))
+            {
+                errors.Add("Password must contain at least one special character.");
+            }
+        }
+
+        return Task.FromResult(errors.Any() 
+            ? PasswordValidationResult.Failed(errors.ToArray())
+            : PasswordValidationResult.Success());
+    }
+
+    public async Task<string> InitiatePasswordResetAsync(string email, CancellationToken cancellationToken = default)
+    {
+        var user = await _userRepository.GetByEmailAsync(email, cancellationToken);
+        if (user == null)
+        {
+            // Don't reveal that the email doesn't exist
+            _logger.LogWarning("Password reset requested for non-existent email: {Email}", email);
+            return string.Empty;
+        }
+
+        if (user.Provider != AuthenticationProvider.Local)
+        {
+            _logger.LogWarning("Password reset requested for non-local user: {Username}", user.Username);
+            return string.Empty;
+        }
+
+        // Generate reset token
+        var token = Convert.ToBase64String(Guid.NewGuid().ToByteArray()) + Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+        token = token.Replace("+", "").Replace("/", "").Replace("=", "");
+
+        user.PasswordResetToken = token;
+        user.PasswordResetExpiry = DateTime.UtcNow.AddHours(24);
+
+        await _userRepository.UpdateAsync(user, cancellationToken);
+
+        _logger.LogInformation("Password reset initiated for user {Username} (ID: {UserId})", user.Username, user.Id);
+
+        return token;
+    }
+
+    public async Task<bool> CompletePasswordResetAsync(string token, string newPassword, CancellationToken cancellationToken = default)
+    {
+        var users = await _userRepository.GetAllAsync(cancellationToken);
+        var user = users.FirstOrDefault(u => u.PasswordResetToken == token);
+
+        if (user == null)
+        {
+            _logger.LogWarning("Invalid password reset token attempted");
+            return false;
+        }
+
+        if (user.PasswordResetExpiry == null || user.PasswordResetExpiry < DateTime.UtcNow)
+        {
+            _logger.LogWarning("Expired password reset token attempted for user {Username}", user.Username);
+            return false;
+        }
+
+        // Validate password
+        var passwordValidation = await ValidatePasswordAsync(newPassword);
+        if (!passwordValidation.IsValid)
+        {
+            _logger.LogWarning("Password reset failed validation for user {Username}", user.Username);
+            return false;
+        }
+
+        user.PasswordHash = HashPassword(newPassword);
+        user.LastPasswordChangeOn = DateTime.UtcNow;
+        user.PasswordResetToken = null;
+        user.PasswordResetExpiry = null;
+
+        await _userRepository.UpdateAsync(user, cancellationToken);
+
+        _logger.LogInformation("Password reset completed for user {Username} (ID: {UserId})", user.Username, user.Id);
+
+        return true;
+    }
+
+    public async Task LockAccountAsync(Guid userId, DateTime? lockUntil = null, CancellationToken cancellationToken = default)
+    {
+        var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+        if (user == null)
+        {
+            throw new InvalidOperationException($"User with ID {userId} not found.");
+        }
+
+        user.IsLocked = true;
+        user.LockedUntil = lockUntil ?? DateTime.UtcNow.AddDays(30);
+
+        await _userRepository.UpdateAsync(user, cancellationToken);
+
+        _logger.LogInformation("Locked account for user {Username} (ID: {UserId}) until {LockedUntil}", 
+            user.Username, user.Id, user.LockedUntil);
+    }
+
+    public async Task UnlockAccountAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+        if (user == null)
+        {
+            throw new InvalidOperationException($"User with ID {userId} not found.");
+        }
+
+        user.IsLocked = false;
+        user.LockedUntil = null;
+        user.FailedLoginAttempts = 0;
+
+        await _userRepository.UpdateAsync(user, cancellationToken);
+
+        _logger.LogInformation("Unlocked account for user {Username} (ID: {UserId})", user.Username, user.Id);
+    }
+
+    public async Task ActivateAccountAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+        if (user == null)
+        {
+            throw new InvalidOperationException($"User with ID {userId} not found.");
+        }
+
+        user.IsActive = true;
+
+        await _userRepository.UpdateAsync(user, cancellationToken);
+
+        _logger.LogInformation("Activated account for user {Username} (ID: {UserId})", user.Username, user.Id);
+    }
+
+    public async Task DeactivateAccountAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+        if (user == null)
+        {
+            throw new InvalidOperationException($"User with ID {userId} not found.");
+        }
+
+        user.IsActive = false;
+
+        await _userRepository.UpdateAsync(user, cancellationToken);
+
+        _logger.LogInformation("Deactivated account for user {Username} (ID: {UserId})", user.Username, user.Id);
+    }
+
+    // ============================================================================
+    // Private Helper Methods
+    // ============================================================================
+
+    private static string HashPassword(string password)
+    {
+        return BCrypt.Net.BCrypt.HashPassword(password, 12);
+    }
+
     private static UserDto MapToDto(User user)
     {
+        var roles = new List<string>();
+        if (user.IsAdmin) roles.Add("Admin");
+        if (user.IsEditor) roles.Add("Editor");
+        
         return new UserDto
         {
             Id = user.Id,
             Username = user.Username,
             Email = user.Email,
             DisplayName = user.DisplayName,
-            ExternalId = user.ExternalId,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            ExternalId = user.ExternalId ?? string.Empty,
             IsAdmin = user.IsAdmin,
             IsEditor = user.IsEditor,
+            IsActive = user.IsActive,
+            IsLocked = user.IsLocked,
+            FailedLoginAttempts = user.FailedLoginAttempts,
+            LockedUntil = user.LockedUntil,
+            Provider = user.Provider,
+            Roles = roles,
             CreatedOn = user.CreatedOn,
-            LastLoginOn = user.LastLoginOn
+            LastLoginOn = user.LastLoginOn,
+            LastPasswordChangeOn = user.LastPasswordChangeOn
         };
     }
 }

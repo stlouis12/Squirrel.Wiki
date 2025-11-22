@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
+using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Web.Models.Admin;
+using Squirrel.Wiki.Web.Resources;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -12,14 +16,20 @@ namespace Squirrel.Wiki.Web.Controllers;
 public class SettingsController : Controller
 {
     private readonly ISettingsService _settingsService;
+    private readonly SquirrelDbContext _dbContext;
     private readonly ILogger<SettingsController> _logger;
+    private readonly IStringLocalizer<SharedResources> _localizer;
 
     public SettingsController(
         ISettingsService settingsService,
-        ILogger<SettingsController> logger)
+        SquirrelDbContext dbContext,
+        ILogger<SettingsController> logger,
+        IStringLocalizer<SharedResources> localizer)
     {
         _settingsService = settingsService;
+        _dbContext = dbContext;
         _logger = logger;
+        _localizer = localizer;
     }
 
     /// <summary>
@@ -36,7 +46,7 @@ public class SettingsController : Controller
             var allSettings = await _settingsService.GetAllSettingsAsync();
 
             // Define setting groups with their configurations
-            model.Groups = GetSettingGroups(allSettings);
+            model.Groups = await GetSettingGroupsAsync(allSettings);
 
             if (TempData["SuccessMessage"] != null)
             {
@@ -51,7 +61,7 @@ public class SettingsController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading settings");
-            model.ErrorMessage = "Error loading settings. Please try again.";
+            model.ErrorMessage = _localizer["ErrorLoadingSettings"];
         }
 
         return View(model);
@@ -71,7 +81,7 @@ public class SettingsController : Controller
         try
         {
             var value = await _settingsService.GetSettingAsync<string>(key);
-            var settingDef = GetSettingDefinition(key);
+            var settingDef = await GetSettingDefinitionAsync(key);
 
             if (settingDef == null)
             {
@@ -95,7 +105,7 @@ public class SettingsController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading setting {Key}", key);
-            TempData["ErrorMessage"] = "Error loading setting. Please try again.";
+            TempData["ErrorMessage"] = _localizer["ErrorLoadingSetting"];
             return RedirectToAction(nameof(Index));
         }
     }
@@ -146,7 +156,7 @@ public class SettingsController : Controller
     {
         try
         {
-            var settingDef = GetSettingDefinition(key);
+            var settingDef = await GetSettingDefinitionAsync(key);
             if (settingDef == null)
             {
                 return Json(new { success = false, message = "Setting not found" });
@@ -175,102 +185,92 @@ public class SettingsController : Controller
 
     #region Private Helper Methods
 
-    private List<SettingGroup> GetSettingGroups(Dictionary<string, string> existingSettings)
+    private async Task<List<SettingGroup>> GetSettingGroupsAsync(Dictionary<string, string> existingSettings)
     {
+        // Get environment info from database
+        var envInfo = await _dbContext.SiteConfigurations
+            .AsNoTracking()
+            .Where(s => s.IsFromEnvironment)
+            .ToDictionaryAsync(s => s.Key, s => (s.IsFromEnvironment, s.EnvironmentVariableName));
+
         var groups = new List<SettingGroup>();
 
         // General Settings
         groups.Add(new SettingGroup
         {
-            Name = "General",
-            Description = "Basic site configuration",
+            Name = _localizer["General"],
+            Description = _localizer["BasicSiteConfiguration"],
             Icon = "bi-gear",
             Settings = new List<SettingItem>
             {
-                CreateSettingItem("SiteName", "Site Name", "The name of your wiki", SettingType.Text, true, existingSettings),
-                CreateSettingItem("SiteDescription", "Site Description", "A brief description of your wiki", SettingType.TextArea, false, existingSettings),
-                CreateSettingItem("SiteUrl", "Site URL", "The base URL of your wiki", SettingType.Url, true, existingSettings),
-                CreateSettingItem("DefaultLanguage", "Default Language", "Default language for the wiki", SettingType.Dropdown, true, existingSettings, new List<string> { "en", "es", "fr", "de", "it" }),
-                CreateSettingItem("TimeZone", "Time Zone", "Default time zone", SettingType.Text, true, existingSettings)
+                CreateSettingItem("SiteName", _localizer["SiteName"], "The name of your wiki", SettingType.Text, true, existingSettings, envInfo),
+                CreateSettingItem("SiteUrl", _localizer["SiteURL"], _localizer["SiteURLDescription"], SettingType.Url, true, existingSettings, envInfo),
+                CreateSettingItem("DefaultLanguage", _localizer["DefaultLanguage"], _localizer["DefaultLanguageDescription"], SettingType.Dropdown, true, existingSettings, envInfo, new List<string> { "en", "es", "fr", "de", "it" }),
+                CreateSettingItem("TimeZone", _localizer["TimeZone"], _localizer["TimeZoneDescription"], SettingType.Text, true, existingSettings, envInfo)
             }
         });
 
         // Security Settings
         groups.Add(new SettingGroup
         {
-            Name = "Security",
-            Description = "Security and authentication settings",
+            Name = _localizer["Security"],
+            Description = _localizer["SecurityAndAuthenticationSettings"],
             Icon = "bi-shield-lock",
             Settings = new List<SettingItem>
             {
-                CreateSettingItem("AllowAnonymousReading", "Allow Anonymous Reading", "Allow non-authenticated users to read pages", SettingType.Boolean, false, existingSettings),
-                CreateSettingItem("RequireEmailVerification", "Require Email Verification", "Require users to verify their email", SettingType.Boolean, false, existingSettings),
-                CreateSettingItem("SessionTimeoutMinutes", "Session Timeout (minutes)", "Session timeout in minutes", SettingType.Number, true, existingSettings),
-                CreateSettingItem("MaxLoginAttempts", "Max Login Attempts", "Maximum failed login attempts before lockout", SettingType.Number, true, existingSettings)
+                CreateSettingItem("AllowAnonymousReading", _localizer["AllowAnonymousReading"], _localizer["AllowAnonymousReadingDescription"], SettingType.Boolean, false, existingSettings, envInfo),
+                CreateSettingItem("SessionTimeoutMinutes",  _localizer["SessionTimeoutMinutes"], _localizer["SessionTimeoutMinutesDescription"], SettingType.Number, true, existingSettings, envInfo),
+                CreateSettingItem("MaxLoginAttempts",  _localizer["MaxLoginAttempts"], _localizer["MaxLoginAttemptsDescription"], SettingType.Number, true, existingSettings, envInfo),
+                CreateSettingItem("AccountLockDurationMinutes",  _localizer["AccountLockDurationMinutes"], _localizer["AccountLockDurationMinutesDescription"], SettingType.Number, true, existingSettings, envInfo)
             }
         });
 
         // Content Settings
         groups.Add(new SettingGroup
         {
-            Name = "Content",
-            Description = "Content and editing settings",
+            Name = _localizer["ContentSettings"],
+            Description = _localizer["ContentAndEditingSettings"],
             Icon = "bi-file-text",
             Settings = new List<SettingItem>
             {
-                CreateSettingItem("DefaultPageTemplate", "Default Page Template", "Default template for new pages", SettingType.TextArea, false, existingSettings),
-                CreateSettingItem("EnableMarkdownExtensions", "Enable Markdown Extensions", "Enable extended Markdown features", SettingType.Boolean, false, existingSettings),
-                CreateSettingItem("MaxPageTitleLength", "Max Page Title Length", "Maximum length for page titles", SettingType.Number, true, existingSettings),
-                CreateSettingItem("EnablePageVersioning", "Enable Page Versioning", "Keep history of page changes", SettingType.Boolean, false, existingSettings)
+                CreateSettingItem("DefaultPageTemplate",  _localizer["DefaultPageTemplate"], _localizer["DefaultPageTemplateDescription"], SettingType.TextArea, false, existingSettings, envInfo),
+                CreateSettingItem("EnableMarkdownExtensions",  _localizer["EnableMarkdownExtensions"], _localizer["EnableMarkdownExtensionsDescription"], SettingType.Boolean, false, existingSettings, envInfo),
+                CreateSettingItem("MaxPageTitleLength",  _localizer["MaxPageTitleLength"], _localizer["MaxPageTitleLengthDescription"], SettingType.Number, true, existingSettings, envInfo),
+                CreateSettingItem("EnablePageVersioning",  _localizer["EnablePageVersioning"], _localizer["EnablePageVersioningDescription"], SettingType.Boolean, false, existingSettings, envInfo)
             }
         });
 
         // Search Settings
         groups.Add(new SettingGroup
         {
-            Name = "Search",
-            Description = "Search and indexing settings",
+            Name = _localizer["SearchSettings"],
+            Description = _localizer["SearchAndIndexingSettings"],
             Icon = "bi-search",
             Settings = new List<SettingItem>
             {
-                CreateSettingItem("SearchResultsPerPage", "Results Per Page", "Number of search results per page", SettingType.Number, true, existingSettings),
-                CreateSettingItem("EnableFuzzySearch", "Enable Fuzzy Search", "Allow typo-tolerant searching", SettingType.Boolean, false, existingSettings),
-                CreateSettingItem("SearchMinimumLength", "Minimum Search Length", "Minimum characters for search query", SettingType.Number, true, existingSettings)
-            }
-        });
-
-        // Email Settings
-        groups.Add(new SettingGroup
-        {
-            Name = "Email",
-            Description = "Email notification settings",
-            Icon = "bi-envelope",
-            Settings = new List<SettingItem>
-            {
-                CreateSettingItem("SmtpHost", "SMTP Host", "SMTP server hostname", SettingType.Text, false, existingSettings),
-                CreateSettingItem("SmtpPort", "SMTP Port", "SMTP server port", SettingType.Number, false, existingSettings),
-                CreateSettingItem("SmtpUsername", "SMTP Username", "SMTP authentication username", SettingType.Text, false, existingSettings),
-                CreateSettingItem("SmtpFromEmail", "From Email", "Email address for outgoing emails", SettingType.Email, false, existingSettings),
-                CreateSettingItem("SmtpFromName", "From Name", "Display name for outgoing emails", SettingType.Text, false, existingSettings)
+                CreateSettingItem("SearchResultsPerPage",  _localizer["SearchResultsPerPage"], _localizer["SearchResultsPerPageDescription"], SettingType.Number, true, existingSettings, envInfo),
+                CreateSettingItem("EnableFuzzySearch",  _localizer["EnableFuzzySearch"], _localizer["EnableFuzzySearchDescription"], SettingType.Boolean, false, existingSettings, envInfo),
+                CreateSettingItem("SearchMinimumLength",  _localizer["SearchMinimumLength"], _localizer["SearchMinimumLengthDescription"], SettingType.Number, true, existingSettings, envInfo)
             }
         });
 
         // Performance Settings
         groups.Add(new SettingGroup
         {
-            Name = "Performance",
-            Description = "Caching and performance settings",
+            Name = _localizer["Performance"],
+            Description = _localizer["CachingAndPerformanceSettings"],
             Icon = "bi-speedometer2",
             Settings = new List<SettingItem>
             {
-                CreateSettingItem("EnableCaching", "Enable Caching", "Enable response caching", SettingType.Boolean, false, existingSettings),
-                CreateSettingItem("CacheDurationMinutes", "Cache Duration (minutes)", "Default cache duration", SettingType.Number, true, existingSettings),
-                CreateSettingItem("EnableCompression", "Enable Compression", "Enable response compression", SettingType.Boolean, false, existingSettings)
+                CreateSettingItem("EnableCaching",  _localizer["EnableCaching"], _localizer["EnableCachingDescription"], SettingType.Boolean, false, existingSettings, envInfo),
+                CreateSettingItem("CacheDurationMinutes",  _localizer["CacheDurationMinutes"], _localizer["CacheDurationMinutesDescription"], SettingType.Number, true, existingSettings, envInfo),
+                CreateSettingItem("EnableCompression",  _localizer["EnableCompression"], _localizer["EnableCompressionDescription"], SettingType.Boolean, false, existingSettings, envInfo)
             }
         });
 
         return groups;
     }
+
 
     private SettingItem CreateSettingItem(
         string key,
@@ -279,9 +279,11 @@ public class SettingsController : Controller
         SettingType type,
         bool isRequired,
         Dictionary<string, string> existingSettings,
+        Dictionary<string, (bool IsFromEnvironment, string? EnvironmentVariableName)> envInfo,
         List<string>? options = null)
     {
         existingSettings.TryGetValue(key, out var value);
+        envInfo.TryGetValue(key, out var env);
 
         return new SettingItem
         {
@@ -291,13 +293,16 @@ public class SettingsController : Controller
             Value = value ?? GetDefaultValue(key, type),
             Type = type,
             IsRequired = isRequired,
-            Options = options
+            Options = options,
+            IsFromEnvironment = env.IsFromEnvironment,
+            EnvironmentVariableName = env.EnvironmentVariableName
         };
     }
 
-    private SettingItem? GetSettingDefinition(string key)
+
+    private async Task<SettingItem?> GetSettingDefinitionAsync(string key)
     {
-        var allGroups = GetSettingGroups(new Dictionary<string, string>());
+        var allGroups = await GetSettingGroupsAsync(new Dictionary<string, string>());
         return allGroups
             .SelectMany(g => g.Settings)
             .FirstOrDefault(s => s.Key == key);
@@ -312,17 +317,16 @@ public class SettingsController : Controller
             {
                 "SessionTimeoutMinutes" => "480",
                 "MaxLoginAttempts" => "5",
+                "AccountLockDurationMinutes" => "30",
                 "MaxPageTitleLength" => "200",
                 "SearchResultsPerPage" => "20",
                 "SearchMinimumLength" => "3",
-                "SmtpPort" => "587",
                 "CacheDurationMinutes" => "60",
                 _ => "0"
             },
             _ => key switch
             {
                 "SiteName" => "Squirrel Wiki",
-                "SiteDescription" => "A modern wiki application",
                 "DefaultLanguage" => "en",
                 "TimeZone" => "UTC",
                 _ => string.Empty

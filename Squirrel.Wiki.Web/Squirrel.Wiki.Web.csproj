@@ -12,14 +12,18 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
     
     <!-- Entity Framework Core Design (for migrations) -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     
     <!-- Authentication -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="8.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="8.0.11" />
     <PackageReference Include="IdentityModel.AspNetCore.OAuth2Introspection" Version="6.2.0" />
+    
+    <!-- Data Protection -->
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="8.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.Extensions" Version="8.0.11" />
     
     <!-- API Documentation -->
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.3" />
@@ -42,8 +46,30 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Squirrel.Wiki.Contracts\Squirrel.Wiki.Contracts.csproj" />
     <ProjectReference Include="..\Squirrel.Wiki.Core\Squirrel.Wiki.Core.csproj" />
     <ProjectReference Include="..\Squirrel.Wiki.Plugins\Squirrel.Wiki.Plugins.csproj" />
   </ItemGroup>
+
+  <!-- Copy OIDC plugin to Plugins folder after build -->
+  <Target Name="CopyOidcPlugin" AfterTargets="Build">
+    <PropertyGroup>
+      <PluginsDir>$(OutputPath)Plugins</PluginsDir>
+      <OidcPluginDir>$(PluginsDir)\Squirrel.Wiki.Plugins.Oidc</OidcPluginDir>
+      <OidcPluginSource>..\Squirrel.Wiki.Plugins.Oidc\bin\$(Configuration)\net8.0\Squirrel.Wiki.Plugins.Oidc.dll</OidcPluginSource>
+    </PropertyGroup>
+    
+    <!-- Create plugin subdirectory -->
+    <MakeDir Directories="$(OidcPluginDir)" Condition="!Exists('$(OidcPluginDir)')" />
+    
+    <!-- Copy plugin DLL to its subdirectory -->
+    <Copy SourceFiles="$(OidcPluginSource)" 
+          DestinationFolder="$(OidcPluginDir)" 
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(OidcPluginSource)')" />
+    
+    <Message Text="Copied OIDC plugin to $(OidcPluginDir)" Importance="high" Condition="Exists('$(OidcPluginSource)')" />
+    <Warning Text="OIDC plugin not found at $(OidcPluginSource)" Condition="!Exists('$(OidcPluginSource)')" />
+  </Target>
 
 </Project>

@@ -1,10 +1,16 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 using Serilog;
+using Squirrel.Wiki.Core.Configuration;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Web.Resources;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,7 +25,23 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 // Add services to the container
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews()
+    .AddViewLocalization()
+    .AddDataAnnotationsLocalization(options =>
+    {
+        options.DataAnnotationLocalizerProvider = (type, factory) =>
+            factory.Create(typeof(SharedResources));
+    });
+
+// Configure localization 
+builder.Services.AddLocalization();
+
+// Register the shared string localizer for dependency injection
+builder.Services.AddSingleton<IStringLocalizer>(sp =>
+{
+    var factory = sp.GetRequiredService<IStringLocalizerFactory>();
+    return factory.Create(typeof(SharedResources));
+});
 
 // Add response caching
 builder.Services.AddResponseCaching();
@@ -79,17 +101,11 @@ else
     builder.Services.AddDistributedMemoryCache();
 }
 
-// Configure authentication based on environment
-var useOidc = builder.Configuration.GetValue<bool>("Authentication:UseOpenIdConnect");
+// Configure authentication - Cookie-based authentication
+// Note: OIDC and other authentication methods are now handled via plugins
+Log.Information("Configuring cookie-based authentication");
 
-if (useOidc && !builder.Environment.IsDevelopment())
-{
-    // Production: OpenID Connect
-    builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = "oidc";
-    })
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
     {
         options.Cookie.Name = "Squirrel.Auth";
@@ -98,42 +114,9 @@ if (useOidc && !builder.Environment.IsDevelopment())
         options.AccessDeniedPath = "/Account/AccessDenied";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
-    })
-    .AddOpenIdConnect("oidc", options =>
-    {
-        options.Authority = builder.Configuration["Authentication:OpenIdConnect:Authority"];
-        options.ClientId = builder.Configuration["Authentication:OpenIdConnect:ClientId"];
-        options.ClientSecret = builder.Configuration["Authentication:OpenIdConnect:ClientSecret"];
-        options.ResponseType = "code";
-        options.SaveTokens = true;
-        options.GetClaimsFromUserInfoEndpoint = true;
-        
-        options.Scope.Clear();
-        options.Scope.Add("openid");
-        options.Scope.Add("profile");
-        options.Scope.Add("email");
-        
-        // Map claims
-        options.TokenValidationParameters.RoleClaimType = "role";
-        options.TokenValidationParameters.NameClaimType = "name";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     });
-}
-else
-{
-    // Development: Simple cookie authentication
-    builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-        .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
-        {
-            options.Cookie.Name = "Squirrel.Auth";
-            options.LoginPath = "/Account/Login";
-            options.LogoutPath = "/Account/Logout";
-            options.AccessDeniedPath = "/Account/AccessDenied";
-            options.ExpireTimeSpan = TimeSpan.FromHours(8);
-            options.SlidingExpiration = true;
-            options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        });
-}
 
 builder.Services.AddAuthorization(options =>
 {
@@ -161,12 +144,36 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContext, UserContext>();
 
+// Configure Data Protection for encryption
+// Use database storage for distributed deployments, file system for development
+if (builder.Environment.IsDevelopment())
+{
+    // Development: Use file system (simpler for single-instance dev)
+    var dataProtectionPath = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtection-Keys");
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath))
+        .SetApplicationName("Squirrel.Wiki");
+    Log.Information("Data Protection configured with file system storage (development)");
+}
+else
+{
+    // Production: Use database storage for multi-instance deployments
+    // Keys are automatically cached in memory by the Data Protection system
+    builder.Services.AddDataProtection()
+        .PersistKeysToDbContext<SquirrelDbContext>()
+        .SetApplicationName("Squirrel.Wiki");
+    Log.Information("Data Protection configured with database storage (production)");
+}
+
 // Register Repositories
 builder.Services.AddScoped<IPageRepository, PageRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ITagRepository, TagRepository>();
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
+
+// Register Configuration Providers
+builder.Services.AddSingleton<EnvironmentVariableProvider>();
 
 // Register Services
 builder.Services.AddScoped<IMarkdownService, MarkdownService>();
@@ -179,6 +186,37 @@ builder.Services.AddScoped<ISearchService, LuceneSearchService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<FooterMarkupParser>();
 
+// Register Authentication Services
+builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Security.IAuthenticationService, Squirrel.Wiki.Core.Security.AuthenticationService>();
+builder.Services.AddScoped<IAdminBootstrapService, AdminBootstrapService>();
+
+// Register core authentication strategies
+builder.Services.AddScoped<Squirrel.Wiki.Contracts.Authentication.IAuthenticationStrategy, LocalAuthenticationStrategy>();
+
+// Register Security Services
+builder.Services.AddSingleton<ISecretEncryptionService, SecretEncryptionService>();
+
+// Register Plugin Services
+// Use AppContext.BaseDirectory to get the actual running directory (bin/Debug/net8.0 or bin/Release/net8.0)
+// instead of ContentRootPath which points to the project source directory
+var pluginsPath = Path.Combine(AppContext.BaseDirectory, "Plugins");
+Log.Information("Plugins path configured: {PluginsPath}", pluginsPath);
+builder.Services.AddSingleton<Squirrel.Wiki.Plugins.IPluginLoader, Squirrel.Wiki.Plugins.PluginLoader>();
+builder.Services.AddScoped<IPluginAuditService, PluginAuditService>();
+builder.Services.AddScoped<IPluginService>(sp =>
+{
+    var context = sp.GetRequiredService<SquirrelDbContext>();
+    var pluginLoader = sp.GetRequiredService<Squirrel.Wiki.Plugins.IPluginLoader>();
+    var logger = sp.GetRequiredService<ILogger<PluginService>>();
+    var encryptionService = sp.GetRequiredService<ISecretEncryptionService>();
+    var auditService = sp.GetRequiredService<IPluginAuditService>();
+    var userContext = sp.GetRequiredService<IUserContext>();
+    var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
+    var envProvider = sp.GetRequiredService<EnvironmentVariableProvider>();
+    return new PluginService(context, pluginLoader, logger, encryptionService, auditService, userContext, httpContextAccessor, envProvider, pluginsPath);
+});
+
 // Add health checks
 builder.Services.AddHealthChecks();
 
@@ -189,6 +227,7 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 // Initialize database (apply migrations and seed data)
+string defaultLanguage = "en";
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -211,6 +250,39 @@ using (var scope = app.Services.CreateScope())
         {
             await DatabaseSeeder.SeedAsync(context, logger);
         }
+        
+        // Ensure admin user exists
+        var adminBootstrap = services.GetRequiredService<IAdminBootstrapService>();
+        logger.LogInformation("Checking for admin users...");
+        await adminBootstrap.EnsureAdminExistsAsync();
+        
+        // Sync environment variables to database
+        var settingsService = services.GetRequiredService<ISettingsService>();
+        logger.LogInformation("Synchronizing environment variables to database...");
+        await settingsService.SyncEnvironmentVariablesAsync();
+        logger.LogInformation("Environment variable synchronization complete");
+        
+        // Initialize plugin service
+        var pluginService = services.GetRequiredService<IPluginService>();
+        logger.LogInformation("Initializing plugin service...");
+        await pluginService.InitializeAsync();
+        logger.LogInformation("Plugin service initialized successfully");
+        
+        // Get default language using EnvironmentVariableProvider pattern
+        var languageEnvProvider = services.GetRequiredService<EnvironmentVariableProvider>();
+        
+        // Check if DefaultLanguage is set via environment variable
+        if (languageEnvProvider.IsFromEnvironment("DefaultLanguage"))
+        {
+            defaultLanguage = languageEnvProvider.GetValue("DefaultLanguage") ?? "en";
+            logger.LogInformation("Default language loaded from environment variable: {Language}", defaultLanguage);
+        }
+        else
+        {
+            // Fall back to database setting
+            defaultLanguage = await settingsService.GetSettingAsync<string>("DefaultLanguage") ?? "en";
+            logger.LogInformation("Default language loaded from database: {Language}", defaultLanguage);
+        }
     }
     catch (Exception ex)
     {
@@ -219,6 +291,23 @@ using (var scope = app.Services.CreateScope())
         throw;
     }
 }
+
+// Configure request localization
+var supportedCultures = new[]
+{
+    new CultureInfo("en"),
+    new CultureInfo("es"),
+    new CultureInfo("fr"),
+    new CultureInfo("de"),
+    new CultureInfo("it")
+};
+
+app.UseRequestLocalization(new RequestLocalizationOptions
+{
+    DefaultRequestCulture = new RequestCulture(defaultLanguage),
+    SupportedCultures = supportedCultures,
+    SupportedUICultures = supportedCultures
+});
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())

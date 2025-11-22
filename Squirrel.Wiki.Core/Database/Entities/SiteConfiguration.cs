@@ -17,4 +17,14 @@ public class SiteConfiguration
     public DateTime ModifiedOn { get; set; }
     
     public string ModifiedBy { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Indicates if this setting value comes from an environment variable
+    /// </summary>
+    public bool IsFromEnvironment { get; set; }
+    
+    /// <summary>
+    /// The environment variable name if IsFromEnvironment is true
+    /// </summary>
+    public string? EnvironmentVariableName { get; set; }
 }

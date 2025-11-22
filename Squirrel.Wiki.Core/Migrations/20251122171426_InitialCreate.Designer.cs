@@ -11,14 +11,134 @@ using Squirrel.Wiki.Core.Database;
 namespace Squirrel.Wiki.Core.Migrations
 {
     [DbContext(typeof(SquirrelDbContext))]
-    [Migration("20251118220116_InitialCreate")]
+    [Migration("20251122171426_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
+            modelBuilder.HasAnnotation("ProductVersion", "8.0.11");
+
+            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FriendlyName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Xml")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("squirrel_data_protection_keys", (string)null);
+                });
+
+            modelBuilder.Entity("Squirrel.Wiki.Core.Database.Entities.AuthenticationPlugin", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsConfigured")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsCorePlugin")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("LoadOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PluginId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PluginId")
+                        .IsUnique();
+
+                    b.ToTable("squirrel_authentication_plugins", (string)null);
+                });
+
+            modelBuilder.Entity("Squirrel.Wiki.Core.Database.Entities.AuthenticationPluginSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EnvironmentVariableName")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsFromEnvironment")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsSecret")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PluginId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PluginId");
+
+                    b.HasIndex("PluginId", "Key")
+                        .IsUnique();
+
+                    b.ToTable("squirrel_authentication_plugin_settings", (string)null);
+                });
 
             modelBuilder.Entity("Squirrel.Wiki.Core.Database.Entities.Category", b =>
                 {
@@ -234,11 +354,88 @@ namespace Squirrel.Wiki.Core.Migrations
                     b.ToTable("squirrel_page_tags", (string)null);
                 });
 
+            modelBuilder.Entity("Squirrel.Wiki.Core.Database.Entities.PluginAuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Changes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PluginId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PluginIdentifier")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PluginName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Operation");
+
+                    b.HasIndex("PluginId");
+
+                    b.HasIndex("Timestamp");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("PluginId", "Timestamp");
+
+                    b.ToTable("squirrel_plugin_audit_logs", (string)null);
+                });
+
             modelBuilder.Entity("Squirrel.Wiki.Core.Database.Entities.SiteConfiguration", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("EnvironmentVariableName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsFromEnvironment")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Key")
                         .IsRequired()
@@ -311,9 +508,22 @@ namespace Squirrel.Wiki.Core.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ExternalId")
-                        .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("FailedLoginAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("FirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
 
                     b.Property<bool>("IsAdmin")
                         .HasColumnType("INTEGER");
@@ -321,8 +531,37 @@ namespace Squirrel.Wiki.Core.Migrations
                     b.Property<bool>("IsEditor")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime>("LastLoginOn")
+                    b.Property<bool>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("LastLoginOn")
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("LastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastPasswordChangeOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LockedUntil")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PasswordHash")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PasswordResetExpiry")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PasswordResetToken")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Username")
                         .IsRequired()
@@ -331,14 +570,58 @@ namespace Squirrel.Wiki.Core.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Email");
-
-                    b.HasIndex("ExternalId")
+                    b.HasIndex("Email")
                         .IsUnique();
 
-                    b.HasIndex("Username");
+                    b.HasIndex("ExternalId");
+
+                    b.HasIndex("Provider");
+
+                    b.HasIndex("Username")
+                        .IsUnique();
 
                     b.ToTable("squirrel_users", (string)null);
+                });
+
+            modelBuilder.Entity("Squirrel.Wiki.Core.Database.Entities.UserRole", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AssignedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("AssignedOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "Role")
+                        .IsUnique();
+
+                    b.ToTable("squirrel_user_roles", (string)null);
+                });
+
+            modelBuilder.Entity("Squirrel.Wiki.Core.Database.Entities.AuthenticationPluginSetting", b =>
+                {
+                    b.HasOne("Squirrel.Wiki.Core.Database.Entities.AuthenticationPlugin", "Plugin")
+                        .WithMany("Settings")
+                        .HasForeignKey("PluginId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Plugin");
                 });
 
             modelBuilder.Entity("Squirrel.Wiki.Core.Database.Entities.Category", b =>
@@ -391,6 +674,40 @@ namespace Squirrel.Wiki.Core.Migrations
                     b.Navigation("Tag");
                 });
 
+            modelBuilder.Entity("Squirrel.Wiki.Core.Database.Entities.PluginAuditLog", b =>
+                {
+                    b.HasOne("Squirrel.Wiki.Core.Database.Entities.AuthenticationPlugin", "Plugin")
+                        .WithMany()
+                        .HasForeignKey("PluginId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Squirrel.Wiki.Core.Database.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Plugin");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Squirrel.Wiki.Core.Database.Entities.UserRole", b =>
+                {
+                    b.HasOne("Squirrel.Wiki.Core.Database.Entities.User", "User")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Squirrel.Wiki.Core.Database.Entities.AuthenticationPlugin", b =>
+                {
+                    b.Navigation("Settings");
+                });
+
             modelBuilder.Entity("Squirrel.Wiki.Core.Database.Entities.Category", b =>
                 {
                     b.Navigation("Pages");
@@ -408,6 +725,11 @@ namespace Squirrel.Wiki.Core.Migrations
             modelBuilder.Entity("Squirrel.Wiki.Core.Database.Entities.Tag", b =>
                 {
                     b.Navigation("PageTags");
+                });
+
+            modelBuilder.Entity("Squirrel.Wiki.Core.Database.Entities.User", b =>
+                {
+                    b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618
         }

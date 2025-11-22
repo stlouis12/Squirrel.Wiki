@@ -37,11 +37,8 @@ public static class DatabaseSeeder
             // Seed Tags
             var tags = await SeedTagsAsync(context, seedData.Tags, logger);
             
-            // Seed Users (still hardcoded as they contain sensitive data)
-            var users = await SeedUsersAsync(context, logger);
-            
-            // Seed Pages with Content
-            await SeedPagesAsync(context, seedData.Pages, categories, tags, users, logger);
+            // Seed Pages with Content (using system user)
+            await SeedPagesAsync(context, seedData.Pages, categories, tags, logger);
             
             // Seed Menus
             await SeedMenusAsync(context, seedData.Menus, logger);
@@ -153,61 +150,12 @@ public static class DatabaseSeeder
         return tags;
     }
 
-    private static async Task<List<User>> SeedUsersAsync(SquirrelDbContext context, ILogger logger)
-    {
-        logger.LogInformation("Seeding users...");
-        
-        var now = DateTime.UtcNow;
-        var users = new List<User>
-        {
-            new User
-            {
-                Username = "admin",
-                Email = "admin@squirrel.wiki",
-                DisplayName = "Admin User",
-                ExternalId = "dev-admin-001",
-                IsAdmin = true,
-                IsEditor = true,
-                CreatedOn = now,
-                LastLoginOn = now
-            },
-            new User
-            {
-                Username = "editor",
-                Email = "editor@squirrel.wiki",
-                DisplayName = "Editor User",
-                ExternalId = "dev-editor-001",
-                IsAdmin = false,
-                IsEditor = true,
-                CreatedOn = now,
-                LastLoginOn = now
-            },
-            new User
-            {
-                Username = "viewer",
-                Email = "viewer@squirrel.wiki",
-                DisplayName = "Viewer User",
-                ExternalId = "dev-viewer-001",
-                IsAdmin = false,
-                IsEditor = false,
-                CreatedOn = now,
-                LastLoginOn = now
-            }
-        };
-
-        await context.Users.AddRangeAsync(users);
-        await context.SaveChangesAsync();
-        
-        logger.LogInformation("Seeded {Count} users", users.Count);
-        return users;
-    }
-
-    private static async Task SeedPagesAsync(SquirrelDbContext context, List<SeedPage> seedPages, List<Category> categories, List<Tag> tags, List<User> users, ILogger logger)
+    private static async Task SeedPagesAsync(SquirrelDbContext context, List<SeedPage> seedPages, List<Category> categories, List<Tag> tags, ILogger logger)
     {
         logger.LogInformation("Seeding pages...");
         
         var now = DateTime.UtcNow;
-        var adminUser = users.First(u => u.IsAdmin);
+        const string systemUser = "system";
 
         var pages = new List<Page>();
 
@@ -246,9 +194,9 @@ public static class DatabaseSeeder
                 Slug = seedPage.Slug,
                 CategoryId = category?.Id,
                 CreatedOn = now,
-                CreatedBy = adminUser.Email,
+                CreatedBy = systemUser,
                 ModifiedOn = now,
-                ModifiedBy = adminUser.Email,
+                ModifiedBy = systemUser,
                 IsLocked = false,
                 Contents = new List<PageContent>
                 {
@@ -257,7 +205,7 @@ public static class DatabaseSeeder
                         VersionNumber = 1,
                         Text = seedPage.Content,
                         EditedOn = now,
-                        EditedBy = adminUser.Email
+                        EditedBy = systemUser
                     }
                 },
                 PageTags = pageTags

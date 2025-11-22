@@ -29,4 +29,9 @@ public interface IMarkdownService
     /// Updates page links in content when a page is renamed
     /// </summary>
     Task<string> UpdatePageLinksAsync(string content, string oldTitle, string newTitle, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Converts internal slug-only links in HTML to full /wiki/{id}/{slug} URLs
+    /// </summary>
+    Task<string> ConvertInternalLinksAsync(string html, Func<string, Task<(int? id, string? slug)>> slugLookup, CancellationToken cancellationToken = default);
 }

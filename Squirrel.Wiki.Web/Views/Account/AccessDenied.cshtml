@@ -1,5 +1,5 @@
 @{
-    ViewData["Title"] = "Access Denied";
+    ViewData["Title"] = Localizer["AccessDenied"].Value;
 }
 
 <div class="container mt-5">
@@ -11,15 +11,15 @@
                         <i class="bi bi-shield-x text-danger" style="font-size: 5rem;"></i>
                     </div>
                     
-                    <h1 class="display-4 text-danger mb-3">Access Denied</h1>
+                    <h1 class="display-4 text-danger mb-3">@Localizer["AccessDenied"]</h1>
                     
                     <p class="lead text-muted mb-4">
-                        You don't have permission to access this resource.
+                        @Localizer["AccessDeniedMessage"]
                     </p>
 
                     <div class="alert alert-warning" role="alert">
                         <i class="bi bi-exclamation-triangle me-2"></i>
-                        <strong>Authorization Required:</strong> This page requires specific permissions that your account doesn't have.
+                        <strong>@Localizer["AuthorizationRequired"]</strong> @Localizer["PageRequiresSpecificPermissions"]
                     </div>
 
                     <hr class="my-4">
@@ -29,15 +29,15 @@
                         {
                             <div class="alert alert-info mb-3">
                                 <i class="bi bi-info-circle me-2"></i>
-                                You are currently logged in as <strong>@User.Identity.Name</strong>
+                                @Localizer["YouAreCurrentlyLoggedInAs"] <strong>@User.Identity.Name</strong>
                             </div>
                             
                             <div class="d-grid gap-2">
                                 <a asp-action="Index" asp-controller="Home" class="btn btn-primary btn-lg">
-                                    <i class="bi bi-house-door me-2"></i>Go to Home Page
+                                    <i class="bi bi-house-door me-2"></i>@Localizer["GoToHomePage"]
                                 </a>
                                 <a asp-action="Profile" asp-controller="Account" class="btn btn-outline-secondary">
-                                    <i class="bi bi-person-circle me-2"></i>View Your Profile
+                                    <i class="bi bi-person-circle me-2"></i>@Localizer["ViewYourProfile"]
                                 </a>
                             </div>
                         }
@@ -45,15 +45,15 @@
                         {
                             <div class="alert alert-info mb-3">
                                 <i class="bi bi-info-circle me-2"></i>
-                                You need to sign in to access this resource.
+                                @Localizer["YouNeedToSignIn"]
                             </div>
                             
                             <div class="d-grid gap-2">
                                 <a asp-action="Login" asp-controller="Account" asp-route-returnUrl="@ViewBag.ReturnUrl" class="btn btn-primary btn-lg">
-                                    <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                                    <i class="bi bi-box-arrow-in-right me-2"></i>@Localizer["SignIn"]
                                 </a>
                                 <a asp-action="Index" asp-controller="Home" class="btn btn-outline-secondary">
-                                    <i class="bi bi-house-door me-2"></i>Go to Home Page
+                                    <i class="bi bi-house-door me-2"></i>@Localizer["GoToHomePage"]
                                 </a>
                             </div>
                         }
@@ -62,7 +62,7 @@
                     <div class="mt-4 text-muted small">
                         <p class="mb-1">
                             <i class="bi bi-question-circle me-1"></i>
-                            If you believe you should have access to this resource, please contact your administrator.
+                            @Localizer["IfYouBelieveYouShouldHaveAccess"]
                         </p>
                     </div>
                 </div>

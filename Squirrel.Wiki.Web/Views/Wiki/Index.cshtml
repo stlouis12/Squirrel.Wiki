@@ -17,7 +17,7 @@
                             var category = Model.CategoryPath[i];
                             <a href="@Url.Action("Category", "Pages", new { id = category.Id })" 
                                class="badge bg-secondary text-decoration-none" 
-                               title="View all pages in @category.Name">@category.Name</a>
+                               title="@Localizer["ViewAllPagesIn"] @category.Name">@category.Name</a>
                             @if (i < Model.CategoryPath.Count - 1)
                             {
                                 <span class="text-muted mx-1">\</span>
@@ -33,17 +33,17 @@
                     @if (Model.CanEdit)
                     {
                         <a href="@Url.Action("Edit", "Pages", new { id = Model.Id })" class="btn btn-primary">
-                            <i class="bi bi-pencil"></i> Edit
+                            <i class="bi bi-pencil"></i> @Localizer["Edit"]
                         </a>
                     }
                     @if (Model.CanDelete)
                     {
                         <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
-                            <i class="bi bi-trash"></i> Delete
+                            <i class="bi bi-trash"></i> @Localizer["Delete"]
                         </button>
                     }
                     <a href="@Url.Action("History", "Pages", new { id = Model.Id })" class="btn btn-outline-secondary">
-                        <i class="bi bi-clock-history"></i> History
+                        <i class="bi bi-clock-history"></i> @Localizer["History"]
                     </a>
                 </div>
             }
@@ -70,12 +70,12 @@
         <div class="row">
             <div class="col-md-6">
                 <small class="text-muted">
-                    <i class="bi bi-person"></i> Created by <strong>@Model.CreatedBy</strong> on @Model.CreatedOn.ToString("MMMM dd, yyyy")
+                    <i class="bi bi-person"></i> @Localizer["CreatedByOn"] <strong>@Model.CreatedBy</strong> @Localizer["On"].ToString().ToLower() @Model.CreatedOn.ToString("MMMM dd, yyyy")
                 </small>
             </div>
             <div class="col-md-6 text-md-end">
                 <small class="text-muted">
-                    <i class="bi bi-clock"></i> Last modified by <strong>@Model.ModifiedBy</strong> on @Model.ModifiedOn.ToString("MMMM dd, yyyy 'at' HH:mm")
+                    <i class="bi bi-clock"></i> @Localizer["LastModifiedByOn"] <strong>@Model.ModifiedBy</strong> @Localizer["On"].ToString().ToLower() @Model.ModifiedOn.ToString("MMMM dd, yyyy 'at' HH:mm")
                 </small>
             </div>
         </div>
@@ -89,18 +89,18 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="deleteModalLabel">Delete Page</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title" id="deleteModalLabel">@Localizer["DeletePage"]</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Are you sure you want to delete the page "<strong>@Model.Title</strong>"?</p>
-                    <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> This action cannot be undone.</p>
+                    <p>@Localizer["DeletePageConfirmation"] "<strong>@Model.Title</strong>"?</p>
+                    <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> @Localizer["ActionCannotBeUndone"]</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
                     <form method="post" action="@Url.Action("Delete", "Pages", new { id = Model.Id })" class="d-inline">
                         @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-danger">Delete Page</button>
+                        <button type="submit" class="btn btn-danger">@Localizer["DeletePage"]</button>
                     </form>
                 </div>
             </div>

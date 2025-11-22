@@ -4,12 +4,11 @@ namespace Squirrel.Wiki.Core.Database.Repositories;
 
 /// <summary>
 /// Repository interface for User operations
-/// Note: Users are cached from OpenID Connect provider
 /// </summary>
 public interface IUserRepository : IRepository<User, Guid>
 {
     /// <summary>
-    /// Gets a user by their external ID (from OIDC provider)
+    /// Gets a user by their external ID (from external authentication provider)
     /// </summary>
     Task<User?> GetByExternalIdAsync(string externalId, CancellationToken cancellationToken = default);
     
@@ -37,9 +36,4 @@ public interface IUserRepository : IRepository<User, Guid>
     /// Updates the last login timestamp for a user
     /// </summary>
     Task UpdateLastLoginAsync(Guid userId, DateTime lastLogin, CancellationToken cancellationToken = default);
-    
-    /// <summary>
-    /// Synchronizes user profile from OIDC provider
-    /// </summary>
-    Task<User> SyncFromOidcAsync(string externalId, string email, string username, string displayName, bool isAdmin, bool isEditor, CancellationToken cancellationToken = default);
 }

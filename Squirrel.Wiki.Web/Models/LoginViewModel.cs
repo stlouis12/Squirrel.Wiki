@@ -4,10 +4,9 @@ namespace Squirrel.Wiki.Web.Models;
 
 public class LoginViewModel
 {
-    [Required(ErrorMessage = "Email is required")]
-    [EmailAddress(ErrorMessage = "Invalid email address")]
-    [Display(Name = "Email")]
-    public string Email { get; set; } = string.Empty;
+    [Required(ErrorMessage = "Username or email is required")]
+    [Display(Name = "Username or Email")]
+    public string UsernameOrEmail { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Password is required")]
     [DataType(DataType.Password)]

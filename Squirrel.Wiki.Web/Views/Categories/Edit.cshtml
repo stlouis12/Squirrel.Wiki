@@ -1,6 +1,6 @@
 @model Squirrel.Wiki.Web.Models.Admin.EditCategoryViewModel
 @{
-    ViewData["Title"] = Model.IsNew ? "Create Category" : "Edit Category";
+    ViewData["Title"] = Model.IsNew ? Localizer["CreateCategory"].Value : Localizer["EditCategory"].Value;
 }
 
 <div class="container-fluid">
@@ -8,18 +8,18 @@
         <div class="col">
             <h1>
                 <i class="bi bi-@(Model.IsNew ? "plus-circle" : "pencil")"></i> 
-                @(Model.IsNew ? "Create Category" : "Edit Category")
+                @(Model.IsNew ? Localizer["CreateCategory"] : Localizer["EditCategory"])
             </h1>
             @if (!string.IsNullOrEmpty(Model.CurrentPath))
             {
                 <p class="text-muted">
-                    <i class="bi bi-diagram-3"></i> Current path: <code>@Model.CurrentPath</code>
+                    <i class="bi bi-diagram-3"></i> @Localizer["CurrentPath"] <code>@Model.CurrentPath</code>
                 </p>
             }
         </div>
         <div class="col-auto">
             <a asp-action="Index" class="btn btn-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Categories
+                <i class="bi bi-arrow-left"></i> @Localizer["BackToCategories"]
             </a>
         </div>
     </div>
@@ -29,7 +29,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="bi bi-info-circle"></i> Category Information
+                        <i class="bi bi-info-circle"></i> @Localizer["CategoryInformation"]
                     </h5>
                 </div>
                 <div class="card-body">
@@ -39,24 +39,24 @@
                         
                         <div class="mb-3">
                             <label asp-for="Name" class="form-label">
-                                Category Name <span class="text-danger">*</span>
+                                @Localizer["CategoryName"] <span class="text-danger">*</span>
                             </label>
-                            <input asp-for="Name" class="form-control" placeholder="e.g., Documentation, API, Tutorials" />
+                            <input asp-for="Name" class="form-control" placeholder="@Localizer["CategoryNamePlaceholder"]" />
                             <span asp-validation-for="Name" class="text-danger"></span>
                             <div class="form-text">
-                                <i class="bi bi-info-circle"></i> Use letters, numbers, spaces, hyphens, and underscores only.
+                                <i class="bi bi-info-circle"></i> @Localizer["UseLettersNumbersSpaces"]
                             </div>
                         </div>
 
                         <div class="mb-3">
-                            <label asp-for="Description" class="form-label">Description</label>
+                            <label asp-for="Description" class="form-label">@Localizer["Description"]</label>
                             <textarea asp-for="Description" class="form-control" rows="3" 
-                                      placeholder="Brief description of this category (optional)"></textarea>
+                                      placeholder="@Localizer["BriefDescriptionOptional"]"></textarea>
                             <span asp-validation-for="Description" class="text-danger"></span>
                         </div>
 
                         <div class="mb-3">
-                            <label asp-for="ParentId" class="form-label">Parent Category</label>
+                            <label asp-for="ParentId" class="form-label">@Localizer["ParentCategory"]</label>
                             <select asp-for="ParentId" class="form-select" id="parentCategorySelect">
                                 @foreach (var parent in Model.AvailableParents)
                                 {
@@ -70,39 +70,39 @@
                             </select>
                             <span asp-validation-for="ParentId" class="text-danger"></span>
                             <div class="form-text">
-                                <i class="bi bi-info-circle"></i> Select a parent category to create a subcategory, or choose "(None - Root Level)" for a top-level category.
+                                <i class="bi bi-info-circle"></i> @Localizer["SelectParentToCreateSubcategory"]
                             </div>
                         </div>
 
                         @if (!string.IsNullOrEmpty(Model.CurrentPath))
                         {
                             <div class="alert alert-info">
-                                <h6><i class="bi bi-diagram-3"></i> Category Path Preview</h6>
+                                <h6><i class="bi bi-diagram-3"></i> @Localizer["CategoryPathPreview"]</h6>
                                 <div class="mb-2">
-                                    <strong>Current:</strong> <code id="currentPath">@Model.CurrentPath</code>
+                                    <strong>@Localizer["Current"]</strong> <code id="currentPath">@Model.CurrentPath</code>
                                 </div>
                                 <div>
-                                    <strong>New:</strong> <code id="newPath">@Model.CurrentPath</code>
+                                    <strong>@Localizer["New"]</strong> <code id="newPath">@Model.CurrentPath</code>
                                 </div>
                             </div>
                         }
                         else if (Model.ParentId.HasValue)
                         {
                             <div class="alert alert-info">
-                                <h6><i class="bi bi-diagram-3"></i> Category Path Preview</h6>
+                                <h6><i class="bi bi-diagram-3"></i> @Localizer["CategoryPathPreview"]</h6>
                                 <div>
-                                    <strong>Path:</strong> <code id="newPath"></code>
+                                    <strong>@Localizer["Path"]</strong> <code id="newPath"></code>
                                 </div>
                             </div>
                         }
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a asp-action="Index" class="btn btn-secondary">
-                                <i class="bi bi-x-circle"></i> Cancel
+                                <i class="bi bi-x-circle"></i> @Localizer["Cancel"]
                             </a>
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-@(Model.IsNew ? "plus-circle" : "save")"></i> 
-                                @(Model.IsNew ? "Create Category" : "Save Changes")
+                                @(Model.IsNew ? Localizer["CreateCategory"] : Localizer["SaveChanges"])
                             </button>
                         </div>
                     </form>
@@ -113,32 +113,32 @@
         <div class="col-lg-4">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-lightbulb"></i> Tips</h5>
+                    <h5 class="mb-0"><i class="bi bi-lightbulb"></i> @Localizer["Tips"]</h5>
                 </div>
                 <div class="card-body">
-                    <h6>Naming Guidelines</h6>
+                    <h6>@Localizer["NamingGuidelines"]</h6>
                     <ul class="small">
-                        <li>Use clear, descriptive names</li>
-                        <li>Keep names concise (under 50 characters)</li>
-                        <li>Use title case (e.g., "Getting Started")</li>
-                        <li>Avoid special characters</li>
+                        <li>@Localizer["UseClearDescriptiveNamesShort"]</li>
+                        <li>@Localizer["KeepNamesConcise"]</li>
+                        <li>@Localizer["UseTitleCase"]</li>
+                        <li>@Localizer["AvoidSpecialCharacters"]</li>
                     </ul>
 
-                    <h6 class="mt-3">Hierarchy Best Practices</h6>
+                    <h6 class="mt-3">@Localizer["HierarchyBestPractices"]</h6>
                     <ul class="small">
-                        <li>Limit depth to 3-4 levels</li>
-                        <li>Group related content together</li>
-                        <li>Use consistent naming patterns</li>
-                        <li>Plan structure before creating</li>
+                        <li>@Localizer["LimitDepthTo3or4Levels"]</li>
+                        <li>@Localizer["GroupRelatedContentTogether"]</li>
+                        <li>@Localizer["UseConsistentNamingPatterns"]</li>
+                        <li>@Localizer["PlanStructureBeforeCreating"]</li>
                     </ul>
 
-                    <h6 class="mt-3">URL Structure</h6>
+                    <h6 class="mt-3">@Localizer["URLStructure"]</h6>
                     <p class="small">
-                        Categories create hierarchical URLs:
+                        @Localizer["CategoriesCreateHierarchicalURLs"]
                     </p>
                     <code class="small d-block mb-2">/wiki/docs/api/rest</code>
                     <p class="small text-muted">
-                        Based on: Documentation → API → REST
+                        @Localizer["BasedOn"] Documentation → API → REST
                     </p>
                 </div>
             </div>
@@ -147,14 +147,14 @@
             {
                 <div class="card mt-3">
                     <div class="card-header bg-warning text-dark">
-                        <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Danger Zone</h5>
+                        <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> @Localizer["DangerZone"]</h5>
                     </div>
                     <div class="card-body">
                         <p class="small">
-                            Changing the parent category will move this category and all its subcategories to a new location in the hierarchy.
+                            @Localizer["ChangingParentWillMoveCategory"]
                         </p>
                         <p class="small text-danger mb-0">
-                            <strong>Warning:</strong> This will update all page URLs under this category.
+                            <strong>@Localizer["Warning"]:</strong> @Localizer["WarningWillUpdatePageURLs"]
                         </p>
                     </div>
                 </div>
@@ -209,7 +209,7 @@
                 var validPattern = /^[a-zA-Z0-9\s\-_]+$/;
                 if (!validPattern.test(name)) {
                     e.preventDefault();
-                    alert('Category name can only contain letters, numbers, spaces, hyphens, and underscores.');
+                    alert('@Localizer["CategoryNameValidCharactersOnly"]');
                     nameInput.focus();
                     return false;
                 }

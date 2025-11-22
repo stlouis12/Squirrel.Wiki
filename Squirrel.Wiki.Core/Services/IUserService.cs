@@ -23,7 +23,7 @@ public interface IUserService
     Task<UserDto?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets a user by their external ID (OIDC subject identifier)
+    /// Gets a user by their external ID (from external authentication provider)
     /// </summary>
     Task<UserDto?> GetByExternalIdAsync(string externalId, CancellationToken cancellationToken = default);
 
@@ -51,11 +51,6 @@ public interface IUserService
     /// Updates an existing user
     /// </summary>
     Task<UserDto> UpdateAsync(Guid id, UserUpdateDto updateDto, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Synchronizes a user from OIDC provider
-    /// </summary>
-    Task<UserDto> SyncFromOidcAsync(OidcUserDto oidcUser, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Promotes a user to admin
@@ -96,4 +91,58 @@ public interface IUserService
     /// Gets user statistics (page count, edit count, etc.)
     /// </summary>
     Task<UserStatsDto> GetUserStatsAsync(Guid id, CancellationToken cancellationToken = default);
+
+    // ============================================================================
+    // Local Authentication Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Authenticates a user with username/email and password
+    /// </summary>
+    Task<UserDto?> AuthenticateAsync(string usernameOrEmail, string password, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a new local user with password
+    /// </summary>
+    Task<UserDto> CreateLocalUserAsync(string username, string email, string password, string displayName, bool isAdmin = false, bool isEditor = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sets or changes a user's password
+    /// </summary>
+    Task SetPasswordAsync(Guid userId, string newPassword, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Validates a password meets requirements
+    /// </summary>
+    Task<PasswordValidationResult> ValidatePasswordAsync(string password);
+
+    /// <summary>
+    /// Initiates a password reset request
+    /// </summary>
+    Task<string> InitiatePasswordResetAsync(string email, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Completes a password reset with token
+    /// </summary>
+    Task<bool> CompletePasswordResetAsync(string token, string newPassword, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Locks a user account
+    /// </summary>
+    Task LockAccountAsync(Guid userId, DateTime? lockUntil = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Unlocks a user account
+    /// </summary>
+    Task UnlockAccountAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Activates a user account
+    /// </summary>
+    Task ActivateAccountAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deactivates a user account
+    /// </summary>
+    Task DeactivateAccountAsync(Guid userId, CancellationToken cancellationToken = default);
 }

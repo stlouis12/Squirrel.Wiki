@@ -1,17 +1,17 @@
 @model Squirrel.Wiki.Web.Models.Admin.MenuViewModel
 @{
-    ViewData["Title"] = "Site Customization";
+    ViewData["Title"] = Localizer["SiteCustomization"].Value;
 }
 
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1><i class="bi bi-palette"></i> Site Customization</h1>
-            <p class="text-muted">Customize navigation bars, sidebars, and footer zones</p>
+            <h1><i class="bi bi-palette"></i> @Localizer["SiteCustomization"]</h1>
+            <p class="text-muted">@Localizer["CustomizeNavigationBars"]</p>
         </div>
         <div class="col-auto">
             <a asp-action="Create" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> Create New Menu
+                <i class="bi bi-plus-circle"></i> @Localizer["CreateNewMenu"]
             </a>
         </div>
     </div>
@@ -24,14 +24,14 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Name</th>
-                                <th>Type</th>
-                                <th>Description</th>
-                                <th class="text-center">Items</th>
-                                <th class="text-center">Status</th>
-                                <th>Last Modified</th>
-                                <th>Modified By</th>
-                                <th class="text-end">Actions</th>
+                                <th>@Localizer["Name"]</th>
+                                <th>@Localizer["Type"]</th>
+                                <th>@Localizer["Description"]</th>
+                                <th class="text-center">@Localizer["Items"]</th>
+                                <th class="text-center">@Localizer["Status"]</th>
+                                <th>@Localizer["LastModified"]</th>
+                                <th>@Localizer["ModifiedBy"]</th>
+                                <th class="text-end">@Localizer["Actions"]</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -53,7 +53,7 @@
                                         }
                                         else
                                         {
-                                            <span class="text-muted fst-italic">No description</span>
+                                            <span class="text-muted fst-italic">@Localizer["NoDescription"]</span>
                                         }
                                     </td>
                                     <td class="text-center">
@@ -67,9 +67,9 @@
                                                    data-menu-id="@menu.Id"
                                                    data-menu-name="@menu.Name"
                                                    @(menu.IsEnabled ? "checked" : "")
-                                                   title="Enable/Disable this menu">
+                                                   title="@Localizer["EnableDisableMenu"]">
                                             <label class="form-check-label visually-hidden" for="menu_@menu.Id">
-                                                Menu Status
+                                                @Localizer["MenuStatus"]
                                             </label>
                                         </div>
                                     </td>
@@ -86,7 +86,7 @@
                                                 class="btn btn-outline-danger btn-sm delete-menu-btn" 
                                                 data-menu-id="@menu.Id"
                                                 data-menu-name="@menu.Name"
-                                                title="Delete">
+                                                title="@Localizer["Delete"]">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </td>
@@ -101,47 +101,47 @@
     else
     {
         <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i> No menus found. 
-            <a asp-action="Create" class="alert-link">Create your first menu</a> to get started.
+            <i class="bi bi-info-circle"></i> @Localizer["NoMenusFound"] 
+            <a asp-action="Create" class="alert-link">@Localizer["CreateYourFirstMenu"]</a> @Localizer["ToGetStarted"]
         </div>
     }
 
     <div class="card mt-4">
         <div class="card-header">
-            <h5 class="mb-0"><i class="bi bi-question-circle"></i> About MenuMarkup</h5>
+            <h5 class="mb-0"><i class="bi bi-question-circle"></i> @Localizer["AboutMenuMarkup"]</h5>
         </div>
         <div class="card-body">
-            <p class="lead">MenuMarkup is a simple, markdown-like syntax for creating navigation menus.</p>
+            <p class="lead">@Localizer["MenuMarkupDescription"]</p>
             
             <div class="row">
                 <div class="col-md-6">
-                    <h6><i class="bi bi-check-circle text-success"></i> Key Features</h6>
+                    <h6><i class="bi bi-check-circle text-success"></i> @Localizer["KeyFeatures"]</h6>
                     <ul>
-                        <li><strong>Simple Syntax:</strong> Use asterisks (*) and markdown links</li>
-                        <li><strong>Nested Menus:</strong> Create dropdowns with multiple levels</li>
-                        <li><strong>Smart URLs:</strong> Support for tokens, page slugs, tags, and categories</li>
-                        <li><strong>Bootstrap Integration:</strong> Renders as Bootstrap 5 navbar components</li>
+                        <li><strong>@Localizer["SimpleSyntax"]</strong> @Localizer["UseAsterisksAndMarkdown"]</li>
+                        <li><strong>@Localizer["NestedMenus"]</strong> @Localizer["CreateDropdownsMultipleLevels"]</li>
+                        <li><strong>@Localizer["SmartURLs"]</strong> @Localizer["SupportForTokens"]</li>
+                        <li><strong>@Localizer["BootstrapIntegration"]</strong> @Localizer["RendersAsBootstrap5"]</li>
                     </ul>
                 </div>
                 <div class="col-md-6">
-                    <h6><i class="bi bi-lightbulb text-warning"></i> Special URL Tokens</h6>
+                    <h6><i class="bi bi-lightbulb text-warning"></i> @Localizer["SpecialURLTokens"]</h6>
                     <ul class="small">
-                        <li><code>%ALLPAGES%</code> - All pages list</li>
-                        <li><code>%ALLTAGS%</code> - All tags list (with counts)</li>
-                        <li><code>%ALLCATEGORIES%</code> - All categories tree</li>
-                        <li><code>%SEARCH%</code> - Search page</li>
-                        <li><code>%EMBEDDED_SEARCH%</code> - Embedded search box (sidebar only)</li>
-                        <li><code>%NEWPAGE%</code> - Create new page</li>
-                        <li><code>%RECENTLYUPDATED%</code> - Recently updated pages</li>
-                        <li><code>tag:name</code> - Pages with specific tag</li>
-                        <li><code>category:name</code> - Pages in category</li>
+                        <li><code>%ALLPAGES%</code> - @Localizer["AllPages"]</li>
+                        <li><code>%ALLTAGS%</code> - @Localizer["AllTags"]</li>
+                        <li><code>%ALLCATEGORIES%</code> - @Localizer["Categories"]</li>
+                        <li><code>%SEARCH%</code> - @Localizer["Search"]</li>
+                        <li><code>%EMBEDDED_SEARCH%</code> - @Localizer["Search"] (sidebar)</li>
+                        <li><code>%NEWPAGE%</code> - @Localizer["NewPage"]</li>
+                        <li><code>%RECENTLYUPDATED%</code> - @Localizer["RecentActivity"]</li>
+                        <li><code>tag:name</code> - @Localizer["Tags"]</li>
+                        <li><code>category:name</code> - @Localizer["Category"]</li>
                     </ul>
                 </div>
             </div>
 
             <div class="alert alert-info mt-3">
-                <i class="bi bi-info-circle"></i> <strong>Getting Started:</strong> 
-                Click "Create New Menu" to build your first navigation menu. The editor includes a live preview and syntax guide.
+                <i class="bi bi-info-circle"></i> <strong>@Localizer["GettingStarted"]</strong> 
+                @Localizer["ClickCreateNewMenu"]
             </div>
         </div>
     </div>
@@ -152,21 +152,21 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Delete Menu</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title">@Localizer["DeleteMenu"]</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
             </div>
             <div class="modal-body">
-                <p>Are you sure you want to delete the menu "<strong id="deleteMenuName"></strong>"?</p>
+                <p>@Localizer["AreYouSureDeleteMenu"] "<strong id="deleteMenuName"></strong>"?</p>
                 <p class="text-danger">
-                    <i class="bi bi-exclamation-triangle"></i> This action cannot be undone.
+                    <i class="bi bi-exclamation-triangle"></i> @Localizer["ActionCannotBeUndone"]
                 </p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
                 <form id="deleteMenuForm" method="post" class="d-inline">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="btn btn-danger">
-                        <i class="bi bi-trash"></i> Delete Menu
+                        <i class="bi bi-trash"></i> @Localizer["DeleteMenu"]
                     </button>
                 </form>
             </div>
@@ -182,14 +182,14 @@
             @if (!string.IsNullOrEmpty(Model.SuccessMessage))
             {
                 <text>
-                Toast.success('Menu Saved', '@Html.Raw(Model.SuccessMessage.Replace("'", "\\'"))');
+                Toast.success('@Localizer["MenuSaved"]', '@Html.Raw(Model.SuccessMessage.Replace("'", "\\'"))');
                 </text>
             }
             
             @if (!string.IsNullOrEmpty(Model.ErrorMessage))
             {
                 <text>
-                Toast.error('Error', '@Html.Raw(Model.ErrorMessage.Replace("'", "\\'"))');
+                Toast.error('@Localizer["Error"]', '@Html.Raw(Model.ErrorMessage.Replace("'", "\\'"))');
                 </text>
             }
             
@@ -220,21 +220,23 @@
                     .then(data => {
                         if (data.success) {
                             // Show success toast
-                            Toast.success('Menu Status', 'Menu "' + menuName + '" ' + (isEnabled ? 'enabled' : 'disabled') + ' successfully');
+                            var message = isEnabled ? '@Localizer["MenuEnabledSuccessfully"]' : '@Localizer["MenuDisabledSuccessfully"]';
+                            message = message.replace('{0}', menuName);
+                            Toast.success('@Localizer["MenuStatusUpdated"]', message);
                             
                             // Reload the page to refresh both the table and the navigation bar
                             setTimeout(() => window.location.reload(), 500);
                         } else {
                             // Revert checkbox state on error
                             checkboxElement.checked = !isEnabled;
-                            Toast.error('Menu Status', data.message || 'Failed to update menu status');
+                            Toast.error('@Localizer["MenuStatusUpdated"]', data.message || '@Localizer["FailedToUpdateMenuStatus"]');
                             checkboxElement.disabled = false;
                         }
                     })
                     .catch(error => {
                         // Revert checkbox state on error
                         checkboxElement.checked = !isEnabled;
-                        Toast.error('Menu Status', 'Error updating menu status: ' + error.message);
+                        Toast.error('@Localizer["MenuStatusUpdated"]', '@Localizer["ErrorUpdatingMenuStatus"]' + ' ' + error.message);
                         checkboxElement.disabled = false;
                     });
                 });
@@ -272,17 +274,17 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        Toast.success('Menu Deleted', data.message || 'Menu deleted successfully');
+                        Toast.success('@Localizer["MenuDeleted"]', data.message || '@Localizer["MenuDeletedSuccessfully"]');
                         deleteModal.hide();
                         // Reload page after short delay
                         setTimeout(() => window.location.reload(), 1000);
                     } else {
-                        Toast.error('Delete Failed', data.message || 'Failed to delete menu');
+                        Toast.error('@Localizer["DeleteFailed"]', data.message || '@Localizer["FailedToDeleteMenu"]');
                         deleteModal.hide();
                     }
                 })
                 .catch(error => {
-                    Toast.error('Delete Failed', 'Error deleting menu: ' + error.message);
+                    Toast.error('@Localizer["DeleteFailed"]', '@Localizer["ErrorDeletingMenu"]' + ' ' + error.message);
                     deleteModal.hide();
                 });
             });

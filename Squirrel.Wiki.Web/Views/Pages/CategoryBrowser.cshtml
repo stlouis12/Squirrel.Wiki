@@ -1,23 +1,23 @@
 @model IEnumerable<Squirrel.Wiki.Core.Models.CategoryTreeDto>
 @{
-    ViewData["Title"] = "Browse Categories";
+    ViewData["Title"] = Localizer["BrowseCategories"].Value;
 }
 
 <div class="container-fluid mt-4">
     <div class="row mb-4">
         <div class="col">
-            <h1><i class="bi bi-folder-fill"></i> Browse Categories</h1>
-            <p class="text-muted">Explore pages organized by category hierarchy</p>
+            <h1><i class="bi bi-folder-fill"></i> @Localizer["BrowseCategories"]</h1>
+            <p class="text-muted">@Localizer["ExplorePagesOrganizedByCategory"]</p>
         </div>
     </div>
 
     @if (!Model.Any())
     {
         <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i> No categories have been created yet.
+            <i class="bi bi-info-circle"></i> @Localizer["NoCategoriesCreatedYet"]
             @if (User.IsInRole("Admin"))
             {
-                <a href="@Url.Action("Index", "Categories")" class="alert-link">Create your first category</a>
+                <a href="@Url.Action("Index", "Categories")" class="alert-link">@Localizer["CreateYourFirstCategory"]</a>
             }
         </div>
     }

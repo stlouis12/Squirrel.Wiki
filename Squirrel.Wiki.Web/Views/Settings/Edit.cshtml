@@ -1,17 +1,17 @@
 @model Squirrel.Wiki.Web.Models.Admin.EditSettingViewModel
 @{
-    ViewData["Title"] = $"Edit {Model.DisplayName}";
+    ViewData["Title"] = $"{Localizer["Edit"]} {Model.DisplayName}";
 }
 
 <div class="container mt-4">
     <div class="row mb-4">
         <div class="col">
-            <h1><i class="bi bi-pencil"></i> Edit Setting</h1>
+            <h1><i class="bi bi-pencil"></i> @Localizer["EditSetting"]</h1>
             <p class="text-muted">@Model.DisplayName</p>
         </div>
         <div class="col-auto">
             <a asp-action="Index" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Settings
+                <i class="bi bi-arrow-left"></i> @Localizer["BackToSettings"]
             </a>
         </div>
     </div>
@@ -36,7 +36,7 @@
                                 <strong>@Model.DisplayName</strong>
                                 @if (Model.IsRequired)
                                 {
-                                    <span class="badge bg-danger ms-1">Required</span>
+                                    <span class="badge bg-danger ms-1">@Localizer["Required"]</span>
                                 }
                             </label>
                             <p class="text-muted small">@Model.Description</p>
@@ -52,7 +52,7 @@
                                                value="true"
                                                @(Model.Value?.ToLower() == "true" ? "checked" : "")>
                                         <label class="form-check-label" for="boolValue">
-                                            Enable this setting
+                                            @Localizer["EnableThisSetting"]
                                         </label>
                                     </div>
                                     break;
@@ -67,13 +67,6 @@
                                 case Squirrel.Wiki.Web.Models.Admin.SettingType.Number:
                                     <input asp-for="Value" 
                                            type="number" 
-                                           class="form-control"
-                                           required="@Model.IsRequired" />
-                                    break;
-
-                                case Squirrel.Wiki.Web.Models.Admin.SettingType.Email:
-                                    <input asp-for="Value" 
-                                           type="email" 
                                            class="form-control"
                                            required="@Model.IsRequired" />
                                     break;
@@ -102,7 +95,7 @@
 
                                 case Squirrel.Wiki.Web.Models.Admin.SettingType.Dropdown:
                                     <select asp-for="Value" class="form-select" required="@Model.IsRequired">
-                                        <option value="">-- Select --</option>
+                                        <option value="">@Localizer["Select"]</option>
                                         @if (Model.Options != null)
                                         {
                                             foreach (var option in Model.Options)
@@ -149,10 +142,10 @@
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a asp-action="Index" class="btn btn-secondary">
-                                <i class="bi bi-x-circle"></i> Cancel
+                                <i class="bi bi-x-circle"></i> @Localizer["Cancel"]
                             </a>
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle"></i> Save Changes
+                                <i class="bi bi-check-circle"></i> @Localizer["SaveChanges"]
                             </button>
                         </div>
                     </form>
@@ -162,31 +155,31 @@
             <!-- Setting Information -->
             <div class="card mt-3">
                 <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> Setting Information</h6>
+                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> @Localizer["SettingInformation"]</h6>
                 </div>
                 <div class="card-body">
                     <dl class="row mb-0">
-                        <dt class="col-sm-3">Key</dt>
+                        <dt class="col-sm-3">@Localizer["Key"]</dt>
                         <dd class="col-sm-9"><code>@Model.Key</code></dd>
 
-                        <dt class="col-sm-3">Type</dt>
+                        <dt class="col-sm-3">@Localizer["Type"]</dt>
                         <dd class="col-sm-9"><span class="badge bg-info">@Model.Type</span></dd>
 
-                        <dt class="col-sm-3">Required</dt>
+                        <dt class="col-sm-3">@Localizer["Required"]</dt>
                         <dd class="col-sm-9">
                             @if (Model.IsRequired)
                             {
-                                <span class="badge bg-danger">Yes</span>
+                                <span class="badge bg-danger">@Localizer["Yes"]</span>
                             }
                             else
                             {
-                                <span class="badge bg-secondary">No</span>
+                                <span class="badge bg-secondary">@Localizer["No"]</span>
                             }
                         </dd>
 
                         @if (!string.IsNullOrEmpty(Model.ValidationPattern))
                         {
-                            <dt class="col-sm-3">Validation</dt>
+                            <dt class="col-sm-3">@Localizer["Validation"]</dt>
                             <dd class="col-sm-9"><code>@Model.ValidationPattern</code></dd>
                         }
                     </dl>

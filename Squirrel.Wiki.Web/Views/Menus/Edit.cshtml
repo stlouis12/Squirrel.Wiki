@@ -1,6 +1,6 @@
 @model Squirrel.Wiki.Web.Models.Admin.EditMenuViewModel
 @{
-    ViewData["Title"] = Model.IsNew ? "Create Menu" : $"Edit Menu: {Model.Name}";
+    ViewData["Title"] = Model.IsNew ? Localizer["CreateMenu"].Value : string.Format(Localizer["EditMenuTitle"].Value, Model.Name);
 }
 
 <style>
@@ -19,15 +19,15 @@
         <div class="col">
             <h1>
                 <i class="bi bi-menu-button-wide"></i> 
-                @(Model.IsNew ? "Create New Menu" : "Edit Menu")
+                @(Model.IsNew ? Localizer["CreateNewMenuTitle"] : Localizer["EditMenuHeading"])
             </h1>
             <p class="text-muted">
-                @(Model.IsNew ? "Create a new navigation menu using MenuMarkup syntax" : $"Editing: {Model.Name}")
+                @(Model.IsNew ? Localizer["CreateNewMenuDescription"] : string.Format(Localizer["EditingMenu"].Value, Model.Name))
             </p>
         </div>
         <div class="col-auto">
             <a asp-action="Index" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Menus
+                <i class="bi bi-arrow-left"></i> @Localizer["BackToMenus"]
             </a>
         </div>
     </div>
@@ -40,31 +40,31 @@
             <div class="col-lg-8">
                 <div class="card mb-4">
                     <div class="card-header">
-                        <h5 class="mb-0">Menu Details</h5>
+                        <h5 class="mb-0">@Localizer["MenuDetails"]</h5>
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label asp-for="Name" class="form-label">Menu Name</label>
-                            <input asp-for="Name" class="form-control" placeholder="e.g., Main Navigation, Footer Menu" required />
+                            <label asp-for="Name" class="form-label">@Localizer["MenuName"]</label>
+                            <input asp-for="Name" class="form-control" placeholder="@Localizer["MenuNamePlaceholder"]" required />
                             <span asp-validation-for="Name" class="text-danger"></span>
                             <div class="form-text">
-                                A descriptive name for this menu
+                                @Localizer["DescriptiveNameForMenu"]
                             </div>
                         </div>
 
                         <div class="mb-3">
-                            <label asp-for="MenuType" class="form-label">Menu Type</label>
+                            <label asp-for="MenuType" class="form-label">@Localizer["MenuType"]</label>
                             <select asp-for="MenuType" asp-items="Model.MenuTypes" class="form-select" required>
                             </select>
                             <span asp-validation-for="MenuType" class="text-danger"></span>
                             <div class="form-text">
-                                The type determines where and how this menu is used. Only one menu of each type can be active at a time.
+                                @Localizer["MenuTypeDescription"]
                             </div>
                         </div>
 
                         <div class="mb-3">
-                            <label asp-for="Description" class="form-label">Description</label>
-                            <input asp-for="Description" class="form-control" placeholder="Brief description of this menu's purpose" />
+                            <label asp-for="Description" class="form-label">@Localizer["Description"]</label>
+                            <input asp-for="Description" class="form-control" placeholder="@Localizer["BriefDescriptionOptional"]" />
                             <span asp-validation-for="Description" class="text-danger"></span>
                         </div>
 
@@ -72,17 +72,17 @@
                             <div class="form-check">
                                 <input asp-for="IsEnabled" class="form-check-input" type="checkbox" id="IsEnabledCheckbox" />
                                 <label asp-for="IsEnabled" class="form-check-label" for="IsEnabledCheckbox">
-                                    Active
+                                    @Localizer["Active"]
                                 </label>
                                 <div class="form-text">
-                                    When active, this menu will be displayed on the site. Activating this menu will deactivate any other menu of the same type.
+                                    @Localizer["ActiveMenuDescription"]
                                 </div>
                             </div>
                         </div>
 
                         <!-- Menu Markup (for MainNavigation and Sidebar) -->
                         <div class="mb-3" id="menuMarkupSection">
-                            <label asp-for="MenuMarkup" class="form-label">Menu Markup</label>
+                            <label asp-for="MenuMarkup" class="form-label">@Localizer["MenuMarkup"]</label>
                             <textarea asp-for="MenuMarkup" 
                                       class="form-control font-monospace" 
                                       rows="15" 
@@ -90,7 +90,7 @@
                                       placeholder="* [Home](/wiki/home)&#10;* [About](/wiki/about)"></textarea>
                             <span asp-validation-for="MenuMarkup" class="text-danger"></span>
                             <div class="form-text">
-                                Use MenuMarkup syntax to define menu items (see syntax guide below)
+                                @Localizer["UseMenuMarkupSyntax"]
                             </div>
                         </div>
 
@@ -98,44 +98,44 @@
                         <div id="footerZonesSection" style="display: none;">
                             <div class="mb-3">
                                 <label asp-for="FooterLeftZone" class="form-label">
-                                    Footer Left Zone
-                                    <span class="badge bg-secondary">Left-aligned</span>
+                                    @Localizer["FooterLeftZone"]
+                                    <span class="badge bg-secondary">@Localizer["LeftAligned"]</span>
                                 </label>
                                 <input asp-for="FooterLeftZone" 
                                        class="form-control font-monospace" 
                                        id="footerLeftZoneEditor"
-                                       placeholder="© 2025 My Wiki - Built with [[.NET 8.0|https://dotnet.microsoft.com]]" />
+                                       placeholder="@Localizer["FooterLeftZonePlaceholder"]" />
                                 <span asp-validation-for="FooterLeftZone" class="text-danger"></span>
                                 <div class="form-text">
-                                    Content for the left footer zone. Use [[Text|URL]] for links.
+                                    @Localizer["ContentForLeftFooterZone"]
                                 </div>
                             </div>
 
                             <div class="mb-3">
                                 <label asp-for="FooterRightZone" class="form-label">
-                                    Footer Right Zone
-                                    <span class="badge bg-secondary">Right-aligned</span>
+                                    @Localizer["FooterRightZone"]
+                                    <span class="badge bg-secondary">@Localizer["RightAligned"]</span>
                                 </label>
                                 <input asp-for="FooterRightZone" 
                                        class="form-control font-monospace" 
                                        id="footerRightZoneEditor"
-                                       placeholder="[[GitHub|https://github.com/yourorg/yourrepo]] - [[Report Issue|https://github.com/yourorg/yourrepo/issues]]" />
+                                       placeholder="@Localizer["FooterRightZonePlaceholder"]" />
                                 <span asp-validation-for="FooterRightZone" class="text-danger"></span>
                                 <div class="form-text">
-                                    Content for the right footer zone. Use [[Text|URL]] for links.
+                                    @Localizer["ContentForRightFooterZone"]
                                 </div>
                             </div>
                         </div>
 
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-save"></i> @(Model.IsNew ? "Create Menu" : "Save Changes")
+                                <i class="bi bi-save"></i> @(Model.IsNew ? Localizer["CreateMenuButton"] : Localizer["SaveChanges"])
                             </button>
                             <button type="button" class="btn btn-outline-secondary" id="previewBtn">
-                                <i class="bi bi-eye"></i> Preview
+                                <i class="bi bi-eye"></i> @Localizer["Preview"]
                             </button>
                             <a asp-action="Index" class="btn btn-outline-secondary">
-                                Cancel
+                                @Localizer["Cancel"]
                             </a>
                         </div>
                     </div>
@@ -144,13 +144,13 @@
                 <!-- Preview Panel -->
                 <div class="card mb-4" >
                     <div class="card-header">
-                        <h5 class="mb-0"><i class="bi bi-eye"></i> Live Preview</h5>
+                        <h5 class="mb-0"><i class="bi bi-eye"></i> @Localizer["LivePreview"]</h5>
                     </div>
                     <div class="card-body" style="overflow: visible; padding-bottom: 250px;">
                         <div id="menuPreview" class="border rounded p-3 bg-light" style="position: relative; z-index: 1000; overflow: visible;">
                             <p class="text-muted text-center">
                                 <i class="bi bi-info-circle"></i><br />
-                                Click "Preview" to see how your menu will render
+                                @Localizer["ClickPreviewToSee"]
                             </p>
                         </div>
                     </div>
@@ -161,19 +161,19 @@
                 <!-- Syntax Guide -->
                 <div class="card sticky-top" style="top: 1rem;">
                     <div class="card-header">
-                        <h5 class="mb-0"><i class="bi bi-question-circle"></i> Quick Reference</h5>
+                        <h5 class="mb-0"><i class="bi bi-question-circle"></i> @Localizer["QuickReference"]</h5>
                     </div>
                     <div class="card-body">
-                        <h6 class="text-primary">Basic Links</h6>
+                        <h6 class="text-primary">@Localizer["BasicLinks"]</h6>
                         <pre class="bg-light p-2 rounded small mb-3"><code>* [Home](/wiki/home)
 * [About](/wiki/about)</code></pre>
 
-                        <h6 class="text-primary">Dropdown Menus</h6>
+                        <h6 class="text-primary">@Localizer["DropdownMenus"]</h6>
                         <pre class="bg-light p-2 rounded small mb-3"><code>* [Documentation]
 ** [Getting Started](/docs/start)
 ** [User Guide](/docs/guide)</code></pre>
 
-                        <h6 class="text-primary">URL Tokens</h6>
+                        <h6 class="text-primary">@Localizer["URLTokens"]</h6>
                         <pre class="bg-light p-2 rounded small mb-3"><code>* [All Pages](%ALLPAGES%)
 * [All Tags](%ALLTAGS%)
 * [Categories](%ALLCATEGORIES%)
@@ -182,22 +182,22 @@
 * [New Page](%NEWPAGE%)
 * [Recent](%RECENTLYUPDATED%)</code></pre>
 
-                        <h6 class="text-primary">Tags & Categories</h6>
+                        <h6 class="text-primary">@Localizer["TagsAndCategories"]</h6>
                         <pre class="bg-light p-2 rounded small mb-3"><code>* [Tutorials](tag:tutorial)
 * [Tech Articles](category:tech)</code></pre>
 
-                        <h6 class="text-primary">Page Slugs</h6>
+                        <h6 class="text-primary">@Localizer["PageSlugs"]</h6>
                         <pre class="bg-light p-2 rounded small mb-3"><code>* [Welcome](welcome-page)
 * [FAQ](frequently-asked)</code></pre>
 
                         <div class="alert alert-info small mb-0">
-                            <strong><i class="bi bi-lightbulb"></i> Tips:</strong>
+                            <strong><i class="bi bi-lightbulb"></i> @Localizer["TipsColon"]</strong>
                             <ul class="mb-0 ps-3 mt-2">
-                                <li>Use <code>*</code> for top-level items</li>
-                                <li>Use <code>**</code> for dropdown items</li>
-                                <li>Dropdowns need no URL in header</li>
-                                <li>URLs auto-resolve page slugs</li>
-                                <li>External links work too!</li>
+                                <li>@Localizer["UseAsteriskForTopLevel"]</li>
+                                <li>@Localizer["UseDoubleAsteriskForDropdown"]</li>
+                                <li>@Localizer["DropdownsNeedNoURL"]</li>
+                                <li>@Localizer["URLsAutoResolve"]</li>
+                                <li>@Localizer["ExternalLinksWork"]</li>
                             </ul>
                         </div>
                     </div>
@@ -241,12 +241,12 @@
             const previewDiv = document.getElementById('menuPreview');
             
             if (!menuMarkup.trim()) {
-                previewDiv.innerHTML = '<p class="text-muted text-center"><i class="bi bi-info-circle"></i><br />Enter some menu markup to preview</p>';
+                previewDiv.innerHTML = '<p class="text-muted text-center"><i class="bi bi-info-circle"></i><br />@Localizer["EnterMenuMarkupToPreview"]</p>';
                 return;
             }
 
             // Show loading state
-            previewDiv.innerHTML = '<p class="text-center"><span class="spinner-border spinner-border-sm"></span> Generating preview...</p>';
+            previewDiv.innerHTML = '<p class="text-center"><span class="spinner-border spinner-border-sm"></span> @Localizer["GeneratingPreview"]</p>';
 
             try {
                 const response = await fetch('@Url.Action("Preview")', {
@@ -261,12 +261,12 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    previewDiv.innerHTML = result.html || '<p class="text-muted">Empty menu</p>';
+                    previewDiv.innerHTML = result.html || '<p class="text-muted">@Localizer["EmptyMenu"]</p>';
                 } else {
-                    previewDiv.innerHTML = `<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle"></i> ${result.error || 'Preview failed'}</div>`;
+                    previewDiv.innerHTML = `<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle"></i> ${result.error || '@Localizer["PreviewFailed"]'}</div>`;
                 }
             } catch (error) {
-                previewDiv.innerHTML = `<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle"></i> Error: ${error.message}</div>`;
+                previewDiv.innerHTML = `<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle"></i> @Localizer["Error"]: ${error.message}</div>`;
             }
         });
 

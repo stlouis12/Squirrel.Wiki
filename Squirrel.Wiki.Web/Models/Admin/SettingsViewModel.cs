@@ -34,6 +34,8 @@ public class SettingItem
     public bool IsRequired { get; set; }
     public string? ValidationPattern { get; set; }
     public List<string>? Options { get; set; } // For dropdown/radio
+    public bool IsFromEnvironment { get; set; }
+    public string? EnvironmentVariableName { get; set; }
 }
 
 /// <summary>

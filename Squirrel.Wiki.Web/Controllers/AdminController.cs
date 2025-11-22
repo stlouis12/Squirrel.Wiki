@@ -196,7 +196,7 @@ public class AdminController : Controller
                 Description = $"{(edit.VersionNumber == 1 ? "Created" : "Edited")} page: {edit.Page.Title}",
                 User = edit.EditedBy,
                 Timestamp = edit.EditedOn,
-                Url = $"/wiki/{edit.Page.Slug}"
+                Url = Url.Action("Index", "Wiki", new { id = edit.Page.Id, slug = edit.Page.Slug })
             });
         }
 

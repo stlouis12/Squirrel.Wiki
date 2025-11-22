@@ -55,48 +55,4 @@ public class UserRepository : Repository<User, Guid>, IUserRepository
             await UpdateAsync(user, cancellationToken);
         }
     }
-
-    public async Task<User> SyncFromOidcAsync(
-        string externalId, 
-        string email, 
-        string username, 
-        string displayName, 
-        bool isAdmin, 
-        bool isEditor, 
-        CancellationToken cancellationToken = default)
-    {
-        var user = await GetByExternalIdAsync(externalId, cancellationToken);
-        
-        if (user == null)
-        {
-            // Create new user
-            user = new User
-            {
-                Id = Guid.NewGuid(),
-                ExternalId = externalId,
-                Email = email,
-                Username = username,
-                DisplayName = displayName,
-                IsAdmin = isAdmin,
-                IsEditor = isEditor,
-                LastLoginOn = DateTime.UtcNow,
-                CreatedOn = DateTime.UtcNow
-            };
-            
-            return await AddAsync(user, cancellationToken);
-        }
-        else
-        {
-            // Update existing user
-            user.Email = email;
-            user.Username = username;
-            user.DisplayName = displayName;
-            user.IsAdmin = isAdmin;
-            user.IsEditor = isEditor;
-            user.LastLoginOn = DateTime.UtcNow;
-            
-            await UpdateAsync(user, cancellationToken);
-            return user;
-        }
-    }
 }

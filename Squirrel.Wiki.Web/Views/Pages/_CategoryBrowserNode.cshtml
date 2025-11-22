@@ -10,7 +10,7 @@
                         <strong>@Model.Name</strong>
                     </a>
                     <span class="badge bg-secondary page-count-badge ms-2">
-                        @Model.PageCount @(Model.PageCount == 1 ? "page" : "pages")
+                        @Model.PageCount @(Model.PageCount == 1 ? Localizer["PageSingular"] : Localizer["PagePlural"])
                     </span>
                 </div>
                 @if (!string.IsNullOrEmpty(Model.Description))

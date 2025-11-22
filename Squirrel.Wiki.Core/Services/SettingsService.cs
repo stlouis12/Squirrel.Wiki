@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
+using Squirrel.Wiki.Core.Configuration;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Security;
@@ -16,6 +17,7 @@ public class SettingsService : ISettingsService
     private readonly SquirrelDbContext _dbContext;
     private readonly IDistributedCache _cache;
     private readonly IUserContext _userContext;
+    private readonly EnvironmentVariableProvider _envProvider;
     private readonly ILogger<SettingsService> _logger;
     private const string CacheKeyPrefix = "settings:";
     private static readonly TimeSpan CacheExpiration = TimeSpan.FromHours(24);
@@ -24,11 +26,13 @@ public class SettingsService : ISettingsService
         SquirrelDbContext dbContext,
         IDistributedCache cache,
         IUserContext userContext,
+        EnvironmentVariableProvider envProvider,
         ILogger<SettingsService> logger)
     {
         _dbContext = dbContext;
         _cache = cache;
         _userContext = userContext;
+        _envProvider = envProvider;
         _logger = logger;
     }
 
@@ -94,34 +98,46 @@ public class SettingsService : ISettingsService
         if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentException("Setting key cannot be null or empty", nameof(key));
 
+        // Check if this setting is from an environment variable
+        var existingSetting = await _dbContext.SiteConfigurations
+            .FirstOrDefaultAsync(s => s.Key == key, ct);
+
+        if (existingSetting?.IsFromEnvironment == true)
+        {
+            _logger.LogWarning(
+                "Attempted to modify environment-sourced setting {Key} by {User}. Operation blocked.",
+                key, _userContext.Username ?? "System");
+            throw new InvalidOperationException(
+                $"Cannot modify setting '{key}' because it is configured via environment variable '{existingSetting.EnvironmentVariableName}'. " +
+                "To change this setting, update the environment variable and restart the application.");
+        }
+
         var jsonValue = JsonSerializer.Serialize(value);
         var currentUser = _userContext.Username ?? "System";
 
-        var setting = await _dbContext.SiteConfigurations
-            .FirstOrDefaultAsync(s => s.Key == key, ct);
-
-        if (setting == null)
+        if (existingSetting == null)
         {
             // Create new setting
-            setting = new SiteConfiguration
+            existingSetting = new SiteConfiguration
             {
                 Id = Guid.NewGuid(),
                 Key = key,
                 Value = jsonValue,
                 ModifiedOn = DateTime.UtcNow,
-                ModifiedBy = currentUser
+                ModifiedBy = currentUser,
+                IsFromEnvironment = false
             };
 
-            _dbContext.SiteConfigurations.Add(setting);
+            _dbContext.SiteConfigurations.Add(existingSetting);
             _logger.LogInformation("Creating new setting {Key} by {User}", key, currentUser);
         }
         else
         {
             // Update existing setting
-            var oldValue = setting.Value;
-            setting.Value = jsonValue;
-            setting.ModifiedOn = DateTime.UtcNow;
-            setting.ModifiedBy = currentUser;
+            var oldValue = existingSetting.Value;
+            existingSetting.Value = jsonValue;
+            existingSetting.ModifiedOn = DateTime.UtcNow;
+            existingSetting.ModifiedBy = currentUser;
 
             _logger.LogInformation(
                 "Updating setting {Key} by {User}. Old value: {OldValue}, New value: {NewValue}",
@@ -181,6 +197,83 @@ public class SettingsService : ISettingsService
 
         return await _dbContext.SiteConfigurations
             .AnyAsync(s => s.Key == key, ct);
+    }
+
+    /// <summary>
+    /// Synchronizes environment variable settings to the database
+    /// This should be called on application startup
+    /// </summary>
+    public async Task SyncEnvironmentVariablesAsync(CancellationToken ct = default)
+    {
+        _logger.LogInformation("Starting environment variable synchronization...");
+
+        var envSettings = _envProvider.GetAllEnvironmentSettings();
+        var syncedCount = 0;
+
+        foreach (var (key, value) in envSettings)
+        {
+            try
+            {
+                var setting = await _dbContext.SiteConfigurations
+                    .FirstOrDefaultAsync(s => s.Key == key, ct);
+
+                var jsonValue = JsonSerializer.Serialize(value);
+                var envVarName = _envProvider.GetEnvironmentVariableName(key);
+
+                if (setting == null)
+                {
+                    // Create new setting from environment variable
+                    setting = new SiteConfiguration
+                    {
+                        Id = Guid.NewGuid(),
+                        Key = key,
+                        Value = jsonValue,
+                        ModifiedOn = DateTime.UtcNow,
+                        ModifiedBy = "Environment",
+                        IsFromEnvironment = true,
+                        EnvironmentVariableName = envVarName
+                    };
+
+                    _dbContext.SiteConfigurations.Add(setting);
+                    _logger.LogInformation(
+                        "Created setting '{Key}' from environment variable '{EnvVar}'",
+                        key, envVarName);
+                }
+                else if (!setting.IsFromEnvironment || setting.Value != jsonValue)
+                {
+                    // Update existing setting with environment variable value
+                    setting.Value = jsonValue;
+                    setting.ModifiedOn = DateTime.UtcNow;
+                    setting.ModifiedBy = "Environment";
+                    setting.IsFromEnvironment = true;
+                    setting.EnvironmentVariableName = envVarName;
+
+                    _logger.LogInformation(
+                        "Updated setting '{Key}' from environment variable '{EnvVar}'",
+                        key, envVarName);
+                }
+
+                // Invalidate cache for this setting
+                await _cache.RemoveAsync(GetCacheKey(key), ct);
+                syncedCount++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing environment variable for setting '{Key}'", key);
+            }
+        }
+
+        if (syncedCount > 0)
+        {
+            await _dbContext.SaveChangesAsync(ct);
+            _logger.LogInformation(
+                "Environment variable synchronization complete. Synced {Count} settings.",
+                syncedCount);
+        }
+        else
+        {
+            _logger.LogInformation("No environment variables to sync.");
+        }
     }
 
     private static string GetCacheKey(string key)

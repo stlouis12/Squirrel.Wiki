@@ -101,11 +101,10 @@ pages:
 
       ## 1. Log In
 
-      Use one of the test accounts to log in:
+      If environment variables are not set to configure the default admin credentials, the default is
 
-      - **Admin**: admin@squirrel.wiki / Admin123!
-      - **Editor**: editor@squirrel.wiki / Editor123!
-      - **Viewer**: viewer@squirrel.wiki / Viewer123!
+      - username: admin
+      - password: Squirrel123!
 
       ## 2. Create Your First Page
 
@@ -633,4 +632,4 @@ menus:
     isEnabled: true
     displayOrder: 3
     footerLeftZone: "© 2025 Squirrel Wiki - Built with [[.NET 8.0|https://dotnet.microsoft.com]]"
-    footerRightZone: "Inspired by and based on [[GitHub|https://github.com/roadkillwiki/roadkill]]"
+    footerRightZone: "Inspired by and based on [[RoadKill Wiki|https://github.com/roadkillwiki/roadkill]]"

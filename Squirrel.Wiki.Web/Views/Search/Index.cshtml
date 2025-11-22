@@ -1,10 +1,10 @@
 @model Squirrel.Wiki.Web.Models.SearchResultsViewModel
 @{
-    ViewData["Title"] = string.IsNullOrEmpty(Model.Query) ? "Search" : $"Search: {Model.Query}";
+    ViewData["Title"] = string.IsNullOrEmpty(Model.Query) ? Localizer["Search"] : $"{Localizer["Search"]}: {Model.Query}";
 }
 
 <div class="search-page">
-    <h1><i class="bi bi-search"></i> Search Wiki</h1>
+    <h1><i class="bi bi-search"></i> @Localizer["SearchWiki"]</h1>
 
     <!-- Search Form -->
     <form asp-action="Index" asp-controller="Search" method="get" class="mb-4">
@@ -12,20 +12,20 @@
             <div class="col-md-8">
                 <div class="input-group input-group-lg">
                     <input type="text" name="query" class="form-control" 
-                           placeholder="Search for pages..." 
+                           placeholder="@Localizer["SearchForPages"]" 
                            value="@Model.Query" 
                            autofocus />
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-search"></i> Search
+                        <i class="bi bi-search"></i> @Localizer["Search"]
                     </button>
                 </div>
             </div>
             <div class="col-md-4">
                 <select name="pageSize" class="form-select form-select-lg">
-                    <option value="10" selected="@(Model.PageSize == 10)">10 results</option>
-                    <option value="20" selected="@(Model.PageSize == 20)">20 results</option>
-                    <option value="50" selected="@(Model.PageSize == 50)">50 results</option>
-                    <option value="100" selected="@(Model.PageSize == 100)">100 results</option>
+                    <option value="10" selected="@(Model.PageSize == 10)">10 @Localizer["Results"]</option>
+                    <option value="20" selected="@(Model.PageSize == 20)">20 @Localizer["Results"]</option>
+                    <option value="50" selected="@(Model.PageSize == 50)">50 @Localizer["Results"]</option>
+                    <option value="100" selected="@(Model.PageSize == 100)">100 @Localizer["Results"]</option>
                 </select>
             </div>
         </div>
@@ -39,7 +39,7 @@
             {
                 <div class="alert alert-success">
                     <i class="bi bi-check-circle"></i> 
-                    Found <strong>@Model.TotalResults</strong> result@(Model.TotalResults != 1 ? "s" : "") for "<strong>@Model.Query</strong>"
+                    @Localizer["Found"] <strong>@Model.TotalResults</strong> @(Model.TotalResults != 1 ? Localizer["Results"] : Localizer["Result"]) @Localizer["For"] "<strong>@Model.Query</strong>"
                 </div>
 
                 <div class="list-group mb-4">
@@ -51,12 +51,12 @@
                                 <div class="flex-grow-1">
                                     <h5 class="mb-1">
                                         @result.Title
-                                        <span class="badge bg-secondary ms-2">Score: @result.Score.ToString("F2")</span>
+                                        <span class="badge bg-secondary ms-2">@Localizer["Score"]: @result.Score.ToString("F2")</span>
                                     </h5>
                                     <p class="mb-1 text-muted">@Html.Raw(result.Excerpt)</p>
                                     <small class="text-muted">
-                                        <i class="bi bi-clock"></i> Last modified by <strong>@result.ModifiedBy</strong> 
-                                        on @result.ModifiedOn.ToString("MMM dd, yyyy")
+                                        <i class="bi bi-clock"></i> @Localizer["LastModifiedBy"] <strong>@result.ModifiedBy</strong> 
+                                        @Localizer["On"] @result.ModifiedOn.ToString("MMM dd, yyyy")
                                     </small>
                                 </div>
                                 <div class="ms-3">
@@ -75,7 +75,7 @@
                             <li class="page-item @(!Model.HasPreviousPage ? "disabled" : "")">
                                 <a class="page-link" 
                                    href="@Url.Action("Index", new { query = Model.Query, page = Model.Page - 1, pageSize = Model.PageSize })">
-                                    <i class="bi bi-chevron-left"></i> Previous
+                                    <i class="bi bi-chevron-left"></i> @Localizer["Previous"]
                                 </a>
                             </li>
 
@@ -92,14 +92,14 @@
                             <li class="page-item @(!Model.HasNextPage ? "disabled" : "")">
                                 <a class="page-link" 
                                    href="@Url.Action("Index", new { query = Model.Query, page = Model.Page + 1, pageSize = Model.PageSize })">
-                                    Next <i class="bi bi-chevron-right"></i>
+                                    @Localizer["Next"] <i class="bi bi-chevron-right"></i>
                                 </a>
                             </li>
                         </ul>
                     </nav>
 
                     <p class="text-center text-muted">
-                        <small>Page @Model.Page of @Model.TotalPages</small>
+                        <small>@Localizer["Page"] @Model.Page @Localizer["Of"] @Model.TotalPages</small>
                     </p>
                 }
             }
@@ -107,14 +107,14 @@
             {
                 <div class="alert alert-warning">
                     <i class="bi bi-exclamation-triangle"></i> 
-                    No results found for "<strong>@Model.Query</strong>".
+                    @Localizer["NoResultsFoundFor"] "<strong>@Model.Query</strong>".
                     <hr />
-                    <p class="mb-0">Try:</p>
+                    <p class="mb-0">@Localizer["Try"]</p>
                     <ul class="mb-0">
-                        <li>Using different keywords</li>
-                        <li>Checking your spelling</li>
-                        <li>Using more general terms</li>
-                        <li><a href="@Url.Action("AllPages", "Pages")" class="alert-link">Browsing all pages</a></li>
+                        <li>@Localizer["UsingDifferentKeywords"]</li>
+                        <li>@Localizer["CheckingYourSpelling"]</li>
+                        <li>@Localizer["UsingMoreGeneralTerms"]</li>
+                        <li><a href="@Url.Action("AllPages", "Pages")" class="alert-link">@Localizer["BrowsingAllPages"]</a></li>
                     </ul>
                 </div>
             }
@@ -127,14 +127,14 @@
             <div class="col-md-6">
                 <div class="card">
                     <div class="card-header bg-primary text-white">
-                        <i class="bi bi-lightbulb"></i> Search Tips
+                        <i class="bi bi-lightbulb"></i> @Localizer["SearchTips"]
                     </div>
                     <div class="card-body">
                         <ul>
-                            <li>Use specific keywords for better results</li>
-                            <li>Search is case-insensitive</li>
-                            <li>Multiple words will search for pages containing all words</li>
-                            <li>Results are ranked by relevance</li>
+                            <li>@Localizer["UseSpecificKeywords"]</li>
+                            <li>@Localizer["SearchCaseInsensitive"]</li>
+                            <li>@Localizer["MultipleWordsSearch"]</li>
+                            <li>@Localizer["ResultsRankedByRelevance"]</li>
                         </ul>
                     </div>
                 </div>
@@ -142,23 +142,23 @@
             <div class="col-md-6">
                 <div class="card">
                     <div class="card-header bg-info text-white">
-                        <i class="bi bi-compass"></i> Quick Links
+                        <i class="bi bi-compass"></i> @Localizer["QuickLinks"]
                     </div>
                     <div class="card-body">
                         <ul class="list-unstyled">
                             <li class="mb-2">
                                 <a href="@Url.Action("AllPages", "Pages")">
-                                    <i class="bi bi-file-earmark-text"></i> Browse All Pages
+                                    <i class="bi bi-file-earmark-text"></i> @Localizer["BrowseAllPages"]
                                 </a>
                             </li>
                             <li class="mb-2">
                                 <a href="@Url.Action("AllTags", "Pages")">
-                                    <i class="bi bi-tags"></i> Browse All Tags
+                                    <i class="bi bi-tags"></i> @Localizer["BrowseAllTags"]
                                 </a>
                             </li>
                             <li class="mb-2">
                                 <a href="@Url.Action("New", "Pages")">
-                                    <i class="bi bi-plus-circle"></i> Create New Page
+                                    <i class="bi bi-plus-circle"></i> @Localizer["CreateNewPage"]
                                 </a>
                             </li>
                         </ul>

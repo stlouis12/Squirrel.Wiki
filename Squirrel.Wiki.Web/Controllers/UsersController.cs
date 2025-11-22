@@ -1,0 +1,544 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Squirrel.Wiki.Contracts.Authentication;
+using Squirrel.Wiki.Core.Models;
+using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Web.Models.Admin;
+
+namespace Squirrel.Wiki.Web.Controllers;
+
+/// <summary>
+/// Controller for user management (admin only)
+/// </summary>
+[Authorize(Policy = "RequireAdmin")]
+public class UsersController : Controller
+{
+    private readonly IUserService _userService;
+    private readonly ILogger<UsersController> _logger;
+
+    public UsersController(
+        IUserService userService,
+        ILogger<UsersController> logger)
+    {
+        _userService = userService;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// List all users
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> Index(
+        string? search = null,
+        string? role = null,
+        string? provider = null,
+        bool? isActive = null,
+        int page = 1,
+        int pageSize = 20)
+    {
+        try
+        {
+            var users = await _userService.GetAllAsync();
+
+            // Apply filters
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                search = search.ToLower();
+                users = users.Where(u =>
+                    u.Username.ToLower().Contains(search) ||
+                    u.Email.ToLower().Contains(search) ||
+                    u.DisplayName.ToLower().Contains(search)).ToList();
+            }
+
+            if (!string.IsNullOrWhiteSpace(role))
+            {
+                users = users.Where(u => u.Roles.Contains(role)).ToList();
+            }
+
+            if (!string.IsNullOrWhiteSpace(provider))
+            {
+                var providerEnum = Enum.Parse<AuthenticationProvider>(provider, true);
+                users = users.Where(u => u.Provider == providerEnum).ToList();
+            }
+
+            if (isActive.HasValue)
+            {
+                users = users.Where(u => u.IsActive == isActive.Value).ToList();
+            }
+
+            // Pagination
+            var totalCount = users.Count();
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+            var pagedUsers = users
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            var model = new UserListViewModel
+            {
+                Users = pagedUsers,
+                CurrentPage = page,
+                TotalPages = totalPages,
+                TotalCount = totalCount,
+                PageSize = pageSize,
+                SearchTerm = search,
+                RoleFilter = role,
+                ProviderFilter = provider,
+                IsActiveFilter = isActive
+            };
+
+            return View(model);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading user list");
+            TempData["ErrorMessage"] = "Error loading users. Please try again.";
+            return View(new UserListViewModel());
+        }
+    }
+
+    /// <summary>
+    /// Show user details
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> Details(Guid id)
+    {
+        try
+        {
+            var user = await _userService.GetByIdAsync(id);
+            if (user == null)
+            {
+                TempData["ErrorMessage"] = "User not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var model = new UserDetailsViewModel
+            {
+                User = user
+            };
+
+            return View(model);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading user details for {UserId}", id);
+            TempData["ErrorMessage"] = "Error loading user details.";
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    /// <summary>
+    /// Show create user form
+    /// </summary>
+    [HttpGet]
+    public IActionResult Create()
+    {
+        var model = new UserEditViewModel
+        {
+            IsActive = true,
+            Roles = new List<string>()
+        };
+
+        return View(model);
+    }
+
+    /// <summary>
+    /// Create new user
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(UserEditViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        try
+        {
+            // Validate password confirmation
+            if (model.Password != model.ConfirmPassword)
+            {
+                ModelState.AddModelError(nameof(model.ConfirmPassword), "Passwords do not match.");
+                return View(model);
+            }
+
+            // Ensure at least one role is selected
+            if (model.Roles == null || !model.Roles.Any())
+            {
+                ModelState.AddModelError(nameof(model.Roles), "At least one role must be selected.");
+                return View(model);
+            }
+
+            // Create user
+            var user = await _userService.CreateLocalUserAsync(
+                username: model.Username,
+                email: model.Email,
+                password: model.Password!,
+                displayName: model.DisplayName,
+                isAdmin: model.Roles.Contains("Admin"),
+                isEditor: model.Roles.Contains("Editor") || model.Roles.Contains("Admin")
+            );
+
+            // Set additional properties
+            if (!model.IsActive)
+            {
+                await _userService.DeactivateAccountAsync(user.Id);
+            }
+
+            _logger.LogInformation("User {Username} created by {AdminUser}", model.Username, User.Identity?.Name);
+            TempData["SuccessMessage"] = $"User '{model.Username}' created successfully.";
+            return RedirectToAction(nameof(Details), new { id = user.Id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            ModelState.AddModelError("", ex.Message);
+            return View(model);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating user {Username}", model.Username);
+            ModelState.AddModelError("", "An error occurred while creating the user. Please try again.");
+            return View(model);
+        }
+    }
+
+    /// <summary>
+    /// Show edit user form
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> Edit(Guid id)
+    {
+        try
+        {
+            var user = await _userService.GetByIdAsync(id);
+            if (user == null)
+            {
+                TempData["ErrorMessage"] = "User not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var model = new UserEditViewModel
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Email = user.Email,
+                DisplayName = user.DisplayName,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                IsActive = user.IsActive,
+                Roles = user.Roles.ToList(),
+                Provider = user.Provider
+            };
+
+            return View(model);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading user for edit: {UserId}", id);
+            TempData["ErrorMessage"] = "Error loading user.";
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    /// <summary>
+    /// Update user
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(UserEditViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        try
+        {
+            var user = await _userService.GetByIdAsync(model.Id);
+            if (user == null)
+            {
+                TempData["ErrorMessage"] = "User not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // Ensure at least one role is selected
+            if (model.Roles == null || !model.Roles.Any())
+            {
+                ModelState.AddModelError(nameof(model.Roles), "At least one role must be selected.");
+                return View(model);
+            }
+
+            // Update user via DTO
+            var updateDto = new UserUpdateDto
+            {
+                Email = model.Email,
+                DisplayName = model.DisplayName,
+                FirstName = model.FirstName,
+                LastName = model.LastName,
+                IsAdmin = model.Roles.Contains("Admin"),
+                IsEditor = model.Roles.Contains("Editor") || model.Roles.Contains("Admin")
+            };
+
+            await _userService.UpdateAsync(user.Id, updateDto);
+
+            // Update active status if changed
+            if (model.IsActive != user.IsActive)
+            {
+                if (model.IsActive)
+                {
+                    await _userService.ActivateAccountAsync(user.Id);
+                }
+                else
+                {
+                    await _userService.DeactivateAccountAsync(user.Id);
+                }
+            }
+
+            // Update password if provided
+            if (!string.IsNullOrWhiteSpace(model.Password))
+            {
+                if (model.Password != model.ConfirmPassword)
+                {
+                    ModelState.AddModelError(nameof(model.ConfirmPassword), "Passwords do not match.");
+                    return View(model);
+                }
+
+                await _userService.SetPasswordAsync(user.Id, model.Password);
+            }
+
+            _logger.LogInformation("User {Username} updated by {AdminUser}", user.Username, User.Identity?.Name);
+            TempData["SuccessMessage"] = $"User '{user.Username}' updated successfully.";
+            return RedirectToAction(nameof(Details), new { id = user.Id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            ModelState.AddModelError("", ex.Message);
+            return View(model);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating user {UserId}", model.Id);
+            ModelState.AddModelError("", "An error occurred while updating the user. Please try again.");
+            return View(model);
+        }
+    }
+
+    /// <summary>
+    /// Delete user (deactivates the account)
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        try
+        {
+            var user = await _userService.GetByIdAsync(id);
+            if (user == null)
+            {
+                TempData["ErrorMessage"] = "User not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // Prevent deleting yourself
+            if (User.Identity?.Name == user.Username)
+            {
+                TempData["ErrorMessage"] = "You cannot delete your own account.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // For now, just deactivate instead of delete
+            await _userService.DeactivateAccountAsync(id);
+
+            _logger.LogInformation("User {Username} deactivated (delete requested) by {AdminUser}", user.Username, User.Identity?.Name);
+            TempData["SuccessMessage"] = $"User '{user.Username}' has been deactivated.";
+            return RedirectToAction(nameof(Index));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting user {UserId}", id);
+            TempData["ErrorMessage"] = "An error occurred while deleting the user. Please try again.";
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    /// <summary>
+    /// Deactivate user
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Deactivate(Guid id)
+    {
+        try
+        {
+            var user = await _userService.GetByIdAsync(id);
+            if (user == null)
+            {
+                TempData["ErrorMessage"] = "User not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // Prevent deactivating yourself
+            if (User.Identity?.Name == user.Username)
+            {
+                TempData["ErrorMessage"] = "You cannot deactivate your own account.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            await _userService.DeactivateAccountAsync(id);
+
+            _logger.LogInformation("User {Username} deactivated by {AdminUser}", user.Username, User.Identity?.Name);
+            TempData["SuccessMessage"] = $"User '{user.Username}' deactivated successfully.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deactivating user {UserId}", id);
+            TempData["ErrorMessage"] = "An error occurred while deactivating the user.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+    }
+
+    /// <summary>
+    /// Activate user
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Activate(Guid id)
+    {
+        try
+        {
+            var user = await _userService.GetByIdAsync(id);
+            if (user == null)
+            {
+                TempData["ErrorMessage"] = "User not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            await _userService.ActivateAccountAsync(id);
+
+            _logger.LogInformation("User {Username} activated by {AdminUser}", user.Username, User.Identity?.Name);
+            TempData["SuccessMessage"] = $"User '{user.Username}' activated successfully.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error activating user {UserId}", id);
+            TempData["ErrorMessage"] = "An error occurred while activating the user.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+    }
+
+    /// <summary>
+    /// Unlock user account
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Unlock(Guid id)
+    {
+        try
+        {
+            var user = await _userService.GetByIdAsync(id);
+            if (user == null)
+            {
+                TempData["ErrorMessage"] = "User not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            await _userService.UnlockAccountAsync(id);
+
+            _logger.LogInformation("User {Username} unlocked by {AdminUser}", user.Username, User.Identity?.Name);
+            TempData["SuccessMessage"] = $"User '{user.Username}' unlocked successfully.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error unlocking user {UserId}", id);
+            TempData["ErrorMessage"] = "An error occurred while unlocking the user.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+    }
+
+    /// <summary>
+    /// Show reset password form
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> ResetPassword(Guid id)
+    {
+        try
+        {
+            var user = await _userService.GetByIdAsync(id);
+            if (user == null)
+            {
+                TempData["ErrorMessage"] = "User not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (user.Provider != AuthenticationProvider.Local)
+            {
+                TempData["ErrorMessage"] = "Cannot reset password for non-local users.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var model = new ResetPasswordViewModel
+            {
+                UserId = user.Id,
+                Username = user.Username
+            };
+
+            return View(model);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading reset password form for {UserId}", id);
+            TempData["ErrorMessage"] = "Error loading reset password form.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+    }
+
+    /// <summary>
+    /// Reset user password
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        try
+        {
+            var user = await _userService.GetByIdAsync(model.UserId);
+            if (user == null)
+            {
+                TempData["ErrorMessage"] = "User not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (model.NewPassword != model.ConfirmPassword)
+            {
+                ModelState.AddModelError(nameof(model.ConfirmPassword), "Passwords do not match.");
+                return View(model);
+            }
+
+            await _userService.SetPasswordAsync(model.UserId, model.NewPassword);
+
+            _logger.LogInformation("Password reset for user {Username} by {AdminUser}", user.Username, User.Identity?.Name);
+            TempData["SuccessMessage"] = $"Password reset successfully for user '{user.Username}'.";
+            return RedirectToAction(nameof(Details), new { id = model.UserId });
+        }
+        catch (InvalidOperationException ex)
+        {
+            ModelState.AddModelError("", ex.Message);
+            return View(model);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resetting password for user {UserId}", model.UserId);
+            ModelState.AddModelError("", "An error occurred while resetting the password. Please try again.");
+            return View(model);
+        }
+    }
+}

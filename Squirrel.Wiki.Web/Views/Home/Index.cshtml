@@ -1,34 +1,34 @@
 @{
-    ViewData["Title"] = "Home";
+    ViewData["Title"] = Localizer["Home"];
 }
 
 <div class="text-center">
-    <h1 class="display-4">Welcome to Squirrel Wiki v3.0</h1>
-    <p class="lead">A modern, .NET 8.0 LTS wiki application</p>
+    <h1 class="display-4">@Localizer["WelcomeToSquirrelWiki"]</h1>
+    <p class="lead">@Localizer["ModernWikiApplication"]</p>
 </div>
 
 <div class="row mt-5">
     <div class="col-md-4">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">🚀 Modern Stack</h5>
-                <p class="card-text">Built on .NET 8.0 LTS with ASP.NET Core, Entity Framework Core, and Bootstrap 5.</p>
+                <h5 class="card-title">🚀 @Localizer["ModernStack"]</h5>
+                <p class="card-text">@Localizer["ModernStackDescription"]</p>
             </div>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">🔐 Secure Authentication</h5>
-                <p class="card-text">OpenID Connect integration with any OIDC provider for modern, secure authentication.</p>
+                <h5 class="card-title">🔐 @Localizer["SecureAuthentication"]</h5>
+                <p class="card-text">@Localizer["SecureAuthenticationDescription"]</p>
             </div>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">📝 Markdown Support</h5>
-                <p class="card-text">CommonMark-compliant Markdown with extensions powered by Markdig.</p>
+                <h5 class="card-title">📝 @Localizer["MarkdownSupport"]</h5>
+                <p class="card-text">@Localizer["MarkdownSupportDescription"]</p>
             </div>
         </div>
     </div>
@@ -38,32 +38,35 @@
     <div class="col-md-4">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">🔍 Full-Text Search</h5>
-                <p class="card-text">Powerful search capabilities using Lucene.NET 4.8+.</p>
+                <h5 class="card-title">🔍 @Localizer["FullTextSearch"]</h5>
+                <p class="card-text">@Localizer["FullTextSearchDescription"]</p>
             </div>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">🐳 Container Ready</h5>
-                <p class="card-text">Docker and Kubernetes support for easy deployment and scaling.</p>
+                <h5 class="card-title">🐳 @Localizer["ContainerReady"]</h5>
+                <p class="card-text">@Localizer["ContainerReadyDescription"]</p>
             </div>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">📊 Observability</h5>
-                <p class="card-text">Structured logging with Serilog and metrics with OpenTelemetry.</p>
+                <h5 class="card-title">📊 @Localizer["Observability"]</h5>
+                <p class="card-text">@Localizer["ObservabilityDescription"]</p>
             </div>
         </div>
     </div>
 </div>
 
 <div class="alert alert-info mt-5" role="alert">
-    <h4 class="alert-heading">🚧 Development in Progress</h4>
-    <p>Squirrel Wiki v3.0 is currently under active development. This is a migration from Roadkill v2.0 to .NET 8.0 LTS.</p>
+    <h4 class="alert-heading">🚧 @Localizer["DevelopmentInProgress"]</h4>
+    <p>@Localizer["DevelopmentInProgressMessage"]</p>
     <hr>
-    <p class="mb-0">Check the <a href="https://github.com/yourusername/squirrel-wiki" class="alert-link">GitHub repository</a> for the latest updates and documentation.</p>
+    <p class="mb-0">
+        @Localizer["CheckGitHubRepository"].ToString().Replace("GitHub repository", "")
+        <a href="https://github.com/yourusername/squirrel-wiki" class="alert-link">@Localizer["GitHubRepository"]</a>
+    </p>
 </div>

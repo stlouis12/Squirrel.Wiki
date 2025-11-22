@@ -1,17 +1,17 @@
 @model dynamic
 @{
-    ViewData["Title"] = "System Information";
+    ViewData["Title"] = Localizer["SystemInformation"].Value;
 }
 
 <div class="container-fluid mt-4">
     <div class="row mb-4">
         <div class="col">
-            <h1><i class="bi bi-info-circle"></i> System Information</h1>
-            <p class="text-muted">Detailed system and application information</p>
+            <h1><i class="bi bi-info-circle"></i> @Localizer["SystemInformation"]</h1>
+            <p class="text-muted">@Localizer["DetailedSystemInfo"]</p>
         </div>
         <div class="col-auto">
             <a asp-action="Index" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                <i class="bi bi-arrow-left"></i> @Localizer["BackToDashboard"]
             </a>
         </div>
     </div>
@@ -21,61 +21,61 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="bi bi-server"></i> Environment Information</h5>
+                    <h5 class="mb-0"><i class="bi bi-server"></i> @Localizer["EnvironmentInformation"]</h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <tbody>
                                 <tr>
-                                    <th style="width: 30%;">Machine Name</th>
+                                    <th style="width: 30%;">@Localizer["MachineName"]</th>
                                     <td>@Model.Environment.MachineName</td>
                                 </tr>
                                 <tr>
-                                    <th>Operating System</th>
+                                    <th>@Localizer["OperatingSystem"]</th>
                                     <td>@Model.Environment.OSVersion</td>
                                 </tr>
                                 <tr>
-                                    <th>Processor Count</th>
-                                    <td>@Model.Environment.ProcessorCount cores</td>
+                                    <th>@Localizer["ProcessorCount"]</th>
+                                    <td>@Model.Environment.ProcessorCount @Localizer["Cores"]</td>
                                 </tr>
                                 <tr>
-                                    <th>64-bit Operating System</th>
+                                    <th>@Localizer["64BitOperatingSystem"]</th>
                                     <td>
                                         @if (Model.Environment.Is64BitOperatingSystem)
                                         {
-                                            <span class="badge bg-success">Yes</span>
+                                            <span class="badge bg-success">@Localizer["Yes"]</span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-warning">No (32-bit)</span>
+                                            <span class="badge bg-warning">@Localizer["No32Bit"]</span>
                                         }
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th>64-bit Process</th>
+                                    <th>@Localizer["64BitProcess"]</th>
                                     <td>
                                         @if (Model.Environment.Is64BitProcess)
                                         {
-                                            <span class="badge bg-success">Yes</span>
+                                            <span class="badge bg-success">@Localizer["Yes"]</span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-warning">No (32-bit)</span>
+                                            <span class="badge bg-warning">@Localizer["No32Bit"]</span>
                                         }
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th>.NET Runtime Version</th>
+                                    <th>@Localizer["DotNetRuntimeVersion"]</th>
                                     <td>@Model.Environment.RuntimeVersion</td>
                                 </tr>
                                 <tr>
-                                    <th>Working Set (Memory)</th>
+                                    <th>@Localizer["WorkingSetMemory"]</th>
                                     <td>@((Model.Environment.WorkingSet / 1024 / 1024).ToString("N0")) MB</td>
                                 </tr>
                                 <tr>
-                                    <th>System Page Size</th>
-                                    <td>@Model.Environment.SystemPageSize bytes</td>
+                                    <th>@Localizer["SystemPageSize"]</th>
+                                    <td>@Model.Environment.SystemPageSize @Localizer["Bytes"]</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -90,68 +90,68 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="bi bi-app-indicator"></i> Application Information</h5>
+                    <h5 class="mb-0"><i class="bi bi-app-indicator"></i> @Localizer["ApplicationInformation"]</h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <tbody>
                                 <tr>
-                                    <th style="width: 30%;">Application Name</th>
+                                    <th style="width: 30%;">@Localizer["ApplicationName"]</th>
                                     <td>Squirrel Wiki</td>
                                 </tr>
                                 <tr>
-                                    <th>Version</th>
+                                    <th>@Localizer["Version"]</th>
                                     <td>
                                         <span class="badge bg-primary">@Model.Application.Version</span>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th>Framework</th>
+                                    <th>@Localizer["Framework"]</th>
                                     <td>@Model.Application.Framework</td>
                                 </tr>
                                 <tr>
-                                    <th>Start Time</th>
+                                    <th>@Localizer["StartTime"]</th>
                                     <td>@Model.Application.StartTime.ToString("F")</td>
                                 </tr>
                                 <tr>
-                                    <th>Uptime</th>
+                                    <th>@Localizer["Uptime"]</th>
                                     <td>
                                         @{
                                             var uptime = (TimeSpan)Model.Application.Uptime;
                                             if (uptime.TotalDays >= 1)
                                             {
-                                                <span class="badge bg-success">@uptime.Days days, @uptime.Hours hours, @uptime.Minutes minutes</span>
+                                                <span class="badge bg-success">@uptime.Days @Localizer["Days"], @uptime.Hours @Localizer["Hours"], @uptime.Minutes @Localizer["Minutes"]</span>
                                             }
                                             else if (uptime.TotalHours >= 1)
                                             {
-                                                <span class="badge bg-info">@uptime.Hours hours, @uptime.Minutes minutes</span>
+                                                <span class="badge bg-info">@uptime.Hours @Localizer["Hours"], @uptime.Minutes @Localizer["Minutes"]</span>
                                             }
                                             else
                                             {
-                                                <span class="badge bg-secondary">@uptime.Minutes minutes, @uptime.Seconds seconds</span>
+                                                <span class="badge bg-secondary">@uptime.Minutes @Localizer["Minutes"], @uptime.Seconds @Localizer["Seconds"]</span>
                                             }
                                         }
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th>Current User</th>
+                                    <th>@Localizer["CurrentUser"]</th>
                                     <td>@User.Identity?.Name</td>
                                 </tr>
                                 <tr>
-                                    <th>User Role</th>
+                                    <th>@Localizer["UserRole"]</th>
                                     <td>
                                         @if (User.IsInRole("Admin"))
                                         {
-                                            <span class="badge bg-danger">Admin</span>
+                                            <span class="badge bg-danger">@Localizer["Admin"]</span>
                                         }
                                         else if (User.IsInRole("Editor"))
                                         {
-                                            <span class="badge bg-warning">Editor</span>
+                                            <span class="badge bg-warning">@Localizer["Editor"]</span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-secondary">Viewer</span>
+                                            <span class="badge bg-secondary">@Localizer["Viewer"]</span>
                                         }
                                     </td>
                                 </tr>
@@ -168,28 +168,28 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="bi bi-gear"></i> Configuration</h5>
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> @Localizer["Configuration"]</h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <tbody>
                                 <tr>
-                                    <th style="width: 30%;">Environment</th>
+                                    <th style="width: 30%;">@Localizer["Environment"]</th>
                                     <td>
                                         @{
                                             var env = Context.RequestServices.GetRequiredService<IWebHostEnvironment>();
                                             if (env.IsDevelopment())
                                             {
-                                                <span class="badge bg-warning">Development</span>
+                                                <span class="badge bg-warning">@Localizer["Development"]</span>
                                             }
                                             else if (env.IsStaging())
                                             {
-                                                <span class="badge bg-info">Staging</span>
+                                                <span class="badge bg-info">@Localizer["Staging"]</span>
                                             }
                                             else if (env.IsProduction())
                                             {
-                                                <span class="badge bg-success">Production</span>
+                                                <span class="badge bg-success">@Localizer["Production"]</span>
                                             }
                                             else
                                             {
@@ -199,15 +199,15 @@
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th>Content Root Path</th>
+                                    <th>@Localizer["ContentRootPath"]</th>
                                     <td><code>@env.ContentRootPath</code></td>
                                 </tr>
                                 <tr>
-                                    <th>Web Root Path</th>
+                                    <th>@Localizer["WebRootPath"]</th>
                                     <td><code>@env.WebRootPath</code></td>
                                 </tr>
                                 <tr>
-                                    <th>Application Name</th>
+                                    <th>@Localizer["ApplicationName"]</th>
                                     <td>@env.ApplicationName</td>
                                 </tr>
                             </tbody>
@@ -223,34 +223,34 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0"><i class="bi bi-globe"></i> Current Request</h5>
+                    <h5 class="mb-0"><i class="bi bi-globe"></i> @Localizer["CurrentRequest"]</h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <tbody>
                                 <tr>
-                                    <th style="width: 30%;">Request URL</th>
+                                    <th style="width: 30%;">@Localizer["RequestURL"]</th>
                                     <td><code>@Context.Request.Scheme://@Context.Request.Host@Context.Request.Path@Context.Request.QueryString</code></td>
                                 </tr>
                                 <tr>
-                                    <th>Request Method</th>
+                                    <th>@Localizer["RequestMethod"]</th>
                                     <td><span class="badge bg-primary">@Context.Request.Method</span></td>
                                 </tr>
                                 <tr>
-                                    <th>Protocol</th>
+                                    <th>@Localizer["Protocol"]</th>
                                     <td>@Context.Request.Protocol</td>
                                 </tr>
                                 <tr>
-                                    <th>Content Type</th>
+                                    <th>@Localizer["ContentType"]</th>
                                     <td>@(Context.Request.ContentType ?? "N/A")</td>
                                 </tr>
                                 <tr>
-                                    <th>Remote IP Address</th>
+                                    <th>@Localizer["RemoteIPAddress"]</th>
                                     <td>@Context.Connection.RemoteIpAddress</td>
                                 </tr>
                                 <tr>
-                                    <th>User Agent</th>
+                                    <th>@Localizer["UserAgent"]</th>
                                     <td><small>@Context.Request.Headers["User-Agent"]</small></td>
                                 </tr>
                             </tbody>
@@ -266,28 +266,28 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-link-45deg"></i> Quick Links</h5>
+                    <h5 class="mb-0"><i class="bi bi-link-45deg"></i> @Localizer["QuickLinks"]</h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-3 mb-2">
                             <a href="/health" class="btn btn-outline-primary w-100" target="_blank">
-                                <i class="bi bi-heart-pulse"></i> Health Checks
+                                <i class="bi bi-heart-pulse"></i> @Localizer["HealthChecks"]
                             </a>
                         </div>
                         <div class="col-md-3 mb-2">
                             <a href="/swagger" class="btn btn-outline-primary w-100" target="_blank">
-                                <i class="bi bi-code-square"></i> API Documentation
+                                <i class="bi bi-code-square"></i> @Localizer["APIDocumentation"]
                             </a>
                         </div>
                         <div class="col-md-3 mb-2">
                             <a asp-action="Index" class="btn btn-outline-secondary w-100">
-                                <i class="bi bi-speedometer2"></i> Dashboard
+                                <i class="bi bi-speedometer2"></i> @Localizer["Dashboard"]
                             </a>
                         </div>
                         <div class="col-md-3 mb-2">
                             <a asp-controller="Settings" asp-action="Index" class="btn btn-outline-secondary w-100">
-                                <i class="bi bi-sliders"></i> Settings
+                                <i class="bi bi-sliders"></i> @Localizer["Settings"]
                             </a>
                         </div>
                     </div>

@@ -41,16 +41,16 @@
             <div class="category-meta">
                 <small class="text-muted">
                     <span class="me-3">
-                        <i class="bi bi-file-text"></i> @Model.PageCount page@(Model.PageCount != 1 ? "s" : "")
+                        <i class="bi bi-file-text"></i> @Model.PageCount @(Model.PageCount != 1 ? Localizer["PagesPlural"] : Localizer["PageSingular"])
                     </span>
                     @if (Model.Children.Any())
                     {
                         <span class="me-3">
-                            <i class="bi bi-folder"></i> @Model.SubcategoryCount subcategor@(Model.SubcategoryCount != 1 ? "ies" : "y")
+                            <i class="bi bi-folder"></i> @Model.SubcategoryCount @(Model.SubcategoryCount != 1 ? Localizer["SubcategoriesPlural"] : Localizer["Category"])
                         </span>
                     }
                     <span class="me-3">
-                        <i class="bi bi-diagram-3"></i> Level @Model.Level
+                        <i class="bi bi-diagram-3"></i> @Localizer["Level"] @Model.Level
                     </span>
                     <span>
                         <i class="bi bi-clock"></i> @Model.ModifiedOn.ToString("MMM dd, yyyy")
@@ -63,17 +63,17 @@
             <div class="btn-group btn-group-sm" role="group">
                 <a asp-action="Create" asp-route-parentId="@Model.Id" 
                    class="btn btn-outline-success" 
-                   title="Add Subcategory">
+                   title="@Localizer["AddSubcategory"]">
                     <i class="bi bi-plus-circle"></i>
                 </a>
                 <a asp-action="Edit" asp-route-id="@Model.Id" 
                    class="btn btn-outline-primary" 
-                   title="Edit">
+                   title="@Localizer["Edit"]">
                     <i class="bi bi-pencil"></i>
                 </a>
                 <a asp-action="Details" asp-route-id="@Model.Id" 
                    class="btn btn-outline-info" 
-                   title="View Details">
+                   title="@Localizer["View"]">
                     <i class="bi bi-info-circle"></i>
                 </a>
                 <button type="button" 
@@ -82,7 +82,7 @@
                         data-category-name="@Model.Name"
                         data-subcategory-count="@Model.SubcategoryCount"
                         data-page-count="@Model.PageCount"
-                        title="Delete">
+                        title="@Localizer["Delete"]">
                     <i class="bi bi-trash"></i>
                 </button>
             </div>

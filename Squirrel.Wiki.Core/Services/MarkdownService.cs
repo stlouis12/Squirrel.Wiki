@@ -197,4 +197,57 @@ public class MarkdownService : IMarkdownService
 
         return slug;
     }
+
+    public async Task<string> ConvertInternalLinksAsync(string html, Func<string, Task<(int? id, string? slug)>> slugLookup, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+            return html;
+
+        // Pattern to match <a href="/slug"> or <a href="slug"> (internal links without http/https)
+        var linkPattern = new Regex(@"<a\s+([^>]*\s+)?href=""/?([^"":/]+)""([^>]*)>", RegexOptions.IgnoreCase);
+        
+        var matches = linkPattern.Matches(html);
+        var replacements = new Dictionary<string, string>();
+
+        foreach (Match match in matches)
+        {
+            var fullMatch = match.Value;
+            var beforeHref = match.Groups[1].Value;
+            var slug = match.Groups[2].Value;
+            var afterHref = match.Groups[3].Value;
+
+            // Skip if it's already a full path (contains /)
+            if (slug.Contains('/'))
+                continue;
+
+            // Skip common non-page links
+            if (slug.Equals("javascript:void(0)", StringComparison.OrdinalIgnoreCase) ||
+                slug.StartsWith("#", StringComparison.Ordinal) ||
+                slug.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            // Look up the page by slug
+            var (pageId, actualSlug) = await slugLookup(slug);
+
+            if (pageId.HasValue && !string.IsNullOrEmpty(actualSlug))
+            {
+                // Convert to full wiki URL
+                var newHref = $"/wiki/{pageId.Value}/{actualSlug}";
+                var newLink = $"<a {beforeHref}href=\"{newHref}\"{afterHref}>";
+                
+                if (!replacements.ContainsKey(fullMatch))
+                {
+                    replacements[fullMatch] = newLink;
+                }
+            }
+        }
+
+        // Apply all replacements
+        foreach (var replacement in replacements)
+        {
+            html = html.Replace(replacement.Key, replacement.Value);
+        }
+
+        return html;
+    }
 }
