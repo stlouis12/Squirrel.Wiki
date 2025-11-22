@@ -60,12 +60,23 @@
                             <select asp-for="ParentId" class="form-select" id="parentCategorySelect">
                                 @foreach (var parent in Model.AvailableParents)
                                 {
-                                    <option value="@parent.Id" 
-                                            disabled="@parent.IsDisabled"
-                                            data-level="@parent.Level"
-                                            data-path="@parent.FullPath">
-                                        @parent.Name
-                                    </option>
+                                    if (parent.Id == 0)
+                                    {
+                                        <option value="" 
+                                                data-level="@parent.Level"
+                                                data-path="@parent.FullPath">
+                                            @parent.Name
+                                        </option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@parent.Id" 
+                                                disabled="@parent.IsDisabled"
+                                                data-level="@parent.Level"
+                                                data-path="@parent.FullPath">
+                                            @parent.Name
+                                        </option>
+                                    }
                                 }
                             </select>
                             <span asp-validation-for="ParentId" class="text-danger"></span>
