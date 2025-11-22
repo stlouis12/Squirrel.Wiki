@@ -24,7 +24,6 @@ public class EnvironmentVariableProvider
         
         // Content Settings
         new EnvironmentVariableMapping("DefaultPageTemplate", "SQUIRREL_DEFAULT_PAGE_TEMPLATE", ""),
-        new EnvironmentVariableMapping("EnableMarkdownExtensions", "SQUIRREL_ENABLE_MARKDOWN_EXTENSIONS", "false"),
         new EnvironmentVariableMapping("MaxPageTitleLength", "SQUIRREL_MAX_PAGE_TITLE_LENGTH", "200"),
         new EnvironmentVariableMapping("EnablePageVersioning", "SQUIRREL_ENABLE_PAGE_VERSIONING", "false"),
         
@@ -35,8 +34,7 @@ public class EnvironmentVariableProvider
         
         // Performance Settings
         new EnvironmentVariableMapping("EnableCaching", "SQUIRREL_ENABLE_CACHING", "false"),
-        new EnvironmentVariableMapping("CacheDurationMinutes", "SQUIRREL_CACHE_DURATION_MINUTES", "60"),
-        new EnvironmentVariableMapping("EnableCompression", "SQUIRREL_ENABLE_COMPRESSION", "false")
+        new EnvironmentVariableMapping("CacheDurationMinutes", "SQUIRREL_CACHE_DURATION_MINUTES", "60")
     };
 
     public EnvironmentVariableProvider(ILogger<EnvironmentVariableProvider> logger)

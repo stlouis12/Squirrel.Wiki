@@ -5,6 +5,7 @@ using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Web.Models;
+using Squirrel.Wiki.Web.Filters;
 using DiffPlex;
 using DiffPlex.DiffBuilder;
 using DiffPlex.DiffBuilder.Model;
@@ -54,7 +55,7 @@ public class PagesController : Controller
     /// <param name="categoryId">If specified, filters pages by category ID</param>
     /// <param name="cancellationToken">Cancellation token</param>
     [HttpGet]
-    [ResponseCache(Duration = 300, VaryByQueryKeys = new[] { "recent", "tag", "user", "categoryId" })]
+    [DynamicResponseCache(VaryByQueryKeys = new[] { "recent", "tag", "user", "categoryId" })]
     public async Task<IActionResult> AllPages(int? recent, string? tag, string? user, int? categoryId, CancellationToken cancellationToken)
     {
         try
@@ -176,7 +177,7 @@ public class PagesController : Controller
     /// Displays all tags with page counts (filtered by authorization)
     /// </summary>
     [HttpGet]
-    [ResponseCache(Duration = 300)]
+    [DynamicResponseCache]
     public async Task<IActionResult> AllTags(CancellationToken cancellationToken)
     {
         try
@@ -296,7 +297,7 @@ public class PagesController : Controller
     /// Note: To view pages in a category, use AllPages action with categoryId parameter
     /// </summary>
     [HttpGet]
-    [ResponseCache(Duration = 300, VaryByHeader = "Cookie")]
+    [DynamicResponseCache(VaryByHeader = "Cookie")]
     public async Task<IActionResult> Category(CancellationToken cancellationToken)
     {
         try

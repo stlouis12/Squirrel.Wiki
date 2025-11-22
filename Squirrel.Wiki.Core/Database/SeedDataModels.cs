@@ -18,6 +18,9 @@ public class SeedData
 
     [YamlMember(Alias = "menus")]
     public List<SeedMenu> Menus { get; set; } = new();
+
+    [YamlMember(Alias = "settings")]
+    public List<SeedSetting> Settings { get; set; } = new();
 }
 
 /// <summary>
@@ -99,4 +102,19 @@ public class SeedMenu
 
     [YamlMember(Alias = "footerRightZone")]
     public string? FooterRightZone { get; set; }
+}
+
+/// <summary>
+/// Setting seed data model
+/// </summary>
+public class SeedSetting
+{
+    [YamlMember(Alias = "key")]
+    public string Key { get; set; } = string.Empty;
+
+    [YamlMember(Alias = "value")]
+    public string Value { get; set; } = string.Empty;
+
+    [YamlMember(Alias = "description")]
+    public string? Description { get; set; }
 }

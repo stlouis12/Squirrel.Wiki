@@ -43,6 +43,9 @@ public static class DatabaseSeeder
             // Seed Menus
             await SeedMenusAsync(context, seedData.Menus, logger);
             
+            // Seed Settings from YAML
+            await SeedSettingsAsync(context, seedData.Settings, logger);
+            
             // Seed Site Configuration (still hardcoded for system settings)
             await SeedSiteConfigurationAsync(context, logger);
 
@@ -97,8 +100,8 @@ public static class DatabaseSeeder
 
             var seedData = deserializer.Deserialize<SeedData>(yaml);
             
-            logger.LogInformation("Loaded seed data: {Categories} categories, {Tags} tags, {Pages} pages, {Menus} menus",
-                seedData.Categories.Count, seedData.Tags.Count, seedData.Pages.Count, seedData.Menus.Count);
+            logger.LogInformation("Loaded seed data: {Categories} categories, {Tags} tags, {Pages} pages, {Menus} menus, {Settings} settings",
+                seedData.Categories.Count, seedData.Tags.Count, seedData.Pages.Count, seedData.Menus.Count, seedData.Settings.Count);
 
             return seedData;
         }
@@ -257,6 +260,33 @@ public static class DatabaseSeeder
         await context.SaveChangesAsync();
         
         logger.LogInformation("Seeded {Count} menus", menus.Count);
+    }
+
+    private static async Task SeedSettingsAsync(SquirrelDbContext context, List<SeedSetting> seedSettings, ILogger logger)
+    {
+        logger.LogInformation("Seeding settings from YAML...");
+        
+        var now = DateTime.UtcNow;
+        var settings = new List<SiteConfiguration>();
+
+        foreach (var seedSetting in seedSettings)
+        {
+            var setting = new SiteConfiguration
+            {
+                Key = seedSetting.Key,
+                Value = $"\"{seedSetting.Value}\"", // Wrap in quotes for JSON serialization
+                ModifiedOn = now,
+                ModifiedBy = "system",
+                IsFromEnvironment = false
+            };
+
+            settings.Add(setting);
+        }
+
+        await context.SiteConfigurations.AddRangeAsync(settings);
+        await context.SaveChangesAsync();
+        
+        logger.LogInformation("Seeded {Count} settings from YAML", settings.Count);
     }
 
     private static async Task SeedSiteConfigurationAsync(SquirrelDbContext context, ILogger logger)

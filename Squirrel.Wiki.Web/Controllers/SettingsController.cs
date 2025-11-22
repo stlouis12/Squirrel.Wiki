@@ -234,7 +234,6 @@ public class SettingsController : Controller
             Settings = new List<SettingItem>
             {
                 CreateSettingItem("DefaultPageTemplate",  _localizer["DefaultPageTemplate"], _localizer["DefaultPageTemplateDescription"], SettingType.TextArea, false, existingSettings, envInfo),
-                CreateSettingItem("EnableMarkdownExtensions",  _localizer["EnableMarkdownExtensions"], _localizer["EnableMarkdownExtensionsDescription"], SettingType.Boolean, false, existingSettings, envInfo),
                 CreateSettingItem("MaxPageTitleLength",  _localizer["MaxPageTitleLength"], _localizer["MaxPageTitleLengthDescription"], SettingType.Number, true, existingSettings, envInfo),
                 CreateSettingItem("EnablePageVersioning",  _localizer["EnablePageVersioning"], _localizer["EnablePageVersioningDescription"], SettingType.Boolean, false, existingSettings, envInfo)
             }
@@ -263,8 +262,7 @@ public class SettingsController : Controller
             Settings = new List<SettingItem>
             {
                 CreateSettingItem("EnableCaching",  _localizer["EnableCaching"], _localizer["EnableCachingDescription"], SettingType.Boolean, false, existingSettings, envInfo),
-                CreateSettingItem("CacheDurationMinutes",  _localizer["CacheDurationMinutes"], _localizer["CacheDurationMinutesDescription"], SettingType.Number, true, existingSettings, envInfo),
-                CreateSettingItem("EnableCompression",  _localizer["EnableCompression"], _localizer["EnableCompressionDescription"], SettingType.Boolean, false, existingSettings, envInfo)
+                CreateSettingItem("CacheDurationMinutes",  _localizer["CacheDurationMinutes"], _localizer["CacheDurationMinutesDescription"], SettingType.Number, true, existingSettings, envInfo)
             }
         });
 

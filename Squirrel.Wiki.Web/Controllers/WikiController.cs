@@ -4,6 +4,7 @@ using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Web.Models;
+using Squirrel.Wiki.Web.Filters;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -43,7 +44,7 @@ public class WikiController : Controller
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The page view</returns>
     [HttpGet("/wiki/{id:int}/{slug?}")]
-    [ResponseCache(Duration = 300, VaryByQueryKeys = new[] { "id" }, VaryByHeader = "Cookie")]
+    [DynamicResponseCache(VaryByQueryKeys = new[] { "id" }, VaryByHeader = "Cookie")]
     public async Task<IActionResult> Index(int id, string? slug, bool isHomePage = false, CancellationToken cancellationToken = default)
     {
         if (id < 1)
@@ -227,7 +228,7 @@ public class WikiController : Controller
     /// 404 Not Found page
     /// </summary>
     [HttpGet("/wiki/notfound")]
-    [ResponseCache(Duration = 3600)]
+    [DynamicResponseCache(OverrideDuration = 3600)]
     public new IActionResult NotFound()
     {
         Response.StatusCode = 404;
@@ -238,7 +239,7 @@ public class WikiController : Controller
     /// 500 Server Error page
     /// </summary>
     [HttpGet("/wiki/error")]
-    [ResponseCache(Duration = 0, NoStore = true)]
+    [DynamicResponseCache(NoStore = true)]
     public IActionResult ServerError()
     {
         Response.StatusCode = 500;

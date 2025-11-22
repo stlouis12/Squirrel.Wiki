@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Web.Filters;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -44,7 +45,7 @@ public class HomeController : Controller
         return View();
     }
 
-    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+    [DynamicResponseCache(NoStore = true)]
     public IActionResult Error()
     {
         return View();

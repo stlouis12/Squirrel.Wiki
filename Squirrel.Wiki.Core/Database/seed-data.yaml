@@ -595,6 +595,15 @@ pages:
 
       *This FAQ is regularly updated. If you have suggestions for additional questions, please contact your administrator.*
 
+settings:
+  - key: EnableCaching
+    value: "true"
+    description: Enable response caching for improved performance
+
+  - key: CacheDurationMinutes
+    value: "5"
+    description: Duration in minutes for cached responses (default 5 minutes)
+
 menus:
   - name: Main Navigation
     type: MainNavigation
