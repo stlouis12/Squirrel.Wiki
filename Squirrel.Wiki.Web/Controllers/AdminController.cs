@@ -95,7 +95,7 @@ public class AdminController : BaseController
             
             _logger.LogInformation("Cache clear requested by {User}", User.Identity?.Name);
             
-            NotifySuccess("Cache cleared successfully. Note: Individual cache entries will expire naturally.");
+            NotifyLocalizedSuccess("Notification_CacheCleared");
             return RedirectToAction(nameof(Index));
         }
         catch (Exception ex)
@@ -122,7 +122,7 @@ public class AdminController : BaseController
 
             _logger.LogInformation("Search index rebuilt successfully");
             
-            NotifySuccess("Search index rebuilt successfully.");
+            NotifyLocalizedSuccess("Notification_SearchIndexRebuilt");
             return RedirectToAction(nameof(Index));
         },
         ex =>

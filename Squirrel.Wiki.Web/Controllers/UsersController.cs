@@ -169,7 +169,7 @@ public class UsersController : BaseController
             }
 
             _logger.LogInformation("User {Username} created by {AdminUser}", model.Username, User.Identity?.Name);
-            NotifySuccess($"User '{model.Username}' created successfully.");
+            NotifyLocalizedSuccess("Notification_UserCreated", model.Username);
             return RedirectToAction(nameof(Details), new { id = user.Id });
         },
         ex =>
@@ -274,7 +274,7 @@ public class UsersController : BaseController
             }
 
             _logger.LogInformation("User {Username} updated by {AdminUser}", user.Username, User.Identity?.Name);
-            NotifySuccess($"User '{user.Username}' updated successfully.");
+            NotifyLocalizedSuccess("Notification_UserUpdated", user.Username);
             return RedirectToAction(nameof(Details), new { id = user.Id });
         },
         ex =>
@@ -316,7 +316,7 @@ public class UsersController : BaseController
             await _userService.DeactivateAccountAsync(id);
 
             _logger.LogInformation("User {Username} deactivated (delete requested) by {AdminUser}", user.Username, User.Identity?.Name);
-            NotifySuccess($"User '{user.Username}' has been deactivated.");
+            NotifyLocalizedSuccess("Notification_UserDeleted", user.Username);
             return RedirectToAction(nameof(Index));
         },
         "An error occurred while deleting the user. Please try again.",
@@ -346,7 +346,7 @@ public class UsersController : BaseController
             await _userService.DeactivateAccountAsync(id);
 
             _logger.LogInformation("User {Username} deactivated by {AdminUser}", user.Username, User.Identity?.Name);
-            NotifySuccess($"User '{user.Username}' deactivated successfully.");
+            NotifyLocalizedSuccess("Notification_UserDeactivated", user.Username);
             return RedirectToAction(nameof(Details), new { id });
         },
         "An error occurred while deactivating the user.",
@@ -369,7 +369,7 @@ public class UsersController : BaseController
             await _userService.ActivateAccountAsync(id);
 
             _logger.LogInformation("User {Username} activated by {AdminUser}", user.Username, User.Identity?.Name);
-            NotifySuccess($"User '{user.Username}' activated successfully.");
+            NotifyLocalizedSuccess("Notification_UserActivated", user.Username);
             return RedirectToAction(nameof(Details), new { id });
         },
         "An error occurred while activating the user.",
@@ -392,7 +392,7 @@ public class UsersController : BaseController
             await _userService.UnlockAccountAsync(id);
 
             _logger.LogInformation("User {Username} unlocked by {AdminUser}", user.Username, User.Identity?.Name);
-            NotifySuccess($"User '{user.Username}' unlocked successfully.");
+            NotifyLocalizedSuccess("Notification_UserUnlocked", user.Username);
             return RedirectToAction(nameof(Details), new { id });
         },
         "An error occurred while unlocking the user.",
@@ -454,7 +454,7 @@ public class UsersController : BaseController
             await _userService.SetPasswordAsync(model.UserId, model.NewPassword);
 
             _logger.LogInformation("Password reset for user {Username} by {AdminUser}", user.Username, User.Identity?.Name);
-            NotifySuccess($"Password reset successfully for user '{user.Username}'.");
+            NotifyLocalizedSuccess("Notification_PasswordReset", user.Username);
             return RedirectToAction(nameof(Details), new { id = model.UserId });
         },
         ex =>

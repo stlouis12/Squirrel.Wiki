@@ -182,7 +182,7 @@ public class PluginsController : BaseController
 
             await _pluginService.UpdatePluginConfigurationAsync(id, cleanedConfig);
 
-            NotifySuccess($"Configuration for '{plugin.Name}' saved successfully");
+            NotifyLocalizedSuccess("Notification_PluginConfigured", plugin.Name);
             return RedirectToAction(nameof(Details), new { id });
         },
         ex =>
@@ -208,7 +208,7 @@ public class PluginsController : BaseController
 
             await _pluginService.EnablePluginAsync(id);
 
-            NotifySuccess($"Plugin '{plugin.Name}' enabled successfully");
+            NotifyLocalizedSuccess("Notification_PluginEnabled", plugin.Name);
             return RedirectToAction(nameof(Index));
         },
         "Failed to enable plugin.",
@@ -231,7 +231,7 @@ public class PluginsController : BaseController
 
             await _pluginService.DisablePluginAsync(id);
 
-            NotifySuccess($"Plugin '{plugin.Name}' disabled successfully");
+            NotifyLocalizedSuccess("Notification_PluginDisabled", plugin.Name);
             return RedirectToAction(nameof(Index));
         },
         "Failed to disable plugin.",
@@ -261,7 +261,7 @@ public class PluginsController : BaseController
             var pluginName = plugin.Name;
             await _pluginService.DeletePluginAsync(id);
 
-            NotifySuccess($"Plugin '{pluginName}' deleted successfully");
+            NotifyLocalizedSuccess("Notification_PluginDeleted", pluginName);
             return RedirectToAction(nameof(Index));
         },
         "Failed to delete plugin.",

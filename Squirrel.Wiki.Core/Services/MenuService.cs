@@ -461,7 +461,7 @@ public class MenuService : IMenuService
                 html.AppendLine($"    <a class=\"nav-link dropdown-toggle\" href=\"#\" id=\"{dropdownId}\" role=\"button\" data-bs-toggle=\"dropdown\" aria-expanded=\"false\">");
                 html.AppendLine($"        {System.Net.WebUtility.HtmlEncode(item.Text)}");
                 html.AppendLine($"    </a>");
-                html.AppendLine($"    <ul class=\"dropdown-menu\" aria-labelledby=\"{dropdownId}\">");
+                html.AppendLine($"    <ul class=\"dropdown-menu\" aria-labelledby=\"{dropdownId}\" style=\"z-index: 1060;\">");
                 
                 foreach (var child in item.Children)
                 {

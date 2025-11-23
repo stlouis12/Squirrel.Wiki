@@ -170,7 +170,7 @@ public class SearchController : BaseController
             await _searchService.RebuildIndexAsync(cancellationToken);
             
             _logger.LogInformation("Search index rebuilt successfully");
-            NotifySuccess("Search index rebuilt successfully");
+            NotifyLocalizedSuccess("Notification_SearchIndexRebuilt");
             
             return RedirectToAction("Index", "Home");
         },

@@ -276,7 +276,7 @@ public class AccountController : BaseController
             // Change password
             await _userService.SetPasswordAsync(userId, model.NewPassword);
 
-            NotifySuccess("Your password has been changed successfully.");
+            NotifyLocalizedSuccess("Notification_PasswordChanged");
             _logger.LogInformation("Password changed for user {Username} (ID: {UserId})", user.Username, userId);
 
             return RedirectToAction("Profile");

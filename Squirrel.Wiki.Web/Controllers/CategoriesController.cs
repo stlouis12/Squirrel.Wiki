@@ -149,7 +149,7 @@ public class CategoriesController : BaseController
                 _logger.LogInformation("Created category '{CategoryName}' (ID: {CategoryId}) by {User}", 
                     created.Name, created.Id, username);
                 
-                NotifySuccess($"Category '{created.Name}' created successfully.");
+                NotifyLocalizedSuccess("Notification_CategoryCreated", created.Name);
             }
             else
             {
@@ -167,7 +167,7 @@ public class CategoriesController : BaseController
                 _logger.LogInformation("Updated category '{CategoryName}' (ID: {CategoryId}) by {User}", 
                     updated.Name, updated.Id, username);
                 
-                NotifySuccess($"Category '{updated.Name}' updated successfully.");
+                NotifyLocalizedSuccess("Notification_CategoryUpdated", updated.Name);
             }
 
             return RedirectToAction(nameof(Index));
@@ -356,6 +356,8 @@ public class CategoriesController : BaseController
             _logger.LogInformation("Moved category '{CategoryName}' (ID: {CategoryId}) to parent {ParentId} by {User}", 
                 category.Name, request.CategoryId, request.NewParentId, _userContext.Username ?? "System");
 
+            NotifyLocalizedSuccess("Notification_CategoryMoved", category.Name);
+            
             return Json(new { 
                 success = true, 
                 message = $"Category '{category.Name}' moved successfully.",

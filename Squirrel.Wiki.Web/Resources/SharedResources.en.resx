@@ -2344,4 +2344,248 @@
   <data name="Secrets" xml:space="preserve">
     <value>Secrets</value>
   </data>
+  <!-- Notification Messages - User Management -->
+  <data name="Notification_UserCreated" xml:space="preserve">
+    <value>User '{0}' created successfully.</value>
+  </data>
+  <data name="Notification_UserUpdated" xml:space="preserve">
+    <value>User '{0}' updated successfully.</value>
+  </data>
+  <data name="Notification_UserDeleted" xml:space="preserve">
+    <value>User '{0}' deleted successfully.</value>
+  </data>
+  <data name="Notification_UserActivated" xml:space="preserve">
+    <value>User '{0}' activated successfully.</value>
+  </data>
+  <data name="Notification_UserDeactivated" xml:space="preserve">
+    <value>User '{0}' deactivated successfully.</value>
+  </data>
+  <data name="Notification_UserLocked" xml:space="preserve">
+    <value>User '{0}' locked successfully.</value>
+  </data>
+  <data name="Notification_UserUnlocked" xml:space="preserve">
+    <value>User '{0}' unlocked successfully.</value>
+  </data>
+  <data name="Notification_PasswordReset" xml:space="preserve">
+    <value>Password reset successfully for user '{0}'.</value>
+  </data>
+  <data name="Notification_UserNotFound" xml:space="preserve">
+    <value>User not found.</value>
+  </data>
+  <data name="Notification_ErrorCreatingUser" xml:space="preserve">
+    <value>An error occurred while creating the user.</value>
+  </data>
+  <data name="Notification_ErrorUpdatingUser" xml:space="preserve">
+    <value>An error occurred while updating the user.</value>
+  </data>
+  <data name="Notification_ErrorDeletingUser" xml:space="preserve">
+    <value>An error occurred while deleting the user.</value>
+  </data>
+  <data name="Notification_ErrorActivatingUser" xml:space="preserve">
+    <value>An error occurred while activating the user.</value>
+  </data>
+  <data name="Notification_ErrorDeactivatingUser" xml:space="preserve">
+    <value>An error occurred while deactivating the user.</value>
+  </data>
+  <data name="Notification_ErrorLockingUser" xml:space="preserve">
+    <value>An error occurred while locking the user.</value>
+  </data>
+  <data name="Notification_ErrorUnlockingUser" xml:space="preserve">
+    <value>An error occurred while unlocking the user.</value>
+  </data>
+  <data name="Notification_ErrorResettingPassword" xml:space="preserve">
+    <value>An error occurred while resetting the password.</value>
+  </data>
+  <!-- Notification Messages - Plugin Management -->
+  <data name="Notification_PluginEnabled" xml:space="preserve">
+    <value>Plugin '{0}' enabled successfully.</value>
+  </data>
+  <data name="Notification_PluginDisabled" xml:space="preserve">
+    <value>Plugin '{0}' disabled successfully.</value>
+  </data>
+  <data name="Notification_PluginConfigured" xml:space="preserve">
+    <value>Plugin '{0}' configured successfully.</value>
+  </data>
+  <data name="Notification_PluginDeleted" xml:space="preserve">
+    <value>Plugin '{0}' deleted successfully.</value>
+  </data>
+  <data name="Notification_PluginNotFound" xml:space="preserve">
+    <value>Plugin not found.</value>
+  </data>
+  <data name="Notification_ErrorEnablingPlugin" xml:space="preserve">
+    <value>An error occurred while enabling the plugin.</value>
+  </data>
+  <data name="Notification_ErrorDisablingPlugin" xml:space="preserve">
+    <value>An error occurred while disabling the plugin.</value>
+  </data>
+  <data name="Notification_ErrorConfiguringPlugin" xml:space="preserve">
+    <value>An error occurred while configuring the plugin.</value>
+  </data>
+  <data name="Notification_ErrorDeletingPlugin" xml:space="preserve">
+    <value>An error occurred while deleting the plugin.</value>
+  </data>
+  <!-- Notification Messages - Category Management -->
+  <data name="Notification_CategoryCreated" xml:space="preserve">
+    <value>Category '{0}' created successfully.</value>
+  </data>
+  <data name="Notification_CategoryUpdated" xml:space="preserve">
+    <value>Category '{0}' updated successfully.</value>
+  </data>
+  <data name="Notification_CategoryDeleted" xml:space="preserve">
+    <value>Category '{0}' deleted successfully.</value>
+  </data>
+  <data name="Notification_CategoryMoved" xml:space="preserve">
+    <value>Category '{0}' moved successfully.</value>
+  </data>
+  <data name="Notification_CategoryNotFound" xml:space="preserve">
+    <value>Category not found.</value>
+  </data>
+  <data name="Notification_ErrorCreatingCategory" xml:space="preserve">
+    <value>An error occurred while creating the category.</value>
+  </data>
+  <data name="Notification_ErrorUpdatingCategory" xml:space="preserve">
+    <value>An error occurred while updating the category.</value>
+  </data>
+  <data name="Notification_ErrorDeletingCategory" xml:space="preserve">
+    <value>An error occurred while deleting the category.</value>
+  </data>
+  <data name="Notification_ErrorMovingCategory" xml:space="preserve">
+    <value>An error occurred while moving the category.</value>
+  </data>
+  <!-- Notification Messages - Menu Management -->
+  <data name="Notification_MenuCreated" xml:space="preserve">
+    <value>Menu '{0}' created successfully.</value>
+  </data>
+  <data name="Notification_MenuUpdated" xml:space="preserve">
+    <value>Menu '{0}' updated successfully.</value>
+  </data>
+  <data name="Notification_MenuDeleted" xml:space="preserve">
+    <value>Menu '{0}' deleted successfully.</value>
+  </data>
+  <data name="Notification_MenuActivated" xml:space="preserve">
+    <value>Menu '{0}' activated successfully.</value>
+  </data>
+  <data name="Notification_MenuDeactivated" xml:space="preserve">
+    <value>Menu '{0}' deactivated successfully.</value>
+  </data>
+  <data name="Notification_MenuNotFound" xml:space="preserve">
+    <value>Menu not found.</value>
+  </data>
+  <data name="Notification_ErrorCreatingMenu" xml:space="preserve">
+    <value>An error occurred while creating the menu.</value>
+  </data>
+  <data name="Notification_ErrorUpdatingMenu" xml:space="preserve">
+    <value>An error occurred while updating the menu.</value>
+  </data>
+  <data name="Notification_ErrorDeletingMenu" xml:space="preserve">
+    <value>An error occurred while deleting the menu.</value>
+  </data>
+  <data name="Notification_ErrorActivatingMenu" xml:space="preserve">
+    <value>An error occurred while activating the menu.</value>
+  </data>
+  <data name="Notification_ErrorDeactivatingMenu" xml:space="preserve">
+    <value>An error occurred while deactivating the menu.</value>
+  </data>
+  <!-- Notification Messages - Settings Management -->
+  <data name="Notification_SettingUpdated" xml:space="preserve">
+    <value>Setting '{0}' updated successfully.</value>
+  </data>
+  <data name="Notification_SettingsUpdated" xml:space="preserve">
+    <value>Settings updated successfully.</value>
+  </data>
+  <data name="Notification_SettingNotFound" xml:space="preserve">
+    <value>Setting not found.</value>
+  </data>
+  <data name="Notification_ErrorUpdatingSetting" xml:space="preserve">
+    <value>An error occurred while updating the setting.</value>
+  </data>
+  <data name="Notification_ErrorUpdatingSettings" xml:space="preserve">
+    <value>An error occurred while updating settings.</value>
+  </data>
+  <!-- Notification Messages - Page Management -->
+  <data name="Notification_PageCreated" xml:space="preserve">
+    <value>Page '{0}' created successfully.</value>
+  </data>
+  <data name="Notification_PageUpdated" xml:space="preserve">
+    <value>Page '{0}' updated successfully.</value>
+  </data>
+  <data name="Notification_PageDeleted" xml:space="preserve">
+    <value>Page '{0}' deleted successfully.</value>
+  </data>
+  <data name="Notification_PageReverted" xml:space="preserve">
+    <value>Page reverted to version {0}.</value>
+  </data>
+  <data name="Notification_PageLocked" xml:space="preserve">
+    <value>Page '{0}' locked successfully.</value>
+  </data>
+  <data name="Notification_PageUnlocked" xml:space="preserve">
+    <value>Page '{0}' unlocked successfully.</value>
+  </data>
+  <data name="Notification_PageNotFound" xml:space="preserve">
+    <value>Page not found.</value>
+  </data>
+  <data name="Notification_VersionNotFound" xml:space="preserve">
+    <value>Version not found.</value>
+  </data>
+  <data name="Notification_ErrorCreatingPage" xml:space="preserve">
+    <value>An error occurred while creating the page.</value>
+  </data>
+  <data name="Notification_ErrorUpdatingPage" xml:space="preserve">
+    <value>An error occurred while updating the page.</value>
+  </data>
+  <data name="Notification_ErrorDeletingPage" xml:space="preserve">
+    <value>An error occurred while deleting the page.</value>
+  </data>
+  <data name="Notification_ErrorRevertingPage" xml:space="preserve">
+    <value>An error occurred while reverting the page.</value>
+  </data>
+  <data name="Notification_ErrorLockingPage" xml:space="preserve">
+    <value>An error occurred while locking the page.</value>
+  </data>
+  <data name="Notification_ErrorUnlockingPage" xml:space="preserve">
+    <value>An error occurred while unlocking the page.</value>
+  </data>
+  <!-- Notification Messages - Search -->
+  <data name="Notification_SearchIndexRebuilt" xml:space="preserve">
+    <value>Search index rebuilt successfully.</value>
+  </data>
+  <data name="Notification_SearchIndexRebuilding" xml:space="preserve">
+    <value>Search index rebuild started. This may take a few minutes.</value>
+  </data>
+  <data name="Notification_ErrorRebuildingSearchIndex" xml:space="preserve">
+    <value>An error occurred while rebuilding the search index.</value>
+  </data>
+  <!-- Notification Messages - Admin -->
+  <data name="Notification_CacheCleared" xml:space="preserve">
+    <value>Cache cleared successfully.</value>
+  </data>
+  <data name="Notification_ErrorClearingCache" xml:space="preserve">
+    <value>An error occurred while clearing the cache.</value>
+  </data>
+  <!-- Notification Messages - Account -->
+  <data name="Notification_PasswordChanged" xml:space="preserve">
+    <value>Your password has been changed successfully.</value>
+  </data>
+  <data name="Notification_ProfileUpdated" xml:space="preserve">
+    <value>Your profile has been updated successfully.</value>
+  </data>
+  <data name="Notification_ErrorLoadingProfile" xml:space="preserve">
+    <value>An error occurred while loading your profile.</value>
+  </data>
+  <!-- Notification Messages - General -->
+  <data name="Notification_OperationSuccessful" xml:space="preserve">
+    <value>Operation completed successfully.</value>
+  </data>
+  <data name="Notification_OperationFailed" xml:space="preserve">
+    <value>Operation failed.</value>
+  </data>
+  <data name="Notification_UnexpectedError" xml:space="preserve">
+    <value>An unexpected error occurred. Please try again.</value>
+  </data>
+  <data name="Notification_AccessDenied" xml:space="preserve">
+    <value>You don't have permission to perform this action.</value>
+  </data>
+  <data name="Notification_InvalidInput" xml:space="preserve">
+    <value>Invalid input. Please check your data and try again.</value>
+  </data>
 </root>

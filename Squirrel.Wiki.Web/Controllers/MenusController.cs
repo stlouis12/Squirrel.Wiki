@@ -204,11 +204,12 @@ public class MenusController : BaseController
                 // Check if menu was automatically set to inactive
                 if (model.IsEnabled && !createdMenu.IsEnabled)
                 {
-                    NotifySuccess($"Menu '{model.Name}' created successfully, but set to inactive because another {((MenuType)model.MenuType).ToString()} menu is already active. You can activate this menu from the menu list.");
+                    NotifyLocalizedSuccess("Notification_MenuCreated", model.Name);
+                    NotifyWarning($"Menu set to inactive because another {((MenuType)model.MenuType).ToString()} menu is already active.");
                 }
                 else
                 {
-                    NotifySuccess($"Menu '{model.Name}' created successfully.");
+                    NotifyLocalizedSuccess("Notification_MenuCreated", model.Name);
                 }
             }
             else
@@ -232,11 +233,12 @@ public class MenusController : BaseController
                 // Check if menu was automatically set to inactive
                 if (model.IsEnabled && !updatedMenu.IsEnabled)
                 {
-                    NotifySuccess($"Menu '{model.Name}' updated successfully, but kept inactive because another {((MenuType)model.MenuType).ToString()} menu is already active. You can activate this menu from the menu list.");
+                    NotifyLocalizedSuccess("Notification_MenuUpdated", model.Name);
+                    NotifyWarning($"Menu kept inactive because another {((MenuType)model.MenuType).ToString()} menu is already active.");
                 }
                 else
                 {
-                    NotifySuccess($"Menu '{model.Name}' updated successfully.");
+                    NotifyLocalizedSuccess("Notification_MenuUpdated", model.Name);
                 }
             }
 

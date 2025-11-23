@@ -63,7 +63,7 @@
 @* Toast Notifications *@
 @if (toastNotifications.Any())
 {
-    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 11">
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1050; margin-top: 120px;">
         @foreach (var notification in toastNotifications)
         {
             var toastClass = notification.Type switch

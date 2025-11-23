@@ -568,7 +568,7 @@ public class PagesController : BaseController
 
             _logger.LogInformation("Page {PageId} deleted", id);
             
-            NotifySuccess("Page deleted successfully");
+            NotifyLocalizedSuccess("Notification_PageDeleted");
             return RedirectToAction(nameof(AllPages));
         },
         ex =>
@@ -765,7 +765,7 @@ public class PagesController : BaseController
 
             _logger.LogInformation("Page {PageId} reverted to version {Version} by {Username}", id, versionNumber, username);
             
-            NotifySuccess($"Page successfully reverted to version {versionNumber}. A new version has been created.");
+            NotifyLocalizedSuccess("Notification_PageReverted", versionNumber.ToString());
             return RedirectToAction("Index", "Wiki", new { id });
         },
         ex =>

@@ -134,7 +134,7 @@ public class SettingsController : BaseController
 
             _logger.LogInformation("Setting {Key} updated by {User}", model.Key, User.Identity?.Name);
 
-            NotifySuccess($"Setting '{model.DisplayName}' updated successfully.");
+            NotifyLocalizedSuccess("Notification_SettingUpdated", model.DisplayName);
             return RedirectToAction(nameof(Index));
         },
         ex =>
