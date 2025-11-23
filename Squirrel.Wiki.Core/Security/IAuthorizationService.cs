@@ -13,6 +13,13 @@ public interface IAuthorizationService
     Task<bool> CanViewPageAsync(Page page, CancellationToken cancellationToken = default);
     
     /// <summary>
+    /// Checks if the current user can view multiple pages in a single batch operation.
+    /// Returns a dictionary mapping page ID to whether the user can view that page.
+    /// This is more efficient than calling CanViewPageAsync multiple times.
+    /// </summary>
+    Task<Dictionary<int, bool>> CanViewPagesAsync(IEnumerable<Page> pages, CancellationToken cancellationToken = default);
+    
+    /// <summary>
     /// Checks if the current user can edit a specific page (considers page locking)
     /// </summary>
     Task<bool> CanEditPageAsync(Core.Models.PageDto page, string? username, string? userRole);

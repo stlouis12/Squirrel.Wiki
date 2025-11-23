@@ -1673,6 +1673,42 @@
   <data name="CachingAndPerformanceSettings" xml:space="preserve">
     <value>Caching and performance settings</value>
   </data>
+  <data name="DistributedCache" xml:space="preserve">
+    <value>Distributed Cache</value>
+  </data>
+  <data name="DistributedCacheSettings" xml:space="preserve">
+    <value>Distributed caching configuration for categories, tags, pages, and other data</value>
+  </data>
+  <data name="CacheEnabled" xml:space="preserve">
+    <value>Cache Enabled</value>
+  </data>
+  <data name="CacheEnabledDescription" xml:space="preserve">
+    <value>Enable or disable distributed caching globally. Changes take effect immediately.</value>
+  </data>
+  <data name="CacheExpirationMinutes" xml:space="preserve">
+    <value>Cache Expiration (Minutes)</value>
+  </data>
+  <data name="CacheExpirationMinutesDescription" xml:space="preserve">
+    <value>Default expiration time in minutes for cached items. Changes take effect immediately.</value>
+  </data>
+  <data name="CacheProvider" xml:space="preserve">
+    <value>Cache Provider</value>
+  </data>
+  <data name="CacheProviderDescription" xml:space="preserve">
+    <value>Cache provider to use (Memory or Redis). ⚠️ Requires application restart to take effect. Configure via environment variables for production.</value>
+  </data>
+  <data name="RedisConfiguration" xml:space="preserve">
+    <value>Redis Connection String</value>
+  </data>
+  <data name="RedisConfigurationDescription" xml:space="preserve">
+    <value>Redis server connection string (e.g., localhost:6379). Only used when Cache Provider is Redis. ⚠️ Requires application restart to take effect.</value>
+  </data>
+  <data name="RedisInstanceName" xml:space="preserve">
+    <value>Redis Instance Name</value>
+  </data>
+  <data name="RedisInstanceNameDescription" xml:space="preserve">
+    <value>Prefix for Redis cache keys to avoid conflicts with other applications. ⚠️ Requires application restart to take effect.</value>
+  </data>
   <data name="SiteName" xml:space="preserve">
     <value>Site Name</value>
   </data>

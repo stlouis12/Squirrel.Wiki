@@ -225,4 +225,20 @@ public class PageRepository : Repository<Page, int>, IPageRepository
                 .ThenInclude(pt => pt.Tag)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
+
+    public async Task<List<Page>> GetByIdsAsync(IEnumerable<int> ids, CancellationToken cancellationToken = default)
+    {
+        var idList = ids.ToList();
+        if (!idList.Any())
+        {
+            return new List<Page>();
+        }
+        
+        return await _dbSet
+            .Include(p => p.Category)
+            .Include(p => p.PageTags)
+                .ThenInclude(pt => pt.Tag)
+            .Where(p => idList.Contains(p.Id))
+            .ToListAsync(cancellationToken);
+    }
 }

@@ -1,9 +1,7 @@
-using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Models;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace Squirrel.Wiki.Core.Services;
@@ -18,7 +16,8 @@ public class PageService : IPageService
     private readonly ICategoryRepository _categoryRepository;
     private readonly IMarkdownService _markdownService;
     private readonly ISettingsService _settingsService;
-    private readonly IDistributedCache _cache;
+    private readonly ICacheService _cacheService;
+    private readonly ITagService _tagService;
     private readonly ILogger<PageService> _logger;
 
     private const string CacheKeyPrefix = "page:";
@@ -31,7 +30,8 @@ public class PageService : IPageService
         ICategoryRepository categoryRepository,
         IMarkdownService markdownService,
         ISettingsService settingsService,
-        IDistributedCache cache,
+        ICacheService cacheService,
+        ITagService tagService,
         ILogger<PageService> logger)
     {
         _pageRepository = pageRepository;
@@ -39,7 +39,8 @@ public class PageService : IPageService
         _categoryRepository = categoryRepository;
         _markdownService = markdownService;
         _settingsService = settingsService;
-        _cache = cache;
+        _cacheService = cacheService;
+        _tagService = tagService;
         _logger = logger;
     }
 
@@ -47,10 +48,14 @@ public class PageService : IPageService
     {
         // Try cache first
         var cacheKey = $"{CacheKeyPrefix}{id}";
-        var cachedPage = await GetFromCacheAsync<PageDto>(cacheKey, cancellationToken);
+        var cachedPage = await _cacheService.GetAsync<PageDto>(cacheKey, cancellationToken);
         if (cachedPage != null)
+        {
+            _logger.LogDebug("Page cache hit for key: {CacheKey}", cacheKey);
             return cachedPage;
+        }
 
+        _logger.LogDebug("Page cache miss for key: {CacheKey}", cacheKey);
         var page = await _pageRepository.GetByIdAsync(id, cancellationToken);
         if (page == null)
             throw new KeyNotFoundException($"Page with ID {id} not found");
@@ -59,7 +64,7 @@ public class PageService : IPageService
         var pageDto = await MapToPageDtoAsync(page, content, cancellationToken);
 
         // Cache the result
-        await SetCacheAsync(cacheKey, pageDto, cancellationToken);
+        await _cacheService.SetAsync(cacheKey, pageDto, CacheExpiration, cancellationToken);
 
         return pageDto;
     }
@@ -86,57 +91,113 @@ public class PageService : IPageService
 
     public async Task<IEnumerable<PageDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        var cacheKey = CacheKeyAllPages;
+        var cached = await _cacheService.GetAsync<List<PageDto>>(cacheKey, cancellationToken);
+        
+        if (cached != null)
+        {
+            _logger.LogDebug("All pages cache hit");
+            return cached;
+        }
+
+        _logger.LogDebug("All pages cache miss");
         var pages = await _pageRepository.GetAllActiveAsync(cancellationToken);
         var pageDtos = new List<PageDto>();
+
+        // Load all categories once to avoid N+1 queries
+        var categoryCache = await LoadCategoryCacheAsync(cancellationToken);
 
         foreach (var page in pages)
         {
             var content = await _pageRepository.GetLatestContentAsync(page.Id, cancellationToken);
-            pageDtos.Add(await MapToPageDtoAsync(page, content, cancellationToken));
+            pageDtos.Add(await MapToPageDtoAsync(page, content, categoryCache, cancellationToken));
         }
 
+        await _cacheService.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
         return pageDtos;
     }
 
     public async Task<IEnumerable<PageDto>> GetByCategoryAsync(int categoryId, CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"pages:category:{categoryId}";
+        var cached = await _cacheService.GetAsync<List<PageDto>>(cacheKey, cancellationToken);
+        
+        if (cached != null)
+        {
+            _logger.LogDebug("Pages by category cache hit for category: {CategoryId}", categoryId);
+            return cached;
+        }
+
+        _logger.LogDebug("Pages by category cache miss for category: {CategoryId}", categoryId);
         var pages = await _pageRepository.GetByCategoryIdAsync(categoryId, cancellationToken);
         var pageDtos = new List<PageDto>();
+
+        // Load all categories once to avoid N+1 queries
+        var categoryCache = await LoadCategoryCacheAsync(cancellationToken);
 
         foreach (var page in pages)
         {
             var content = await _pageRepository.GetLatestContentAsync(page.Id, cancellationToken);
-            pageDtos.Add(await MapToPageDtoAsync(page, content, cancellationToken));
+            pageDtos.Add(await MapToPageDtoAsync(page, content, categoryCache, cancellationToken));
         }
 
+        await _cacheService.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
         return pageDtos;
     }
 
     public async Task<IEnumerable<PageDto>> GetByTagAsync(string tag, CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"pages:tag:{tag.ToLowerInvariant()}";
+        var cached = await _cacheService.GetAsync<List<PageDto>>(cacheKey, cancellationToken);
+        
+        if (cached != null)
+        {
+            _logger.LogDebug("Pages by tag cache hit for tag: {Tag}", tag);
+            return cached;
+        }
+
+        _logger.LogDebug("Pages by tag cache miss for tag: {Tag}", tag);
         var pages = await _pageRepository.GetByTagAsync(tag, cancellationToken);
         var pageDtos = new List<PageDto>();
+
+        // Load all categories once to avoid N+1 queries
+        var categoryCache = await LoadCategoryCacheAsync(cancellationToken);
 
         foreach (var page in pages)
         {
             var content = await _pageRepository.GetLatestContentAsync(page.Id, cancellationToken);
-            pageDtos.Add(await MapToPageDtoAsync(page, content, cancellationToken));
+            pageDtos.Add(await MapToPageDtoAsync(page, content, categoryCache, cancellationToken));
         }
 
+        await _cacheService.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
         return pageDtos;
     }
 
     public async Task<IEnumerable<PageDto>> GetByAuthorAsync(string username, CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"pages:author:{username.ToLowerInvariant()}";
+        var cached = await _cacheService.GetAsync<List<PageDto>>(cacheKey, cancellationToken);
+        
+        if (cached != null)
+        {
+            _logger.LogDebug("Pages by author cache hit for author: {Username}", username);
+            return cached;
+        }
+
+        _logger.LogDebug("Pages by author cache miss for author: {Username}", username);
         var pages = await _pageRepository.GetByCreatedByAsync(username, cancellationToken);
         var pageDtos = new List<PageDto>();
+
+        // Load all categories once to avoid N+1 queries
+        var categoryCache = await LoadCategoryCacheAsync(cancellationToken);
 
         foreach (var page in pages)
         {
             var content = await _pageRepository.GetLatestContentAsync(page.Id, cancellationToken);
-            pageDtos.Add(await MapToPageDtoAsync(page, content, cancellationToken));
+            pageDtos.Add(await MapToPageDtoAsync(page, content, categoryCache, cancellationToken));
         }
 
+        await _cacheService.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
         return pageDtos;
     }
 
@@ -415,10 +476,13 @@ public class PageService : IPageService
         var pages = await _pageRepository.SearchAsync(query, cancellationToken);
         var pageDtos = new List<PageDto>();
 
+        // Load all categories once to avoid N+1 queries
+        var categoryCache = await LoadCategoryCacheAsync(cancellationToken);
+
         foreach (var page in pages)
         {
             var content = await _pageRepository.GetLatestContentAsync(page.Id, cancellationToken);
-            pageDtos.Add(await MapToPageDtoAsync(page, content, cancellationToken));
+            pageDtos.Add(await MapToPageDtoAsync(page, content, categoryCache, cancellationToken));
         }
 
         return pageDtos;
@@ -534,7 +598,32 @@ public class PageService : IPageService
 
     // Private helper methods
 
+    /// <summary>
+    /// Load all categories into a dictionary for efficient lookups
+    /// </summary>
+    private async Task<Dictionary<int, string>> LoadCategoryCacheAsync(CancellationToken cancellationToken)
+    {
+        var categories = await _categoryRepository.GetAllAsync(cancellationToken);
+        return categories.ToDictionary(c => c.Id, c => c.Name);
+    }
+
+    /// <summary>
+    /// Map page entity to DTO without category cache (single page operations)
+    /// </summary>
     private async Task<PageDto> MapToPageDtoAsync(Page page, PageContent? content, CancellationToken cancellationToken)
+    {
+        // For single page operations, load category individually
+        return await MapToPageDtoAsync(page, content, null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Map page entity to DTO with optional category cache (batch operations)
+    /// </summary>
+    private async Task<PageDto> MapToPageDtoAsync(
+        Page page, 
+        PageContent? content, 
+        Dictionary<int, string>? categoryCache, 
+        CancellationToken cancellationToken)
     {
         var dto = new PageDto
         {
@@ -554,8 +643,17 @@ public class PageService : IPageService
         // Get category name if applicable
         if (page.CategoryId.HasValue)
         {
-            var category = await _categoryRepository.GetByIdAsync(page.CategoryId.Value, cancellationToken);
-            dto.CategoryName = category?.Name;
+            if (categoryCache != null && categoryCache.TryGetValue(page.CategoryId.Value, out var categoryName))
+            {
+                // Use cached category name
+                dto.CategoryName = categoryName;
+            }
+            else
+            {
+                // Fall back to individual lookup
+                var category = await _categoryRepository.GetByIdAsync(page.CategoryId.Value, cancellationToken);
+                dto.CategoryName = category?.Name;
+            }
         }
 
         // Get tags
@@ -603,6 +701,13 @@ public class PageService : IPageService
         }
 
         await _pageRepository.UpdateAsync(page, cancellationToken);
+
+        // Invalidate tag caches when page tags change
+        if (_tagService is CachedTagService cachedTagService)
+        {
+            await cachedTagService.InvalidateTagCachesForPageAsync(pageId, cancellationToken);
+            await cachedTagService.InvalidateTagCountCachesAsync(cancellationToken);
+        }
     }
 
     private async Task UpdateLinksToPageAsync(string oldTitle, string newTitle, CancellationToken cancellationToken)
@@ -655,47 +760,32 @@ public class PageService : IPageService
         return string.IsNullOrWhiteSpace(slug) ? "untitled" : slug;
     }
 
-    private async Task<T?> GetFromCacheAsync<T>(string key, CancellationToken cancellationToken) where T : class
-    {
-        try
-        {
-            var cached = await _cache.GetStringAsync(key, cancellationToken);
-            return cached != null ? JsonSerializer.Deserialize<T>(cached) : null;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error reading from cache for key: {Key}", key);
-            return null;
-        }
-    }
-
-    private async Task SetCacheAsync<T>(string key, T value, CancellationToken cancellationToken) where T : class
-    {
-        try
-        {
-            var json = JsonSerializer.Serialize(value);
-            var options = new DistributedCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = CacheExpiration
-            };
-            await _cache.SetStringAsync(key, json, options, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error writing to cache for key: {Key}", key);
-        }
-    }
-
     private async Task InvalidatePageCacheAsync(int pageId, CancellationToken cancellationToken)
     {
-        try
-        {
-            await _cache.RemoveAsync($"{CacheKeyPrefix}{pageId}", cancellationToken);
-            await _cache.RemoveAsync(CacheKeyAllPages, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error invalidating cache for page: {PageId}", pageId);
-        }
+        _logger.LogDebug("Invalidating page cache for page: {PageId}", pageId);
+        
+        // Invalidate specific page cache
+        await _cacheService.RemoveAsync($"{CacheKeyPrefix}{pageId}", cancellationToken);
+        
+        // Invalidate all pages cache
+        await _cacheService.RemoveAsync(CacheKeyAllPages, cancellationToken);
+        
+        // Invalidate all collection caches (category, tag, author filters)
+        // These will be rebuilt on next request
+        await _cacheService.RemoveByPatternAsync("pages:category:*", cancellationToken);
+        await _cacheService.RemoveByPatternAsync("pages:tag:*", cancellationToken);
+        await _cacheService.RemoveByPatternAsync("pages:author:*", cancellationToken);
+        
+        // Invalidate tag caches (for %ALLTAGS% token in menus)
+        await _cacheService.RemoveByPatternAsync("tags:*", cancellationToken);
+        _logger.LogDebug("Invalidated tag caches for menu token updates");
+        
+        // Invalidate menu caches (for sidebar updates with %ALLTAGS% and %ALLCATEGORIES% tokens)
+        await _cacheService.RemoveByPatternAsync("menu:*", cancellationToken);
+        _logger.LogDebug("Invalidated menu caches for sidebar updates");
+        
+        // Invalidate category tree cache (for sidebar category counts)
+        await _cacheService.RemoveAsync("category:tree", cancellationToken);
+        _logger.LogDebug("Invalidated category tree cache");
     }
 }

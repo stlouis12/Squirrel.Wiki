@@ -604,6 +604,26 @@ settings:
     value: "5"
     description: Duration in minutes for cached responses (default 5 minutes)
 
+  - key: CacheEnabled
+    value: "true"
+    description: Enable distributed caching for categories, tags, pages, and other data
+
+  - key: CacheExpirationMinutes
+    value: "30"
+    description: Default cache expiration time in minutes for distributed cache (default 30 minutes)
+
+  - key: CacheProvider
+    value: "Memory"
+    description: Cache provider to use (Memory or Redis)
+
+  - key: RedisConfiguration
+    value: "localhost:6379"
+    description: Redis connection string (only used when CacheProvider is Redis)
+
+  - key: RedisInstanceName
+    value: "Squirrel_"
+    description: Redis instance name prefix for cache keys
+
 menus:
   - name: Main Navigation
     type: MainNavigation

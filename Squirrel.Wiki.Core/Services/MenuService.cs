@@ -1,6 +1,4 @@
-using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
@@ -18,7 +16,7 @@ public class MenuService : IMenuService
     private readonly IPageRepository _pageRepository;
     private readonly ICategoryService _categoryService;
     private readonly IMarkdownService _markdownService;
-    private readonly IDistributedCache _cache;
+    private readonly ICacheService _cacheService;
     private readonly IUserContext _userContext;
     private readonly IUrlTokenResolver _urlTokenResolver;
     private readonly ILogger<MenuService> _logger;
@@ -46,7 +44,7 @@ public class MenuService : IMenuService
         IPageRepository pageRepository,
         ICategoryService categoryService,
         IMarkdownService markdownService,
-        IDistributedCache cache,
+        ICacheService cacheService,
         IUserContext userContext,
         IUrlTokenResolver urlTokenResolver,
         ILogger<MenuService> logger)
@@ -55,7 +53,7 @@ public class MenuService : IMenuService
         _pageRepository = pageRepository;
         _categoryService = categoryService;
         _markdownService = markdownService;
-        _cache = cache;
+        _cacheService = cacheService;
         _userContext = userContext;
         _urlTokenResolver = urlTokenResolver;
         _logger = logger;
@@ -64,13 +62,15 @@ public class MenuService : IMenuService
     public async Task<MenuDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"{CacheKeyPrefix}{id}";
-        var cached = await _cache.GetStringAsync(cacheKey, cancellationToken);
+        var cached = await _cacheService.GetAsync<MenuDto>(cacheKey, cancellationToken);
         
         if (cached != null)
         {
-            return JsonSerializer.Deserialize<MenuDto>(cached);
+            _logger.LogDebug("Menu cache hit for key: {CacheKey}", cacheKey);
+            return cached;
         }
 
+        _logger.LogDebug("Menu cache miss for key: {CacheKey}", cacheKey);
         var menu = await _menuRepository.GetByIdAsync(id, cancellationToken);
         if (menu == null)
         {
@@ -78,26 +78,59 @@ public class MenuService : IMenuService
         }
 
         var dto = MapToDto(menu);
-        
-        await _cache.SetStringAsync(
-            cacheKey,
-            JsonSerializer.Serialize(dto),
-            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheExpiration },
-            cancellationToken);
+        await _cacheService.SetAsync(cacheKey, dto, CacheExpiration, cancellationToken);
 
         return dto;
     }
 
     public async Task<MenuDto?> GetByNameAsync(string name, CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"{CacheKeyPrefix}name:{name}";
+        var cached = await _cacheService.GetAsync<MenuDto>(cacheKey, cancellationToken);
+        
+        if (cached != null)
+        {
+            _logger.LogDebug("Menu cache hit for name: {MenuName}", name);
+            return cached;
+        }
+
+        _logger.LogDebug("Menu cache miss for name: {MenuName}", name);
         var menu = await _menuRepository.GetByNameAsync(name, cancellationToken);
-        return menu != null ? MapToDto(menu) : null;
+        
+        if (menu == null)
+        {
+            return null;
+        }
+
+        var dto = MapToDto(menu);
+        await _cacheService.SetAsync(cacheKey, dto, CacheExpiration, cancellationToken);
+
+        return dto;
     }
 
     public async Task<MenuDto?> GetActiveMenuByTypeAsync(MenuType menuType, CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"{CacheKeyPrefix}type:{(int)menuType}";
+        var cached = await _cacheService.GetAsync<MenuDto>(cacheKey, cancellationToken);
+        
+        if (cached != null)
+        {
+            _logger.LogDebug("Menu cache hit for type: {MenuType}", menuType);
+            return cached;
+        }
+
+        _logger.LogDebug("Menu cache miss for type: {MenuType}", menuType);
         var menu = await _menuRepository.GetActiveByTypeAsync(menuType, cancellationToken);
-        return menu != null ? MapToDto(menu) : null;
+        
+        if (menu == null)
+        {
+            return null;
+        }
+
+        var dto = MapToDto(menu);
+        await _cacheService.SetAsync(cacheKey, dto, CacheExpiration, cancellationToken);
+
+        return dto;
     }
 
     public async Task<IEnumerable<MenuDto>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -108,13 +141,15 @@ public class MenuService : IMenuService
 
     public async Task<IEnumerable<MenuDto>> GetActiveMenusAsync(CancellationToken cancellationToken = default)
     {
-        var cached = await _cache.GetStringAsync(CacheKeyActive, cancellationToken);
+        var cached = await _cacheService.GetAsync<List<MenuDto>>(CacheKeyActive, cancellationToken);
         
         if (cached != null)
         {
-            return JsonSerializer.Deserialize<List<MenuDto>>(cached) ?? new List<MenuDto>();
+            _logger.LogDebug("Active menus cache hit");
+            return cached;
         }
 
+        _logger.LogDebug("Active menus cache miss");
         var menus = await _menuRepository.GetAllAsync(cancellationToken);
         var dtos = menus
             .Where(m => m.IsEnabled)
@@ -122,11 +157,7 @@ public class MenuService : IMenuService
             .OrderBy(m => m.DisplayOrder)
             .ToList();
         
-        await _cache.SetStringAsync(
-            CacheKeyActive,
-            JsonSerializer.Serialize(dtos),
-            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheExpiration },
-            cancellationToken);
+        await _cacheService.SetAsync(CacheKeyActive, dtos, CacheExpiration, cancellationToken);
 
         return dtos;
     }
@@ -695,42 +726,20 @@ public class MenuService : IMenuService
 
     private async Task InvalidateCacheAsync(CancellationToken cancellationToken)
     {
-        try
-        {
-            // Remove active menus cache
-            await _cache.RemoveAsync(CacheKeyActive, cancellationToken);
-            
-            // Note: We can't easily remove all individual menu caches (menu:{id})
-            // because distributed cache doesn't support pattern-based removal.
-            // Individual menu caches will expire naturally after 30 minutes,
-            // or we could track menu IDs and remove them individually.
-            // For now, we'll clear the active cache which is most important.
-            
-            _logger.LogDebug("Invalidated menu cache");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to invalidate menu cache");
-        }
+        _logger.LogDebug("Invalidating active menus cache");
+        await _cacheService.RemoveAsync(CacheKeyActive, cancellationToken);
+        
+        // Also invalidate all individual menu caches using pattern
+        await _cacheService.RemoveByPatternAsync($"{CacheKeyPrefix}*", cancellationToken);
     }
 
     private async Task InvalidateMenuCacheAsync(int menuId, CancellationToken cancellationToken)
     {
-        try
-        {
-            // Remove specific menu cache
-            var cacheKey = $"{CacheKeyPrefix}{menuId}";
-            await _cache.RemoveAsync(cacheKey, cancellationToken);
-            
-            // Also remove active menus cache
-            await _cache.RemoveAsync(CacheKeyActive, cancellationToken);
-            
-            _logger.LogDebug("Invalidated cache for menu {MenuId}", menuId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to invalidate cache for menu {MenuId}", menuId);
-        }
+        _logger.LogDebug("Invalidating menu cache for menu: {MenuId}", menuId);
+        
+        // Remove all menu caches using pattern-based removal
+        // This includes: menu:{id}, menu:type:{typeId}, menu:name:{name}, menu:active
+        await _cacheService.RemoveByPatternAsync($"{CacheKeyPrefix}*", cancellationToken);
     }
 
     public async Task<bool> HasActiveMenuOfTypeAsync(MenuType menuType, int? excludeMenuId = null, CancellationToken cancellationToken = default)

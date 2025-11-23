@@ -106,4 +106,9 @@ public interface IPageRepository : IRepository<Page, int>
     /// Updates the tags for a page
     /// </summary>
     Task UpdateTagsAsync(int pageId, IEnumerable<string> tagNames, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Gets multiple pages by their IDs in a single query
+    /// </summary>
+    Task<List<Page>> GetByIdsAsync(IEnumerable<int> ids, CancellationToken cancellationToken = default);
 }

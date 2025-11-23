@@ -114,18 +114,35 @@ builder.Services.AddDbContext<SquirrelDbContext>(options =>
 });
 
 // Configure distributed caching
-var cachingProvider = builder.Configuration["Caching:Provider"] ?? "Memory";
-if (cachingProvider.Equals("Redis", StringComparison.OrdinalIgnoreCase))
+// Check environment variables first for cache provider configuration
+var cacheProvider = Environment.GetEnvironmentVariable("SQUIRREL_CACHE_PROVIDER") 
+    ?? builder.Configuration["Caching:Provider"] 
+    ?? "Memory";
+
+Log.Information("Configuring cache provider: {Provider}", cacheProvider);
+
+if (cacheProvider.Equals("Redis", StringComparison.OrdinalIgnoreCase))
 {
-    var redisConfiguration = builder.Configuration["Caching:Redis:Configuration"];
+    var redisConfiguration = Environment.GetEnvironmentVariable("SQUIRREL_REDIS_CONFIGURATION")
+        ?? builder.Configuration["Caching:Redis:Configuration"] 
+        ?? "localhost:6379";
+    
+    var redisInstanceName = Environment.GetEnvironmentVariable("SQUIRREL_REDIS_INSTANCE_NAME")
+        ?? builder.Configuration["Caching:Redis:InstanceName"] 
+        ?? "Squirrel_";
+    
+    Log.Information("Configuring Redis cache: {Configuration}, Instance: {Instance}", 
+        redisConfiguration, redisInstanceName);
+    
     builder.Services.AddStackExchangeRedisCache(options =>
     {
         options.Configuration = redisConfiguration;
-        options.InstanceName = "Squirrel_";
+        options.InstanceName = redisInstanceName;
     });
 }
 else
 {
+    Log.Information("Using in-memory distributed cache");
     builder.Services.AddDistributedMemoryCache();
 }
 
@@ -196,8 +213,29 @@ builder.Services.AddScoped<IMarkdownService, MarkdownService>();
 builder.Services.AddScoped<IPageService, PageService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddScoped<ICategoryTreeBuilder, CategoryTreeBuilder>();
-builder.Services.AddScoped<ITagService, TagService>();
+
+// Register shared cache service
+builder.Services.AddScoped<ICacheService, CacheService>();
+
+// Register CategoryTreeBuilder with caching decorator
+builder.Services.AddScoped<CategoryTreeBuilder>(); // Register concrete implementation
+builder.Services.AddScoped<ICategoryTreeBuilder>(sp =>
+{
+    var innerBuilder = sp.GetRequiredService<CategoryTreeBuilder>();
+    var cacheService = sp.GetRequiredService<ICacheService>();
+    var logger = sp.GetRequiredService<ILogger<CachedCategoryTreeBuilder>>();
+    return new CachedCategoryTreeBuilder(innerBuilder, cacheService, logger);
+});
+
+// Register TagService with caching decorator
+builder.Services.AddScoped<TagService>(); // Register concrete implementation
+builder.Services.AddScoped<ITagService>(sp =>
+{
+    var innerService = sp.GetRequiredService<TagService>();
+    var cacheService = sp.GetRequiredService<ICacheService>();
+    var logger = sp.GetRequiredService<ILogger<CachedTagService>>();
+    return new CachedTagService(innerService, cacheService, logger);
+});
 builder.Services.AddScoped<IMenuService, MenuService>();
 builder.Services.AddScoped<ISearchService, LuceneSearchService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();

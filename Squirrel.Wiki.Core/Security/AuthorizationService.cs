@@ -71,6 +71,67 @@ public class AuthorizationService : IAuthorizationService
         }
     }
 
+    public async Task<Dictionary<int, bool>> CanViewPagesAsync(IEnumerable<Page> pages, CancellationToken cancellationToken = default)
+    {
+        var result = new Dictionary<int, bool>();
+        var pagesList = pages.ToList();
+        
+        if (!pagesList.Any())
+        {
+            return result;
+        }
+
+        _logger.LogDebug("Batch authorization check for {Count} pages", pagesList.Count);
+
+        // Get the global setting once for all pages that inherit
+        var allowAnonymousReading = await _settingsService.GetSettingAsync<bool>(
+            "AllowAnonymousReading", cancellationToken);
+        var isAuthenticated = IsAuthenticated();
+
+        // Process each page using the same logic as CanViewPageAsync
+        foreach (var page in pagesList)
+        {
+            // Deleted pages cannot be viewed
+            if (page.IsDeleted)
+            {
+                result[page.Id] = false;
+                continue;
+            }
+
+            // Check page-specific visibility
+            switch (page.Visibility)
+            {
+                case PageVisibility.Public:
+                    // Public pages are always viewable
+                    result[page.Id] = true;
+                    break;
+
+                case PageVisibility.Private:
+                    // Private pages require authentication
+                    result[page.Id] = isAuthenticated;
+                    break;
+
+                case PageVisibility.Inherit:
+                default:
+                    // Inherit from global setting
+                    if (allowAnonymousReading)
+                    {
+                        result[page.Id] = true;
+                    }
+                    else
+                    {
+                        result[page.Id] = isAuthenticated;
+                    }
+                    break;
+            }
+        }
+
+        _logger.LogDebug("Batch authorization complete: {Authorized}/{Total} pages authorized", 
+            result.Count(r => r.Value), result.Count);
+
+        return result;
+    }
+
     public bool IsAdmin()
     {
         return IsAuthenticated() && _userContext.IsAdmin;

@@ -103,16 +103,8 @@ public class PagesController : BaseController
             var categories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
             var categoryDict = categories.ToDictionary(c => c.Id, c => c.Name);
             
-            // Filter pages based on authorization
-            var authorizedPages = new List<PageDto>();
-            foreach (var page in allPages)
-            {
-                var pageEntity = await _pageRepository.GetByIdAsync(page.Id, cancellationToken);
-                if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
-                {
-                    authorizedPages.Add(page);
-                }
-            }
+            // Filter pages based on authorization using batch check
+            var authorizedPages = await FilterAuthorizedPagesAsync(allPages, cancellationToken);
             
             // Apply recent filter if specified (can be combined with other filters)
             IEnumerable<PageDto> filteredPages = authorizedPages;
@@ -196,16 +188,13 @@ public class PagesController : BaseController
             {
                 var tagPages = await _pageService.GetPagesByTagAsync(tag.Name, cancellationToken);
                 
-                // Filter pages based on authorization
-                var authorizedCount = 0;
-                foreach (var page in tagPages)
-                {
-                    var pageEntity = await _pageRepository.GetByIdAsync(page.Id, cancellationToken);
-                    if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
-                    {
-                        authorizedCount++;
-                    }
-                }
+                // ✅ Get all page IDs and batch load entities in a single query
+                var pageIds = tagPages.Select(p => p.Id).ToList();
+                var pageEntities = await _pageRepository.GetByIdsAsync(pageIds, cancellationToken);
+                
+                // ✅ Batch authorization check
+                var authResults = await _authorizationService.CanViewPagesAsync(pageEntities, cancellationToken);
+                var authorizedCount = authResults.Count(r => r.Value);
                 
                 // Only include tags that have at least one visible page
                 if (authorizedCount > 0)
@@ -785,17 +774,33 @@ public class PagesController : BaseController
 
     /// <summary>
     /// Filters a list of pages to only include those the current user is authorized to view
+    /// Uses batch authorization checking for better performance
     /// </summary>
     private async Task<List<PageDto>> FilterAuthorizedPagesAsync(IEnumerable<PageDto> pages, CancellationToken cancellationToken)
     {
-        var authorizedPages = new List<PageDto>();
-        
-        foreach (var page in pages)
+        var pagesList = pages.ToList();
+        if (!pagesList.Any())
         {
-            var pageEntity = await _pageRepository.GetByIdAsync(page.Id, cancellationToken);
-            if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
+            return new List<PageDto>();
+        }
+        
+        // ✅ Batch load all page entities in a single query
+        var pageIds = pagesList.Select(p => p.Id).ToList();
+        var pageEntities = await _pageRepository.GetByIdsAsync(pageIds, cancellationToken);
+        
+        // Create lookup dictionary
+        var pageIdToDto = pagesList.ToDictionary(p => p.Id);
+        
+        // ✅ Batch authorization check
+        var authResults = await _authorizationService.CanViewPagesAsync(pageEntities, cancellationToken);
+        
+        // Filter to only authorized pages
+        var authorizedPages = new List<PageDto>();
+        foreach (var result in authResults.Where(r => r.Value))
+        {
+            if (pageIdToDto.ContainsKey(result.Key))
             {
-                authorizedPages.Add(page);
+                authorizedPages.Add(pageIdToDto[result.Key]);
             }
         }
         

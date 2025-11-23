@@ -249,6 +249,30 @@ public class SettingsController : BaseController
             }
         });
 
+        // Distributed Cache Settings
+        var cacheSettings = new List<SettingItem>
+        {
+            CreateSettingItem("CacheEnabled",  _localizer["CacheEnabled"], _localizer["CacheEnabledDescription"], SettingType.Boolean, false, existingSettings, envInfo),
+            CreateSettingItem("CacheExpirationMinutes",  _localizer["CacheExpirationMinutes"], _localizer["CacheExpirationMinutesDescription"], SettingType.Number, true, existingSettings, envInfo),
+            CreateSettingItem("CacheProvider",  _localizer["CacheProvider"], _localizer["CacheProviderDescription"], SettingType.Dropdown, true, existingSettings, envInfo, new List<string> { "Memory", "Redis" })
+        };
+
+        // Only show Redis settings if provider is set to Redis
+        existingSettings.TryGetValue("CacheProvider", out var cacheProvider);
+        if (string.Equals(cacheProvider ?? "Memory", "Redis", StringComparison.OrdinalIgnoreCase))
+        {
+            cacheSettings.Add(CreateSettingItem("RedisConfiguration",  _localizer["RedisConfiguration"], _localizer["RedisConfigurationDescription"], SettingType.Text, false, existingSettings, envInfo));
+            cacheSettings.Add(CreateSettingItem("RedisInstanceName",  _localizer["RedisInstanceName"], _localizer["RedisInstanceNameDescription"], SettingType.Text, false, existingSettings, envInfo));
+        }
+
+        groups.Add(new SettingGroup
+        {
+            Name = _localizer["DistributedCache"],
+            Description = _localizer["DistributedCacheSettings"],
+            Icon = "bi-hdd-network",
+            Settings = cacheSettings
+        });
+
         return groups;
     }
 
@@ -293,7 +317,12 @@ public class SettingsController : BaseController
     {
         return type switch
         {
-            SettingType.Boolean => "false",
+            SettingType.Boolean => key switch
+            {
+                "CacheEnabled" => "true",
+                "EnableCaching" => "true",
+                _ => "false"
+            },
             SettingType.Number => key switch
             {
                 "SessionTimeoutMinutes" => "480",
@@ -303,6 +332,7 @@ public class SettingsController : BaseController
                 "SearchResultsPerPage" => "20",
                 "SearchMinimumLength" => "3",
                 "CacheDurationMinutes" => "60",
+                "CacheExpirationMinutes" => "30",
                 _ => "0"
             },
             _ => key switch
@@ -310,6 +340,9 @@ public class SettingsController : BaseController
                 "SiteName" => "Squirrel Wiki",
                 "DefaultLanguage" => "en",
                 "TimeZone" => "UTC",
+                "CacheProvider" => "Memory",
+                "RedisConfiguration" => "localhost:6379",
+                "RedisInstanceName" => "Squirrel_",
                 _ => string.Empty
             }
         };

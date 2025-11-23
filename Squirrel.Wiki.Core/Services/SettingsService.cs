@@ -48,6 +48,13 @@ public class SettingsService : ISettingsService
 
         if (cachedValue != null)
         {
+            // Check if this is a cached null result
+            if (cachedValue == "null")
+            {
+                _logger.LogDebug("Cached null result for setting {Key}", key);
+                return default;
+            }
+            
             try
             {
                 return JsonSerializer.Deserialize<T>(cachedValue);
@@ -66,17 +73,39 @@ public class SettingsService : ISettingsService
         if (setting == null)
         {
             _logger.LogDebug("Setting {Key} not found", key);
+            
+            // Cache the null result to avoid repeated DB queries
+            await _cache.SetStringAsync(
+                cacheKey,
+                "null",
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = CacheExpiration
+                },
+                ct);
+            
             return default;
         }
 
         try
         {
-            var value = JsonSerializer.Deserialize<T>(setting.Value);
+            // Try to deserialize as JSON first
+            T? value;
+            try
+            {
+                value = JsonSerializer.Deserialize<T>(setting.Value);
+            }
+            catch (JsonException)
+            {
+                // If JSON deserialization fails, try to convert the plain string value
+                value = ConvertPlainValue<T>(setting.Value);
+            }
 
-            // Cache the result
+            // Cache the result (store as JSON for consistency)
+            var jsonValue = JsonSerializer.Serialize(value);
             await _cache.SetStringAsync(
                 cacheKey,
-                setting.Value,
+                jsonValue,
                 new DistributedCacheEntryOptions
                 {
                     AbsoluteExpirationRelativeToNow = CacheExpiration
@@ -85,7 +114,7 @@ public class SettingsService : ISettingsService
 
             return value;
         }
-        catch (JsonException ex)
+        catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to deserialize setting {Key}", key);
             return default;
@@ -279,5 +308,58 @@ public class SettingsService : ISettingsService
     private static string GetCacheKey(string key)
     {
         return $"{CacheKeyPrefix}{key}";
+    }
+
+    /// <summary>
+    /// Converts a plain string value to the target type
+    /// Handles common types like bool, int, string, etc.
+    /// </summary>
+    private static T? ConvertPlainValue<T>(string value)
+    {
+        var targetType = typeof(T);
+        var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+        if (string.IsNullOrWhiteSpace(value))
+            return default;
+
+        try
+        {
+            // Handle boolean
+            if (underlyingType == typeof(bool))
+            {
+                if (bool.TryParse(value, out var boolValue))
+                    return (T)(object)boolValue;
+            }
+            // Handle int
+            else if (underlyingType == typeof(int))
+            {
+                if (int.TryParse(value, out var intValue))
+                    return (T)(object)intValue;
+            }
+            // Handle long
+            else if (underlyingType == typeof(long))
+            {
+                if (long.TryParse(value, out var longValue))
+                    return (T)(object)longValue;
+            }
+            // Handle double
+            else if (underlyingType == typeof(double))
+            {
+                if (double.TryParse(value, out var doubleValue))
+                    return (T)(object)doubleValue;
+            }
+            // Handle string
+            else if (underlyingType == typeof(string))
+            {
+                return (T)(object)value;
+            }
+
+            // For other types, try Convert.ChangeType
+            return (T)Convert.ChangeType(value, underlyingType);
+        }
+        catch
+        {
+            return default;
+        }
     }
 }
