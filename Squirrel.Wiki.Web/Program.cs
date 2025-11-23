@@ -209,6 +209,7 @@ builder.Services.AddScoped<IMenuRepository, MenuRepository>();
 builder.Services.AddSingleton<EnvironmentVariableProvider>();
 
 // Register Services
+builder.Services.AddSingleton<ISlugGenerator, SlugGenerator>();
 builder.Services.AddScoped<IMarkdownService, MarkdownService>();
 builder.Services.AddScoped<IPageService, PageService>();
 builder.Services.AddScoped<IUserService, UserService>();

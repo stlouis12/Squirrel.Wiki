@@ -18,6 +18,7 @@ public class PageService : IPageService
     private readonly ISettingsService _settingsService;
     private readonly ICacheService _cacheService;
     private readonly ITagService _tagService;
+    private readonly ISlugGenerator _slugGenerator;
     private readonly ILogger<PageService> _logger;
 
     private const string CacheKeyPrefix = "page:";
@@ -32,6 +33,7 @@ public class PageService : IPageService
         ISettingsService settingsService,
         ICacheService cacheService,
         ITagService tagService,
+        ISlugGenerator slugGenerator,
         ILogger<PageService> logger)
     {
         _pageRepository = pageRepository;
@@ -41,6 +43,7 @@ public class PageService : IPageService
         _settingsService = settingsService;
         _cacheService = cacheService;
         _tagService = tagService;
+        _slugGenerator = slugGenerator;
         _logger = logger;
     }
 
@@ -451,24 +454,15 @@ public class PageService : IPageService
 
     public async Task<string> GenerateSlugAsync(string title, int? excludePageId = null, CancellationToken cancellationToken = default)
     {
-        var baseSlug = GenerateSlugFromTitle(title);
-        var slug = baseSlug;
-        var counter = 1;
-
-        while (true)
-        {
-            var existingPage = await _pageRepository.GetBySlugAsync(slug, cancellationToken);
-            
-            // If no page exists with this slug, or it's the page we're updating, use it
-            if (existingPage == null || (excludePageId.HasValue && existingPage.Id == excludePageId.Value))
-                break;
-
-            // Otherwise, append a number and try again
-            slug = $"{baseSlug}-{counter}";
-            counter++;
-        }
-
-        return slug;
+        return await _slugGenerator.GenerateUniqueSlugAsync(
+            title,
+            async (slug, ct) =>
+            {
+                var existingPage = await _pageRepository.GetBySlugAsync(slug, ct);
+                // Return true if slug exists AND it's not the page we're updating
+                return existingPage != null && (!excludePageId.HasValue || existingPage.Id != excludePageId.Value);
+            },
+            cancellationToken);
     }
 
     public async Task<IEnumerable<PageDto>> SearchAsync(string query, CancellationToken cancellationToken = default)
@@ -746,19 +740,6 @@ public class PageService : IPageService
         }
     }
 
-    private string GenerateSlugFromTitle(string title)
-    {
-        if (string.IsNullOrWhiteSpace(title))
-            return "untitled";
-
-        var slug = title.ToLowerInvariant();
-        slug = Regex.Replace(slug, @"[^a-z0-9\s-]", "");
-        slug = Regex.Replace(slug, @"\s+", "-");
-        slug = Regex.Replace(slug, @"-+", "-");
-        slug = slug.Trim('-');
-
-        return string.IsNullOrWhiteSpace(slug) ? "untitled" : slug;
-    }
 
     private async Task InvalidatePageCacheAsync(int pageId, CancellationToken cancellationToken)
     {

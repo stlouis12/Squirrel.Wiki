@@ -9,11 +9,14 @@ namespace Squirrel.Wiki.Core.Services;
 public class MarkdownService : IMarkdownService
 {
     private readonly MarkdownPipeline _pipeline;
+    private readonly ISlugGenerator _slugGenerator;
     private static readonly Regex WikiLinkRegex = new(@"\[\[([^\]]+)\]\]", RegexOptions.Compiled);
     private static readonly Regex MarkdownLinkRegex = new(@"\[([^\]]+)\]\(([^\)]+)\)", RegexOptions.Compiled);
 
-    public MarkdownService()
+    public MarkdownService(ISlugGenerator slugGenerator)
     {
+        _slugGenerator = slugGenerator;
+        
         // Configure Markdig pipeline with common extensions
         _pipeline = new MarkdownPipelineBuilder()
             .UseAdvancedExtensions()
@@ -145,8 +148,8 @@ public class MarkdownService : IMarkdownService
         }, RegexOptions.IgnoreCase);
 
         // Update markdown-style links [text](old-title) to [text](new-title)
-        var oldSlug = GenerateSlug(oldTitle);
-        var newSlug = GenerateSlug(newTitle);
+        var oldSlug = _slugGenerator.GenerateSlug(oldTitle);
+        var newSlug = _slugGenerator.GenerateSlug(newTitle);
         var markdownLinkPattern = $@"\[([^\]]+)\]\({Regex.Escape(oldSlug)}(\.html)?\)";
         content = Regex.Replace(content, markdownLinkPattern, match =>
         {
@@ -172,31 +175,12 @@ public class MarkdownService : IMarkdownService
             var displayText = parts.Length > 1 ? parts[1].Trim() : pageTitle;
             
             // Generate slug from page title
-            var slug = GenerateSlug(pageTitle);
+            var slug = _slugGenerator.GenerateSlug(pageTitle);
             
             return $"[{displayText}](/{slug})";
         });
     }
 
-    /// <summary>
-    /// Generates a URL-friendly slug from a title
-    /// </summary>
-    private string GenerateSlug(string title)
-    {
-        if (string.IsNullOrWhiteSpace(title))
-            return string.Empty;
-
-        // Convert to lowercase
-        var slug = title.ToLowerInvariant();
-
-        // Replace spaces and special characters with hyphens
-        slug = Regex.Replace(slug, @"[^a-z0-9\s-]", "");
-        slug = Regex.Replace(slug, @"\s+", "-");
-        slug = Regex.Replace(slug, @"-+", "-");
-        slug = slug.Trim('-');
-
-        return slug;
-    }
 
     public async Task<string> ConvertInternalLinksAsync(string html, Func<string, Task<(int? id, string? slug)>> slugLookup, CancellationToken cancellationToken = default)
     {

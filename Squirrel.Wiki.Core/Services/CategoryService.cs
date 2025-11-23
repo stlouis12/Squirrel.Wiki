@@ -15,6 +15,7 @@ public class CategoryService : ICategoryService
     private readonly ICategoryRepository _categoryRepository;
     private readonly IPageRepository _pageRepository;
     private readonly IDistributedCache _cache;
+    private readonly ISlugGenerator _slugGenerator;
     private readonly ILogger<CategoryService> _logger;
     private const string CacheKeyPrefix = "category:";
     private const string CacheKeyTree = "category:tree";
@@ -25,11 +26,13 @@ public class CategoryService : ICategoryService
         ICategoryRepository categoryRepository,
         IPageRepository pageRepository,
         IDistributedCache cache,
+        ISlugGenerator slugGenerator,
         ILogger<CategoryService> logger)
     {
         _categoryRepository = categoryRepository;
         _pageRepository = pageRepository;
         _cache = cache;
+        _slugGenerator = slugGenerator;
         _logger = logger;
     }
 
@@ -216,7 +219,7 @@ public class CategoryService : ICategoryService
         }
 
         // Generate slug from name
-        var slug = GenerateSlug(createDto.Name);
+        var slug = _slugGenerator.GenerateSlug(createDto.Name);
 
         var category = new Category
         {
@@ -291,7 +294,7 @@ public class CategoryService : ICategoryService
         }
 
         category.Name = updateDto.Name;
-        category.Slug = GenerateSlug(updateDto.Name);
+        category.Slug = _slugGenerator.GenerateSlug(updateDto.Name);
         category.Description = updateDto.Description;
         category.ParentCategoryId = parentId;
         category.ModifiedBy = updateDto.ModifiedBy ?? "system";
@@ -592,33 +595,6 @@ public class CategoryService : ICategoryService
         return maxChildDepth + 1;
     }
 
-    private static string GenerateSlug(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return string.Empty;
-        }
-
-        // Convert to lowercase
-        var slug = name.ToLowerInvariant();
-
-        // Replace spaces and underscores with hyphens
-        slug = slug.Replace(' ', '-').Replace('_', '-');
-
-        // Remove invalid characters (keep only alphanumeric and hyphens)
-        slug = new string(slug.Where(c => char.IsLetterOrDigit(c) || c == '-').ToArray());
-
-        // Remove consecutive hyphens
-        while (slug.Contains("--"))
-        {
-            slug = slug.Replace("--", "-");
-        }
-
-        // Trim hyphens from start and end
-        slug = slug.Trim('-');
-
-        return slug;
-    }
 
     // ============================================================================
     // PHASE 8: NESTED CATEGORIES - NEW METHOD IMPLEMENTATIONS
