@@ -204,16 +204,11 @@ public class SidebarNavigationViewComponent : ViewComponent
             {
                 var tagPages = await _pageService.GetPagesByTagAsync(tag.Name);
                 
-                // Filter pages based on authorization
-                var authorizedCount = 0;
-                foreach (var page in tagPages)
-                {
-                    var pageEntity = await _pageRepository.GetByIdAsync(page.Id);
-                    if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity))
-                    {
-                        authorizedCount++;
-                    }
-                }
+                // ✅ Batch load all page entities and perform batch authorization check
+                var pageIds = tagPages.Select(p => p.Id).ToList();
+                var pageEntities = await _pageRepository.GetByIdsAsync(pageIds);
+                var authResults = await _authorizationService.CanViewPagesAsync(pageEntities);
+                var authorizedCount = authResults.Count(r => r.Value);
                 
                 // Only include tags that have at least one visible page
                 if (authorizedCount > 0)
@@ -274,16 +269,12 @@ public class SidebarNavigationViewComponent : ViewComponent
     {
         // Get pages in this category and count only those the user can see
         var categoryPages = await _pageService.GetByCategoryAsync(category.Id);
-        var authorizedCount = 0;
         
-        foreach (var page in categoryPages)
-        {
-            var pageEntity = await _pageRepository.GetByIdAsync(page.Id);
-            if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity))
-            {
-                authorizedCount++;
-            }
-        }
+        // Batch load all page entities and perform batch authorization check
+        var pageIds = categoryPages.Select(p => p.Id).ToList();
+        var pageEntities = await _pageRepository.GetByIdsAsync(pageIds);
+        var authResults = await _authorizationService.CanViewPagesAsync(pageEntities);
+        var authorizedCount = authResults.Count(r => r.Value);
         
         var item = new SidebarItemViewModel
         {

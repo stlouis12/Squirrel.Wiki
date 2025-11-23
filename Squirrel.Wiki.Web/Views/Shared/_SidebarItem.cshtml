@@ -24,16 +24,36 @@
         @* Collapsible item with children *@
         var collapseId = $"sidebar-collapse-{Guid.NewGuid():N}";
         
-        <div class="sidebar-collapsible-header">
-            <button class="sidebar-collapse-toggle btn btn-link text-start w-100 d-flex align-items-center justify-content-between p-0" 
-                    type="button" 
-                    data-bs-toggle="collapse" 
-                    data-bs-target="#@collapseId" 
-                    aria-expanded="false" 
-                    aria-controls="@collapseId">
-                <span class="sidebar-nav-header-text">@Model.Text</span>
-                <i class="bi bi-chevron-down sidebar-collapse-icon"></i>
-            </button>
+        <div class="sidebar-collapsible-header d-flex align-items-center">
+            @if (!string.IsNullOrEmpty(Model.Url))
+            {
+                @* Category with both link and children - show link + separate toggle *@
+                <a href="@Model.Url" class="sidebar-nav-link flex-grow-1">
+                    @Model.Text
+                </a>
+                <button class="sidebar-collapse-toggle btn btn-link p-1 ms-1" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#@collapseId" 
+                        aria-expanded="false" 
+                        aria-controls="@collapseId"
+                        aria-label="Toggle @Model.Text submenu">
+                    <i class="bi bi-chevron-down sidebar-collapse-icon"></i>
+                </button>
+            }
+            else
+            {
+                @* Header without link - entire header is toggle *@
+                <button class="sidebar-collapse-toggle btn btn-link text-start w-100 d-flex align-items-center justify-content-between p-0" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#@collapseId" 
+                        aria-expanded="false" 
+                        aria-controls="@collapseId">
+                    <span class="sidebar-nav-header-text">@Model.Text</span>
+                    <i class="bi bi-chevron-down sidebar-collapse-icon"></i>
+                </button>
+            }
         </div>
         
         <div class="collapse" id="@collapseId">
