@@ -194,7 +194,8 @@ namespace Squirrel.Wiki.Core.Migrations
                     ModifiedBy = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
                     ModifiedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
                     IsLocked = table.Column<bool>(type: "INTEGER", nullable: false),
-                    IsDeleted = table.Column<bool>(type: "INTEGER", nullable: false)
+                    IsDeleted = table.Column<bool>(type: "INTEGER", nullable: false),
+                    Visibility = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -334,6 +335,11 @@ namespace Squirrel.Wiki.Core.Migrations
                 column: "DisplayOrder");
 
             migrationBuilder.CreateIndex(
+                name: "IX_squirrel_categories_Name",
+                table: "squirrel_categories",
+                column: "Name");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_squirrel_categories_ParentCategoryId",
                 table: "squirrel_categories",
                 column: "ParentCategoryId");
@@ -350,9 +356,24 @@ namespace Squirrel.Wiki.Core.Migrations
                 column: "DisplayOrder");
 
             migrationBuilder.CreateIndex(
+                name: "IX_squirrel_menus_MenuType_DisplayOrder",
+                table: "squirrel_menus",
+                columns: new[] { "MenuType", "DisplayOrder" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_squirrel_menus_MenuType_IsEnabled",
                 table: "squirrel_menus",
                 columns: new[] { "MenuType", "IsEnabled" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_menus_MenuType_IsEnabled_DisplayOrder",
+                table: "squirrel_menus",
+                columns: new[] { "MenuType", "IsEnabled", "DisplayOrder" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_page_contents_EditedBy_EditedOn",
+                table: "squirrel_page_contents",
+                columns: new[] { "EditedBy", "EditedOn" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_squirrel_page_contents_EditedOn",
@@ -381,9 +402,29 @@ namespace Squirrel.Wiki.Core.Migrations
                 column: "CategoryId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_squirrel_pages_CategoryId_IsDeleted_Title",
+                table: "squirrel_pages",
+                columns: new[] { "CategoryId", "IsDeleted", "Title" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_pages_CreatedBy_IsDeleted_CreatedOn",
+                table: "squirrel_pages",
+                columns: new[] { "CreatedBy", "IsDeleted", "CreatedOn" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_squirrel_pages_IsDeleted",
                 table: "squirrel_pages",
                 column: "IsDeleted");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_pages_IsDeleted_Title",
+                table: "squirrel_pages",
+                columns: new[] { "IsDeleted", "Title" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_pages_ModifiedBy_IsDeleted_ModifiedOn",
+                table: "squirrel_pages",
+                columns: new[] { "ModifiedBy", "IsDeleted", "ModifiedOn" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_squirrel_pages_Slug",
@@ -459,6 +500,21 @@ namespace Squirrel.Wiki.Core.Migrations
                 name: "IX_squirrel_users_ExternalId",
                 table: "squirrel_users",
                 column: "ExternalId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_users_IsActive_Username",
+                table: "squirrel_users",
+                columns: new[] { "IsActive", "Username" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_users_IsAdmin_Username",
+                table: "squirrel_users",
+                columns: new[] { "IsAdmin", "Username" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_squirrel_users_IsEditor_Username",
+                table: "squirrel_users",
+                columns: new[] { "IsEditor", "Username" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_squirrel_users_Provider",

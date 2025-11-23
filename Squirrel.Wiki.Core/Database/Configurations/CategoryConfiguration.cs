@@ -39,6 +39,9 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
 
         builder.HasIndex(c => c.DisplayOrder);
 
+        // Index for name lookups
+        builder.HasIndex(c => c.Name);
+
         // Self-referencing relationship for hierarchy
         builder.HasOne(c => c.ParentCategory)
             .WithMany(c => c.SubCategories)

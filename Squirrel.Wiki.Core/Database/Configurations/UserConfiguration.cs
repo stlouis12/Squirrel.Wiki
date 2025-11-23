@@ -72,6 +72,13 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.HasIndex(u => u.Provider);
 
+        // Composite indexes for role queries with sorting
+        builder.HasIndex(u => new { u.IsAdmin, u.Username });
+
+        builder.HasIndex(u => new { u.IsEditor, u.Username });
+
+        builder.HasIndex(u => new { u.IsActive, u.Username });
+
         // Relationships
         builder.HasMany(u => u.UserRoles)
             .WithOne(ur => ur.User)

@@ -31,5 +31,10 @@ public class MenuConfiguration : IEntityTypeConfiguration<Menu>
         builder.HasIndex(m => new { m.MenuType, m.IsEnabled });
 
         builder.HasIndex(m => m.DisplayOrder);
+
+        // Composite indexes for common query patterns with ordering
+        builder.HasIndex(m => new { m.MenuType, m.IsEnabled, m.DisplayOrder });
+
+        builder.HasIndex(m => new { m.MenuType, m.DisplayOrder });
     }
 }

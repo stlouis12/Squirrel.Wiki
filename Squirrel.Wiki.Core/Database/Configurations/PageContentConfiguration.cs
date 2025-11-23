@@ -28,6 +28,9 @@ public class PageContentConfiguration : IEntityTypeConfiguration<PageContent>
 
         builder.HasIndex(pc => pc.EditedOn);
 
+        // Composite index for author content queries
+        builder.HasIndex(pc => new { pc.EditedBy, pc.EditedOn });
+
         // Relationships configured in PageConfiguration
     }
 }

@@ -11,8 +11,8 @@ using Squirrel.Wiki.Core.Database;
 namespace Squirrel.Wiki.Core.Migrations
 {
     [DbContext(typeof(SquirrelDbContext))]
-    [Migration("20251122191744_AddPageVisibility")]
-    partial class AddPageVisibility
+    [Migration("20251123202248_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -186,6 +186,8 @@ namespace Squirrel.Wiki.Core.Migrations
 
                     b.HasIndex("DisplayOrder");
 
+                    b.HasIndex("Name");
+
                     b.HasIndex("ParentCategoryId");
 
                     b.HasIndex("ParentCategoryId", "Slug")
@@ -239,7 +241,11 @@ namespace Squirrel.Wiki.Core.Migrations
 
                     b.HasIndex("DisplayOrder");
 
+                    b.HasIndex("MenuType", "DisplayOrder");
+
                     b.HasIndex("MenuType", "IsEnabled");
+
+                    b.HasIndex("MenuType", "IsEnabled", "DisplayOrder");
 
                     b.ToTable("squirrel_menus", (string)null);
                 });
@@ -299,6 +305,14 @@ namespace Squirrel.Wiki.Core.Migrations
 
                     b.HasIndex("Title");
 
+                    b.HasIndex("IsDeleted", "Title");
+
+                    b.HasIndex("CategoryId", "IsDeleted", "Title");
+
+                    b.HasIndex("CreatedBy", "IsDeleted", "CreatedOn");
+
+                    b.HasIndex("ModifiedBy", "IsDeleted", "ModifiedOn");
+
                     b.ToTable("squirrel_pages", (string)null);
                 });
 
@@ -335,6 +349,8 @@ namespace Squirrel.Wiki.Core.Migrations
                     b.HasIndex("EditedOn");
 
                     b.HasIndex("PageId");
+
+                    b.HasIndex("EditedBy", "EditedOn");
 
                     b.HasIndex("PageId", "VersionNumber")
                         .IsUnique();
@@ -582,6 +598,12 @@ namespace Squirrel.Wiki.Core.Migrations
 
                     b.HasIndex("Username")
                         .IsUnique();
+
+                    b.HasIndex("IsActive", "Username");
+
+                    b.HasIndex("IsAdmin", "Username");
+
+                    b.HasIndex("IsEditor", "Username");
 
                     b.ToTable("squirrel_users", (string)null);
                 });

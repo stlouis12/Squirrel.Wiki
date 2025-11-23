@@ -36,6 +36,15 @@ public class PageConfiguration : IEntityTypeConfiguration<Page>
 
         builder.HasIndex(p => p.IsDeleted);
 
+        // Composite indexes for common query patterns
+        builder.HasIndex(p => new { p.CategoryId, p.IsDeleted, p.Title });
+
+        builder.HasIndex(p => new { p.IsDeleted, p.Title });
+
+        builder.HasIndex(p => new { p.CreatedBy, p.IsDeleted, p.CreatedOn });
+
+        builder.HasIndex(p => new { p.ModifiedBy, p.IsDeleted, p.ModifiedOn });
+
         // Relationships
         builder.HasOne(p => p.Category)
             .WithMany(c => c.Pages)
