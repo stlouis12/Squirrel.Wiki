@@ -1,3 +1,5 @@
+using Squirrel.Wiki.Core.Services;
+
 namespace Squirrel.Wiki.Web.Models.Admin;
 
 /// <summary>
@@ -6,6 +8,7 @@ namespace Squirrel.Wiki.Web.Models.Admin;
 public class SettingsViewModel : BaseViewModel
 {
     public List<SettingGroup> Groups { get; set; } = new();
+    public Dictionary<string, string> TimezoneDisplayNames { get; set; } = new();
 }
 
 /// <summary>
@@ -34,6 +37,10 @@ public class SettingItem
     public List<string>? Options { get; set; } // For dropdown/radio
     public bool IsFromEnvironment { get; set; }
     public string? EnvironmentVariableName { get; set; }
+    public int? MinValue { get; set; } // For number type
+    public int? MaxValue { get; set; } // For number type
+    public bool IsDisabled { get; set; } // For conditionally disabled settings
+    public string? DisabledReason { get; set; } // Tooltip explaining why it's disabled
 }
 
 /// <summary>
@@ -66,4 +73,6 @@ public class EditSettingViewModel
     public bool IsRequired { get; set; }
     public string? ValidationPattern { get; set; }
     public List<string>? Options { get; set; }
+    public int? MinValue { get; set; } // For number type
+    public int? MaxValue { get; set; } // For number type
 }

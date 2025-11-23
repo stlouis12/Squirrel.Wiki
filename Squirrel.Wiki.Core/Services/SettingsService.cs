@@ -243,6 +243,16 @@ public class SettingsService : ISettingsService
         {
             try
             {
+                // Only sync if the environment variable has a valid value
+                // Invalid values are already logged by EnvironmentVariableProvider
+                if (!_envProvider.IsFromEnvironment(key))
+                {
+                    _logger.LogDebug(
+                        "Skipping sync for setting '{Key}' - environment variable has invalid value",
+                        key);
+                    continue;
+                }
+
                 var setting = await _dbContext.SiteConfigurations
                     .FirstOrDefaultAsync(s => s.Key == key, ct);
 

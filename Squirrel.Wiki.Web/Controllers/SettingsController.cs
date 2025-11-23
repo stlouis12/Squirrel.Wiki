@@ -52,6 +52,13 @@ public class SettingsController : BaseController
             // Define setting groups with their configurations
             model.Groups = await GetSettingGroupsAsync(allSettings);
 
+            // Populate timezone display names for the dropdown
+            var timezoneIds = _timezoneService.GetAvailableTimezoneIds();
+            model.TimezoneDisplayNames = timezoneIds.ToDictionary(
+                id => id,
+                id => _timezoneService.GetTimezoneDisplayName(id)
+            );
+
             return View(model);
         },
         _localizer["ErrorLoadingSettings"],
@@ -214,9 +221,9 @@ public class SettingsController : BaseController
             Settings = new List<SettingItem>
             {
                 CreateSettingItem("AllowAnonymousReading", _localizer["AllowAnonymousReading"], _localizer["AllowAnonymousReadingDescription"], SettingType.Boolean, false, existingSettings, envInfo),
-                CreateSettingItem("SessionTimeoutMinutes",  _localizer["SessionTimeoutMinutes"], _localizer["SessionTimeoutMinutesDescription"], SettingType.Number, true, existingSettings, envInfo),
-                CreateSettingItem("MaxLoginAttempts",  _localizer["MaxLoginAttempts"], _localizer["MaxLoginAttemptsDescription"], SettingType.Number, true, existingSettings, envInfo),
-                CreateSettingItem("AccountLockDurationMinutes",  _localizer["AccountLockDurationMinutes"], _localizer["AccountLockDurationMinutesDescription"], SettingType.Number, true, existingSettings, envInfo)
+                CreateSettingItem("SessionTimeoutMinutes",  _localizer["SessionTimeoutMinutes"], _localizer["SessionTimeoutMinutesDescription"], SettingType.Number, true, existingSettings, envInfo, minValue: 30, maxValue: 20160),
+                CreateSettingItem("MaxLoginAttempts",  _localizer["MaxLoginAttempts"], _localizer["MaxLoginAttemptsDescription"], SettingType.Number, true, existingSettings, envInfo, minValue: 3, maxValue: 10),
+                CreateSettingItem("AccountLockDurationMinutes",  _localizer["AccountLockDurationMinutes"], _localizer["AccountLockDurationMinutesDescription"], SettingType.Number, true, existingSettings, envInfo, minValue: 5, maxValue: 60)
             }
         });
 
@@ -229,22 +236,8 @@ public class SettingsController : BaseController
             Settings = new List<SettingItem>
             {
                 CreateSettingItem("DefaultPageTemplate",  _localizer["DefaultPageTemplate"], _localizer["DefaultPageTemplateDescription"], SettingType.TextArea, false, existingSettings, envInfo),
-                CreateSettingItem("MaxPageTitleLength",  _localizer["MaxPageTitleLength"], _localizer["MaxPageTitleLengthDescription"], SettingType.Number, true, existingSettings, envInfo),
+                CreateSettingItem("MaxPageTitleLength",  _localizer["MaxPageTitleLength"], _localizer["MaxPageTitleLengthDescription"], SettingType.Number, true, existingSettings, envInfo, minValue: 25, maxValue: 200),
                 CreateSettingItem("EnablePageVersioning",  _localizer["EnablePageVersioning"], _localizer["EnablePageVersioningDescription"], SettingType.Boolean, false, existingSettings, envInfo)
-            }
-        });
-
-        // Search Settings
-        groups.Add(new SettingGroup
-        {
-            Name = _localizer["SearchSettings"],
-            Description = _localizer["SearchAndIndexingSettings"],
-            Icon = "bi-search",
-            Settings = new List<SettingItem>
-            {
-                CreateSettingItem("SearchResultsPerPage",  _localizer["SearchResultsPerPage"], _localizer["SearchResultsPerPageDescription"], SettingType.Number, true, existingSettings, envInfo),
-                CreateSettingItem("EnableFuzzySearch",  _localizer["EnableFuzzySearch"], _localizer["EnableFuzzySearchDescription"], SettingType.Boolean, false, existingSettings, envInfo),
-                CreateSettingItem("SearchMinimumLength",  _localizer["SearchMinimumLength"], _localizer["SearchMinimumLengthDescription"], SettingType.Number, true, existingSettings, envInfo)
             }
         });
 
@@ -257,7 +250,7 @@ public class SettingsController : BaseController
             Settings = new List<SettingItem>
             {
                 CreateSettingItem("EnableCaching",  _localizer["EnableCaching"], _localizer["EnableCachingDescription"], SettingType.Boolean, false, existingSettings, envInfo),
-                CreateSettingItem("CacheDurationMinutes",  _localizer["CacheDurationMinutes"], _localizer["CacheDurationMinutesDescription"], SettingType.Number, true, existingSettings, envInfo)
+                CreateSettingItem("CacheDurationMinutes",  _localizer["CacheDurationMinutes"], _localizer["CacheDurationMinutesDescription"], SettingType.Number, true, existingSettings, envInfo, minValue: 5, maxValue: 120)
             }
         });
 
@@ -269,13 +262,40 @@ public class SettingsController : BaseController
             CreateSettingItem("CacheProvider",  _localizer["CacheProvider"], _localizer["CacheProviderDescription"], SettingType.Dropdown, true, existingSettings, envInfo, new List<string> { "Memory", "Redis" })
         };
 
-        // Only show Redis settings if provider is set to Redis
-        existingSettings.TryGetValue("CacheProvider", out var cacheProvider);
-        if (string.Equals(cacheProvider ?? "Memory", "Redis", StringComparison.OrdinalIgnoreCase))
+        // Check if Redis is selected
+        existingSettings.TryGetValue("CacheProvider", out var cacheProviderRaw);
+        
+        // Deserialize the value since it's stored as JSON
+        string? cacheProvider = cacheProviderRaw;
+        if (!string.IsNullOrEmpty(cacheProviderRaw))
         {
-            cacheSettings.Add(CreateSettingItem("RedisConfiguration",  _localizer["RedisConfiguration"], _localizer["RedisConfigurationDescription"], SettingType.Text, false, existingSettings, envInfo));
-            cacheSettings.Add(CreateSettingItem("RedisInstanceName",  _localizer["RedisInstanceName"], _localizer["RedisInstanceNameDescription"], SettingType.Text, false, existingSettings, envInfo));
+            try
+            {
+                cacheProvider = System.Text.Json.JsonSerializer.Deserialize<string>(cacheProviderRaw);
+            }
+            catch
+            {
+                // If deserialization fails, use the raw value
+                cacheProvider = cacheProviderRaw;
+            }
         }
+        
+        bool isRedisEnabled = string.Equals(cacheProvider ?? "Memory", "Redis", StringComparison.OrdinalIgnoreCase);
+        
+        // Always show Redis settings, but disable them if Redis is not selected
+        var redisConfig = CreateSettingItem("RedisConfiguration",  _localizer["RedisConfiguration"], _localizer["RedisConfigurationDescription"], SettingType.Text, false, existingSettings, envInfo);
+        var redisInstance = CreateSettingItem("RedisInstanceName",  _localizer["RedisInstanceName"], _localizer["RedisInstanceNameDescription"], SettingType.Text, false, existingSettings, envInfo);
+        
+        if (!isRedisEnabled)
+        {
+            redisConfig.IsDisabled = true;
+            redisConfig.DisabledReason = "Redis must be selected as the Cache Provider to configure these settings";
+            redisInstance.IsDisabled = true;
+            redisInstance.DisabledReason = "Redis must be selected as the Cache Provider to configure these settings";
+        }
+        
+        cacheSettings.Add(redisConfig);
+        cacheSettings.Add(redisInstance);
 
         groups.Add(new SettingGroup
         {
@@ -297,22 +317,42 @@ public class SettingsController : BaseController
         bool isRequired,
         Dictionary<string, string> existingSettings,
         Dictionary<string, (bool IsFromEnvironment, string? EnvironmentVariableName)> envInfo,
-        List<string>? options = null)
+        List<string>? options = null,
+        int? minValue = null,
+        int? maxValue = null)
     {
         existingSettings.TryGetValue(key, out var value);
         envInfo.TryGetValue(key, out var env);
+
+        // Deserialize JSON value if present
+        string displayValue = value ?? GetDefaultValue(key, type);
+        if (!string.IsNullOrEmpty(value))
+        {
+            try
+            {
+                // Try to deserialize as JSON (values are stored as JSON in the database)
+                displayValue = System.Text.Json.JsonSerializer.Deserialize<string>(value) ?? value;
+            }
+            catch
+            {
+                // If deserialization fails, use the raw value
+                displayValue = value;
+            }
+        }
 
         return new SettingItem
         {
             Key = key,
             DisplayName = displayName,
             Description = description,
-            Value = value ?? GetDefaultValue(key, type),
+            Value = displayValue,
             Type = type,
             IsRequired = isRequired,
             Options = options,
             IsFromEnvironment = env.IsFromEnvironment,
-            EnvironmentVariableName = env.EnvironmentVariableName
+            EnvironmentVariableName = env.EnvironmentVariableName,
+            MinValue = minValue,
+            MaxValue = maxValue
         };
     }
 
