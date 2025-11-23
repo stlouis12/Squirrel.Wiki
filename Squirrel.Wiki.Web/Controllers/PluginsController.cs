@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Web.Models;
+using Squirrel.Wiki.Web.Services;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -9,17 +10,17 @@ namespace Squirrel.Wiki.Web.Controllers;
 /// Controller for managing authentication plugins
 /// </summary>
 [Authorize(Policy = "RequireAdmin")]
-public class PluginsController : Controller
+public class PluginsController : BaseController
 {
     private readonly IPluginService _pluginService;
-    private readonly ILogger<PluginsController> _logger;
 
     public PluginsController(
         IPluginService pluginService,
-        ILogger<PluginsController> logger)
+        ILogger<PluginsController> logger,
+        INotificationService notifications)
+        : base(logger, notifications)
     {
         _pluginService = pluginService;
-        _logger = logger;
     }
 
     /// <summary>
@@ -28,7 +29,7 @@ public class PluginsController : Controller
     [HttpGet]
     public async Task<IActionResult> Index()
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var plugins = await _pluginService.GetAllPluginsAsync();
             
@@ -54,13 +55,12 @@ public class PluginsController : Controller
             };
 
             return View(viewModel);
-        }
-        catch (Exception ex)
+        },
+        ex =>
         {
-            _logger.LogError(ex, "Error loading plugins list");
-            TempData["Error"] = "Failed to load plugins: " + ex.Message;
+            NotifyError("Failed to load plugins: " + ex.Message);
             return View(new PluginListViewModel());
-        }
+        });
     }
 
     /// <summary>
@@ -69,15 +69,12 @@ public class PluginsController : Controller
     [HttpGet]
     public async Task<IActionResult> Details(Guid id)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var plugin = await _pluginService.GetPluginAsync(id);
             
-            if (plugin == null)
-            {
-                TempData["Error"] = "Plugin not found";
+            if (!ValidateEntityExists(plugin, "Plugin"))
                 return RedirectToAction(nameof(Index));
-            }
 
             var loadedPlugin = _pluginService.GetLoadedPlugin(plugin.PluginId);
             var currentConfig = await _pluginService.GetPluginConfigurationAsync(id);
@@ -117,13 +114,9 @@ public class PluginsController : Controller
             }
 
             return View(viewModel);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading plugin details for ID: {PluginId}", id);
-            TempData["Error"] = "Failed to load plugin details: " + ex.Message;
-            return RedirectToAction(nameof(Index));
-        }
+        },
+        "Failed to load plugin details.",
+        $"Error loading plugin details for ID: {id}");
     }
 
     /// <summary>
@@ -132,15 +125,12 @@ public class PluginsController : Controller
     [HttpGet]
     public async Task<IActionResult> Configure(Guid id)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var plugin = await _pluginService.GetPluginAsync(id);
             
-            if (plugin == null)
-            {
-                TempData["Error"] = "Plugin not found";
+            if (!ValidateEntityExists(plugin, "Plugin"))
                 return RedirectToAction(nameof(Index));
-            }
 
             var loadedPlugin = _pluginService.GetLoadedPlugin(plugin.PluginId);
             var currentConfig = await _pluginService.GetPluginConfigurationAsync(id);
@@ -166,13 +156,9 @@ public class PluginsController : Controller
             };
 
             return View(viewModel);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading configuration form for plugin ID: {PluginId}", id);
-            TempData["Error"] = "Failed to load configuration form: " + ex.Message;
-            return RedirectToAction(nameof(Index));
-        }
+        },
+        "Failed to load configuration form.",
+        $"Error loading configuration form for plugin ID: {id}");
     }
 
     /// <summary>
@@ -182,15 +168,12 @@ public class PluginsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Configure(Guid id, [FromForm] Dictionary<string, string> configuration)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var plugin = await _pluginService.GetPluginAsync(id);
             
-            if (plugin == null)
-            {
-                TempData["Error"] = "Plugin not found";
+            if (!ValidateEntityExists(plugin, "Plugin"))
                 return RedirectToAction(nameof(Index));
-            }
 
             // Remove empty values
             var cleanedConfig = configuration
@@ -199,15 +182,14 @@ public class PluginsController : Controller
 
             await _pluginService.UpdatePluginConfigurationAsync(id, cleanedConfig);
 
-            TempData["Success"] = $"Configuration for '{plugin.Name}' saved successfully";
+            NotifySuccess($"Configuration for '{plugin.Name}' saved successfully");
             return RedirectToAction(nameof(Details), new { id });
-        }
-        catch (Exception ex)
+        },
+        ex =>
         {
-            _logger.LogError(ex, "Error saving configuration for plugin ID: {PluginId}", id);
-            TempData["Error"] = "Failed to save configuration: " + ex.Message;
+            NotifyError("Failed to save configuration: " + ex.Message);
             return RedirectToAction(nameof(Configure), new { id });
-        }
+        });
     }
 
     /// <summary>
@@ -217,27 +199,20 @@ public class PluginsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Enable(Guid id)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var plugin = await _pluginService.GetPluginAsync(id);
             
-            if (plugin == null)
-            {
-                TempData["Error"] = "Plugin not found";
+            if (!ValidateEntityExists(plugin, "Plugin"))
                 return RedirectToAction(nameof(Index));
-            }
 
             await _pluginService.EnablePluginAsync(id);
 
-            TempData["Success"] = $"Plugin '{plugin.Name}' enabled successfully";
+            NotifySuccess($"Plugin '{plugin.Name}' enabled successfully");
             return RedirectToAction(nameof(Index));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error enabling plugin ID: {PluginId}", id);
-            TempData["Error"] = "Failed to enable plugin: " + ex.Message;
-            return RedirectToAction(nameof(Index));
-        }
+        },
+        "Failed to enable plugin.",
+        $"Error enabling plugin ID: {id}");
     }
 
     /// <summary>
@@ -247,27 +222,20 @@ public class PluginsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Disable(Guid id)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var plugin = await _pluginService.GetPluginAsync(id);
             
-            if (plugin == null)
-            {
-                TempData["Error"] = "Plugin not found";
+            if (!ValidateEntityExists(plugin, "Plugin"))
                 return RedirectToAction(nameof(Index));
-            }
 
             await _pluginService.DisablePluginAsync(id);
 
-            TempData["Success"] = $"Plugin '{plugin.Name}' disabled successfully";
+            NotifySuccess($"Plugin '{plugin.Name}' disabled successfully");
             return RedirectToAction(nameof(Index));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error disabling plugin ID: {PluginId}", id);
-            TempData["Error"] = "Failed to disable plugin: " + ex.Message;
-            return RedirectToAction(nameof(Index));
-        }
+        },
+        "Failed to disable plugin.",
+        $"Error disabling plugin ID: {id}");
     }
 
     /// <summary>
@@ -277,33 +245,26 @@ public class PluginsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(Guid id)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var plugin = await _pluginService.GetPluginAsync(id);
             
-            if (plugin == null)
-            {
-                TempData["Error"] = "Plugin not found";
+            if (!ValidateEntityExists(plugin, "Plugin"))
                 return RedirectToAction(nameof(Index));
-            }
 
             if (plugin.IsCorePlugin)
             {
-                TempData["Error"] = "Cannot delete core plugins";
+                NotifyError("Cannot delete core plugins");
                 return RedirectToAction(nameof(Index));
             }
 
             var pluginName = plugin.Name;
             await _pluginService.DeletePluginAsync(id);
 
-            TempData["Success"] = $"Plugin '{pluginName}' deleted successfully";
+            NotifySuccess($"Plugin '{pluginName}' deleted successfully");
             return RedirectToAction(nameof(Index));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error deleting plugin ID: {PluginId}", id);
-            TempData["Error"] = "Failed to delete plugin: " + ex.Message;
-            return RedirectToAction(nameof(Index));
-        }
+        },
+        "Failed to delete plugin.",
+        $"Error deleting plugin ID: {id}");
     }
 }

@@ -4,6 +4,7 @@ using Squirrel.Wiki.Contracts.Authentication;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Web.Models.Admin;
+using Squirrel.Wiki.Web.Services;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -11,17 +12,17 @@ namespace Squirrel.Wiki.Web.Controllers;
 /// Controller for user management (admin only)
 /// </summary>
 [Authorize(Policy = "RequireAdmin")]
-public class UsersController : Controller
+public class UsersController : BaseController
 {
     private readonly IUserService _userService;
-    private readonly ILogger<UsersController> _logger;
 
     public UsersController(
         IUserService userService,
-        ILogger<UsersController> logger)
+        ILogger<UsersController> logger,
+        INotificationService notifications)
+        : base(logger, notifications)
     {
         _userService = userService;
-        _logger = logger;
     }
 
     /// <summary>
@@ -36,7 +37,7 @@ public class UsersController : Controller
         int page = 1,
         int pageSize = 20)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var users = await _userService.GetAllAsync();
 
@@ -88,13 +89,9 @@ public class UsersController : Controller
             };
 
             return View(model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading user list");
-            TempData["ErrorMessage"] = "Error loading users. Please try again.";
-            return View(new UserListViewModel());
-        }
+        },
+        "Error loading users. Please try again.",
+        "Error loading user list");
     }
 
     /// <summary>
@@ -103,14 +100,11 @@ public class UsersController : Controller
     [HttpGet]
     public async Task<IActionResult> Details(Guid id)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var user = await _userService.GetByIdAsync(id);
-            if (user == null)
-            {
-                TempData["ErrorMessage"] = "User not found.";
+            if (!ValidateEntityExists(user, "User"))
                 return RedirectToAction(nameof(Index));
-            }
 
             var model = new UserDetailsViewModel
             {
@@ -118,13 +112,9 @@ public class UsersController : Controller
             };
 
             return View(model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading user details for {UserId}", id);
-            TempData["ErrorMessage"] = "Error loading user details.";
-            return RedirectToAction(nameof(Index));
-        }
+        },
+        "Error loading user details.",
+        $"Error loading user details for {id}");
     }
 
     /// <summary>
@@ -149,12 +139,10 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(UserEditViewModel model)
     {
-        if (!ModelState.IsValid)
-        {
+        if (!ValidateModelState())
             return View(model);
-        }
 
-        try
+        return await ExecuteAsync(async () =>
         {
             // Validate password confirmation
             if (model.Password != model.ConfirmPassword)
@@ -181,20 +169,22 @@ public class UsersController : Controller
             }
 
             _logger.LogInformation("User {Username} created by {AdminUser}", model.Username, User.Identity?.Name);
-            TempData["SuccessMessage"] = $"User '{model.Username}' created successfully.";
+            NotifySuccess($"User '{model.Username}' created successfully.");
             return RedirectToAction(nameof(Details), new { id = user.Id });
-        }
-        catch (InvalidOperationException ex)
+        },
+        ex =>
         {
-            ModelState.AddModelError("", ex.Message);
+            if (ex is InvalidOperationException)
+            {
+                ModelState.AddModelError("", ex.Message);
+            }
+            else
+            {
+                _logger.LogError(ex, "Error creating user {Username}", model.Username);
+                ModelState.AddModelError("", "An error occurred while creating the user. Please try again.");
+            }
             return View(model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating user {Username}", model.Username);
-            ModelState.AddModelError("", "An error occurred while creating the user. Please try again.");
-            return View(model);
-        }
+        });
     }
 
     /// <summary>
@@ -203,14 +193,11 @@ public class UsersController : Controller
     [HttpGet]
     public async Task<IActionResult> Edit(Guid id)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var user = await _userService.GetByIdAsync(id);
-            if (user == null)
-            {
-                TempData["ErrorMessage"] = "User not found.";
+            if (!ValidateEntityExists(user, "User"))
                 return RedirectToAction(nameof(Index));
-            }
 
             var model = new UserEditViewModel
             {
@@ -226,13 +213,9 @@ public class UsersController : Controller
             };
 
             return View(model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading user for edit: {UserId}", id);
-            TempData["ErrorMessage"] = "Error loading user.";
-            return RedirectToAction(nameof(Index));
-        }
+        },
+        "Error loading user.",
+        $"Error loading user for edit: {id}");
     }
 
     /// <summary>
@@ -242,19 +225,14 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(UserEditViewModel model)
     {
-        if (!ModelState.IsValid)
-        {
+        if (!ValidateModelState())
             return View(model);
-        }
 
-        try
+        return await ExecuteAsync(async () =>
         {
             var user = await _userService.GetByIdAsync(model.Id);
-            if (user == null)
-            {
-                TempData["ErrorMessage"] = "User not found.";
+            if (!ValidateEntityExists(user, "User"))
                 return RedirectToAction(nameof(Index));
-            }
 
             // Update user via DTO
             // If no roles are selected, user will be a Viewer (read-only)
@@ -296,20 +274,22 @@ public class UsersController : Controller
             }
 
             _logger.LogInformation("User {Username} updated by {AdminUser}", user.Username, User.Identity?.Name);
-            TempData["SuccessMessage"] = $"User '{user.Username}' updated successfully.";
+            NotifySuccess($"User '{user.Username}' updated successfully.");
             return RedirectToAction(nameof(Details), new { id = user.Id });
-        }
-        catch (InvalidOperationException ex)
+        },
+        ex =>
         {
-            ModelState.AddModelError("", ex.Message);
+            if (ex is InvalidOperationException)
+            {
+                ModelState.AddModelError("", ex.Message);
+            }
+            else
+            {
+                _logger.LogError(ex, "Error updating user {UserId}", model.Id);
+                ModelState.AddModelError("", "An error occurred while updating the user. Please try again.");
+            }
             return View(model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating user {UserId}", model.Id);
-            ModelState.AddModelError("", "An error occurred while updating the user. Please try again.");
-            return View(model);
-        }
+        });
     }
 
     /// <summary>
@@ -319,19 +299,16 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(Guid id)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var user = await _userService.GetByIdAsync(id);
-            if (user == null)
-            {
-                TempData["ErrorMessage"] = "User not found.";
+            if (!ValidateEntityExists(user, "User"))
                 return RedirectToAction(nameof(Index));
-            }
 
             // Prevent deleting yourself
             if (User.Identity?.Name == user.Username)
             {
-                TempData["ErrorMessage"] = "You cannot delete your own account.";
+                NotifyError("You cannot delete your own account.");
                 return RedirectToAction(nameof(Index));
             }
 
@@ -339,15 +316,11 @@ public class UsersController : Controller
             await _userService.DeactivateAccountAsync(id);
 
             _logger.LogInformation("User {Username} deactivated (delete requested) by {AdminUser}", user.Username, User.Identity?.Name);
-            TempData["SuccessMessage"] = $"User '{user.Username}' has been deactivated.";
+            NotifySuccess($"User '{user.Username}' has been deactivated.");
             return RedirectToAction(nameof(Index));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error deleting user {UserId}", id);
-            TempData["ErrorMessage"] = "An error occurred while deleting the user. Please try again.";
-            return RedirectToAction(nameof(Index));
-        }
+        },
+        "An error occurred while deleting the user. Please try again.",
+        $"Error deleting user {id}");
     }
 
     /// <summary>
@@ -357,34 +330,27 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Deactivate(Guid id)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var user = await _userService.GetByIdAsync(id);
-            if (user == null)
-            {
-                TempData["ErrorMessage"] = "User not found.";
+            if (!ValidateEntityExists(user, "User"))
                 return RedirectToAction(nameof(Index));
-            }
 
             // Prevent deactivating yourself
             if (User.Identity?.Name == user.Username)
             {
-                TempData["ErrorMessage"] = "You cannot deactivate your own account.";
+                NotifyError("You cannot deactivate your own account.");
                 return RedirectToAction(nameof(Details), new { id });
             }
 
             await _userService.DeactivateAccountAsync(id);
 
             _logger.LogInformation("User {Username} deactivated by {AdminUser}", user.Username, User.Identity?.Name);
-            TempData["SuccessMessage"] = $"User '{user.Username}' deactivated successfully.";
+            NotifySuccess($"User '{user.Username}' deactivated successfully.");
             return RedirectToAction(nameof(Details), new { id });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error deactivating user {UserId}", id);
-            TempData["ErrorMessage"] = "An error occurred while deactivating the user.";
-            return RedirectToAction(nameof(Details), new { id });
-        }
+        },
+        "An error occurred while deactivating the user.",
+        $"Error deactivating user {id}");
     }
 
     /// <summary>
@@ -394,27 +360,20 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Activate(Guid id)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var user = await _userService.GetByIdAsync(id);
-            if (user == null)
-            {
-                TempData["ErrorMessage"] = "User not found.";
+            if (!ValidateEntityExists(user, "User"))
                 return RedirectToAction(nameof(Index));
-            }
 
             await _userService.ActivateAccountAsync(id);
 
             _logger.LogInformation("User {Username} activated by {AdminUser}", user.Username, User.Identity?.Name);
-            TempData["SuccessMessage"] = $"User '{user.Username}' activated successfully.";
+            NotifySuccess($"User '{user.Username}' activated successfully.");
             return RedirectToAction(nameof(Details), new { id });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error activating user {UserId}", id);
-            TempData["ErrorMessage"] = "An error occurred while activating the user.";
-            return RedirectToAction(nameof(Details), new { id });
-        }
+        },
+        "An error occurred while activating the user.",
+        $"Error activating user {id}");
     }
 
     /// <summary>
@@ -424,27 +383,20 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Unlock(Guid id)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var user = await _userService.GetByIdAsync(id);
-            if (user == null)
-            {
-                TempData["ErrorMessage"] = "User not found.";
+            if (!ValidateEntityExists(user, "User"))
                 return RedirectToAction(nameof(Index));
-            }
 
             await _userService.UnlockAccountAsync(id);
 
             _logger.LogInformation("User {Username} unlocked by {AdminUser}", user.Username, User.Identity?.Name);
-            TempData["SuccessMessage"] = $"User '{user.Username}' unlocked successfully.";
+            NotifySuccess($"User '{user.Username}' unlocked successfully.");
             return RedirectToAction(nameof(Details), new { id });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error unlocking user {UserId}", id);
-            TempData["ErrorMessage"] = "An error occurred while unlocking the user.";
-            return RedirectToAction(nameof(Details), new { id });
-        }
+        },
+        "An error occurred while unlocking the user.",
+        $"Error unlocking user {id}");
     }
 
     /// <summary>
@@ -453,18 +405,15 @@ public class UsersController : Controller
     [HttpGet]
     public async Task<IActionResult> ResetPassword(Guid id)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var user = await _userService.GetByIdAsync(id);
-            if (user == null)
-            {
-                TempData["ErrorMessage"] = "User not found.";
+            if (!ValidateEntityExists(user, "User"))
                 return RedirectToAction(nameof(Index));
-            }
 
             if (user.Provider != AuthenticationProvider.Local)
             {
-                TempData["ErrorMessage"] = "Cannot reset password for non-local users.";
+                NotifyError("Cannot reset password for non-local users.");
                 return RedirectToAction(nameof(Details), new { id });
             }
 
@@ -475,13 +424,9 @@ public class UsersController : Controller
             };
 
             return View(model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading reset password form for {UserId}", id);
-            TempData["ErrorMessage"] = "Error loading reset password form.";
-            return RedirectToAction(nameof(Details), new { id });
-        }
+        },
+        "Error loading reset password form.",
+        $"Error loading reset password form for {id}");
     }
 
     /// <summary>
@@ -491,19 +436,14 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
     {
-        if (!ModelState.IsValid)
-        {
+        if (!ValidateModelState())
             return View(model);
-        }
 
-        try
+        return await ExecuteAsync(async () =>
         {
             var user = await _userService.GetByIdAsync(model.UserId);
-            if (user == null)
-            {
-                TempData["ErrorMessage"] = "User not found.";
+            if (!ValidateEntityExists(user, "User"))
                 return RedirectToAction(nameof(Index));
-            }
 
             if (model.NewPassword != model.ConfirmPassword)
             {
@@ -514,19 +454,21 @@ public class UsersController : Controller
             await _userService.SetPasswordAsync(model.UserId, model.NewPassword);
 
             _logger.LogInformation("Password reset for user {Username} by {AdminUser}", user.Username, User.Identity?.Name);
-            TempData["SuccessMessage"] = $"Password reset successfully for user '{user.Username}'.";
+            NotifySuccess($"Password reset successfully for user '{user.Username}'.");
             return RedirectToAction(nameof(Details), new { id = model.UserId });
-        }
-        catch (InvalidOperationException ex)
+        },
+        ex =>
         {
-            ModelState.AddModelError("", ex.Message);
+            if (ex is InvalidOperationException)
+            {
+                ModelState.AddModelError("", ex.Message);
+            }
+            else
+            {
+                _logger.LogError(ex, "Error resetting password for user {UserId}", model.UserId);
+                ModelState.AddModelError("", "An error occurred while resetting the password. Please try again.");
+            }
             return View(model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error resetting password for user {UserId}", model.UserId);
-            ModelState.AddModelError("", "An error occurred while resetting the password. Please try again.");
-            return View(model);
-        }
+        });
     }
 }

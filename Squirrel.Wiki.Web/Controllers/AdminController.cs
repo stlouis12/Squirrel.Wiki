@@ -5,6 +5,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Web.Models.Admin;
+using Squirrel.Wiki.Web.Services;
 using System.Diagnostics;
 
 namespace Squirrel.Wiki.Web.Controllers;
@@ -13,23 +14,23 @@ namespace Squirrel.Wiki.Web.Controllers;
 /// Controller for administrative functions
 /// </summary>
 [Authorize(Policy = "RequireAdmin")]
-public class AdminController : Controller
+public class AdminController : BaseController
 {
     private readonly SquirrelDbContext _dbContext;
     private readonly IDistributedCache _cache;
     private readonly ISearchService _searchService;
-    private readonly ILogger<AdminController> _logger;
 
     public AdminController(
         SquirrelDbContext dbContext,
         IDistributedCache cache,
         ISearchService searchService,
-        ILogger<AdminController> logger)
+        ILogger<AdminController> logger,
+        INotificationService notifications)
+        : base(logger, notifications)
     {
         _dbContext = dbContext;
         _cache = cache;
         _searchService = searchService;
-        _logger = logger;
     }
 
     /// <summary>
@@ -94,13 +95,13 @@ public class AdminController : Controller
             
             _logger.LogInformation("Cache clear requested by {User}", User.Identity?.Name);
             
-            TempData["SuccessMessage"] = "Cache cleared successfully. Note: Individual cache entries will expire naturally.";
+            NotifySuccess("Cache cleared successfully. Note: Individual cache entries will expire naturally.");
             return RedirectToAction(nameof(Index));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error clearing cache");
-            TempData["ErrorMessage"] = $"Error clearing cache: {ex.Message}";
+            NotifyError($"Error clearing cache: {ex.Message}");
             return RedirectToAction(nameof(Index));
         }
     }
@@ -112,7 +113,7 @@ public class AdminController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RebuildSearchIndex()
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             _logger.LogInformation("Search index rebuild requested by {User}", User.Identity?.Name);
             
@@ -121,15 +122,14 @@ public class AdminController : Controller
 
             _logger.LogInformation("Search index rebuilt successfully");
             
-            TempData["SuccessMessage"] = "Search index rebuilt successfully.";
+            NotifySuccess("Search index rebuilt successfully.");
             return RedirectToAction(nameof(Index));
-        }
-        catch (Exception ex)
+        },
+        ex =>
         {
-            _logger.LogError(ex, "Error rebuilding search index");
-            TempData["ErrorMessage"] = $"Error rebuilding search index: {ex.Message}";
+            NotifyError($"Error rebuilding search index: {ex.Message}");
             return RedirectToAction(nameof(Index));
-        }
+        });
     }
 
     #region Private Helper Methods

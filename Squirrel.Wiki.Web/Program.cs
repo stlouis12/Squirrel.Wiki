@@ -203,6 +203,9 @@ builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<IUrlTokenResolver, UrlTokenResolver>();
 builder.Services.AddScoped<FooterMarkupParser>();
 
+// Register Web Services
+builder.Services.AddScoped<Squirrel.Wiki.Web.Services.INotificationService, Squirrel.Wiki.Web.Services.TempDataNotificationService>();
+
 // Register Authentication Services
 builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
 builder.Services.AddScoped<Squirrel.Wiki.Core.Security.IAuthenticationService, Squirrel.Wiki.Core.Security.AuthenticationService>();

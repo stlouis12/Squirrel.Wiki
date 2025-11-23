@@ -1,0 +1,148 @@
+@using Squirrel.Wiki.Web.Services
+@using Microsoft.Extensions.Localization
+@inject INotificationService NotificationService
+@inject IStringLocalizer Localizer
+
+@{
+    var notifications = NotificationService.GetNotifications().ToList();
+    var inlineNotifications = notifications.Where(n => !n.IsToast).ToList();
+    var toastNotifications = notifications.Where(n => n.IsToast).ToList();
+}
+
+@* Inline Notifications *@
+@if (inlineNotifications.Any())
+{
+    <div class="notifications-container mb-3">
+        @foreach (var notification in inlineNotifications)
+        {
+            var alertClass = notification.Type switch
+            {
+                NotificationType.Success => "alert-success",
+                NotificationType.Error => "alert-danger",
+                NotificationType.Warning => "alert-warning",
+                NotificationType.Info => "alert-info",
+                _ => "alert-secondary"
+            };
+
+            var iconClass = notification.Type switch
+            {
+                NotificationType.Success => "bi-check-circle-fill",
+                NotificationType.Error => "bi-exclamation-triangle-fill",
+                NotificationType.Warning => "bi-exclamation-circle-fill",
+                NotificationType.Info => "bi-info-circle-fill",
+                _ => "bi-bell-fill"
+            };
+
+            var message = notification.IsLocalized && !string.IsNullOrEmpty(notification.LocalizationKey)
+                ? (notification.LocalizationArgs != null && notification.LocalizationArgs.Length > 0
+                    ? Localizer[notification.LocalizationKey, notification.LocalizationArgs].Value
+                    : Localizer[notification.LocalizationKey].Value)
+                : notification.Message;
+
+            <div class="alert @alertClass @(notification.Dismissible ? "alert-dismissible" : "") fade show d-flex align-items-center" 
+                 role="alert"
+                 @(notification.AutoDismissMs > 0 ? $"data-auto-dismiss=\"{notification.AutoDismissMs}\"" : "")>
+                <i class="bi @iconClass me-2"></i>
+                <div class="flex-grow-1">
+                    @if (!string.IsNullOrEmpty(notification.Title))
+                    {
+                        <strong>@notification.Title</strong>
+                        <br />
+                    }
+                    @message
+                </div>
+                @if (notification.Dismissible)
+                {
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                }
+            </div>
+        }
+    </div>
+}
+
+@* Toast Notifications *@
+@if (toastNotifications.Any())
+{
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 11">
+        @foreach (var notification in toastNotifications)
+        {
+            var toastClass = notification.Type switch
+            {
+                NotificationType.Success => "bg-success text-white",
+                NotificationType.Error => "bg-danger text-white",
+                NotificationType.Warning => "bg-warning",
+                NotificationType.Info => "bg-info text-white",
+                _ => "bg-secondary text-white"
+            };
+
+            var iconClass = notification.Type switch
+            {
+                NotificationType.Success => "bi-check-circle-fill",
+                NotificationType.Error => "bi-exclamation-triangle-fill",
+                NotificationType.Warning => "bi-exclamation-circle-fill",
+                NotificationType.Info => "bi-info-circle-fill",
+                _ => "bi-bell-fill"
+            };
+
+            var message = notification.IsLocalized && !string.IsNullOrEmpty(notification.LocalizationKey)
+                ? (notification.LocalizationArgs != null && notification.LocalizationArgs.Length > 0
+                    ? Localizer[notification.LocalizationKey, notification.LocalizationArgs].Value
+                    : Localizer[notification.LocalizationKey].Value)
+                : notification.Message;
+
+            var title = !string.IsNullOrEmpty(notification.Title) 
+                ? notification.Title 
+                : notification.Type.ToString();
+
+            <div class="toast @toastClass" 
+                 role="alert" 
+                 aria-live="assertive" 
+                 aria-atomic="true"
+                 data-bs-autohide="@(notification.AutoDismissMs > 0 ? "true" : "false")"
+                 data-bs-delay="@notification.AutoDismissMs">
+                <div class="toast-header @toastClass">
+                    <i class="bi @iconClass me-2"></i>
+                    <strong class="me-auto">@title</strong>
+                    @if (notification.Dismissible)
+                    {
+                        <button type="button" class="btn-close @(notification.Type == NotificationType.Warning ? "" : "btn-close-white")" data-bs-dismiss="toast" aria-label="Close"></button>
+                    }
+                </div>
+                <div class="toast-body">
+                    @message
+                </div>
+            </div>
+        }
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show all toast notifications
+            var toastElements = document.querySelectorAll('.toast');
+            toastElements.forEach(function(toastEl) {
+                var toast = new bootstrap.Toast(toastEl);
+                toast.show();
+            });
+        });
+    </script>
+}
+
+@* Auto-dismiss script for inline notifications *@
+@if (inlineNotifications.Any(n => n.AutoDismissMs > 0))
+{
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-dismiss inline notifications
+            var alerts = document.querySelectorAll('.alert[data-auto-dismiss]');
+            alerts.forEach(function(alert) {
+                var delay = parseInt(alert.getAttribute('data-auto-dismiss'));
+                if (delay > 0) {
+                    setTimeout(function() {
+                        var bsAlert = new bootstrap.Alert(alert);
+                        bsAlert.close();
+                    }, delay);
+                }
+            });
+        });
+    </script>
+}

@@ -4,6 +4,7 @@ using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Web.Models.Admin;
+using Squirrel.Wiki.Web.Services;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -12,23 +13,23 @@ namespace Squirrel.Wiki.Web.Controllers;
 /// PHASE 8.3: Category Management UI
 /// </summary>
 [Authorize(Policy = "RequireEditor")]
-public class CategoriesController : Controller
+public class CategoriesController : BaseController
 {
     private readonly ICategoryService _categoryService;
     private readonly IPageService _pageService;
     private readonly IUserContext _userContext;
-    private readonly ILogger<CategoriesController> _logger;
 
     public CategoriesController(
         ICategoryService categoryService,
         IPageService pageService,
         IUserContext userContext,
-        ILogger<CategoriesController> logger)
+        ILogger<CategoriesController> logger,
+        INotificationService notifications)
+        : base(logger, notifications)
     {
         _categoryService = categoryService;
         _pageService = pageService;
         _userContext = userContext;
-        _logger = logger;
     }
 
     /// <summary>
@@ -37,7 +38,7 @@ public class CategoriesController : Controller
     [HttpGet]
     public async Task<IActionResult> Index()
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var categories = await _categoryService.GetAllAsync();
             var tree = await BuildCategoryTreeAsync(categories);
@@ -50,13 +51,12 @@ public class CategoriesController : Controller
             };
 
             return View(model);
-        }
-        catch (Exception ex)
+        },
+        ex =>
         {
-            _logger.LogError(ex, "Error loading categories");
-            TempData["ErrorMessage"] = $"Error loading categories: {ex.Message}";
+            NotifyError($"Error loading categories: {ex.Message}");
             return View(new CategoryViewModel());
-        }
+        });
     }
 
     /// <summary>
@@ -65,7 +65,7 @@ public class CategoriesController : Controller
     [HttpGet]
     public async Task<IActionResult> Create(int? parentId = null)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var model = new EditCategoryViewModel
             {
@@ -83,13 +83,9 @@ public class CategoriesController : Controller
             }
 
             return View("Edit", model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading create category form");
-            TempData["ErrorMessage"] = $"Error loading form: {ex.Message}";
-            return RedirectToAction(nameof(Index));
-        }
+        },
+        "Error loading form.",
+        "Error loading create category form");
     }
 
     /// <summary>
@@ -98,14 +94,11 @@ public class CategoriesController : Controller
     [HttpGet]
     public async Task<IActionResult> Edit(int id)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var category = await _categoryService.GetByIdAsync(id);
-            if (category == null)
-            {
-                TempData["ErrorMessage"] = "Category not found.";
+            if (!ValidateEntityExists(category, "Category"))
                 return RedirectToAction(nameof(Index));
-            }
 
             var model = new EditCategoryViewModel
             {
@@ -118,13 +111,9 @@ public class CategoriesController : Controller
             };
 
             return View(model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading edit category form for ID {CategoryId}", id);
-            TempData["ErrorMessage"] = $"Error loading category: {ex.Message}";
-            return RedirectToAction(nameof(Index));
-        }
+        },
+        "Error loading category.",
+        $"Error loading edit category form for ID {id}");
     }
 
     /// <summary>
@@ -134,13 +123,13 @@ public class CategoriesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(EditCategoryViewModel model)
     {
-        if (!ModelState.IsValid)
+        if (!ValidateModelState())
         {
             model.AvailableParents = await GetAvailableParentsAsync(model.Id == 0 ? null : model.Id);
             return View("Edit", model);
         }
 
-        try
+        return await ExecuteAsync(async () =>
         {
             var username = _userContext.Username ?? "System";
 
@@ -160,7 +149,7 @@ public class CategoriesController : Controller
                 _logger.LogInformation("Created category '{CategoryName}' (ID: {CategoryId}) by {User}", 
                     created.Name, created.Id, username);
                 
-                TempData["SuccessMessage"] = $"Category '{created.Name}' created successfully.";
+                NotifySuccess($"Category '{created.Name}' created successfully.");
             }
             else
             {
@@ -178,25 +167,26 @@ public class CategoriesController : Controller
                 _logger.LogInformation("Updated category '{CategoryName}' (ID: {CategoryId}) by {User}", 
                     updated.Name, updated.Id, username);
                 
-                TempData["SuccessMessage"] = $"Category '{updated.Name}' updated successfully.";
+                NotifySuccess($"Category '{updated.Name}' updated successfully.");
             }
 
             return RedirectToAction(nameof(Index));
-        }
-        catch (InvalidOperationException ex)
+        },
+        ex =>
         {
-            _logger.LogWarning(ex, "Validation error saving category");
-            ModelState.AddModelError("", ex.Message);
-            model.AvailableParents = await GetAvailableParentsAsync(model.Id == 0 ? null : model.Id);
+            if (ex is InvalidOperationException)
+            {
+                _logger.LogWarning(ex, "Validation error saving category");
+                ModelState.AddModelError("", ex.Message);
+            }
+            else
+            {
+                _logger.LogError(ex, "Error saving category");
+                ModelState.AddModelError("", $"Error saving category: {ex.Message}");
+            }
+            model.AvailableParents = GetAvailableParentsAsync(model.Id == 0 ? null : model.Id).Result;
             return View("Edit", model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error saving category");
-            ModelState.AddModelError("", $"Error saving category: {ex.Message}");
-            model.AvailableParents = await GetAvailableParentsAsync(model.Id == 0 ? null : model.Id);
-            return View("Edit", model);
-        }
+        });
     }
 
     /// <summary>
@@ -205,14 +195,11 @@ public class CategoriesController : Controller
     [HttpGet]
     public async Task<IActionResult> Details(int id)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var category = await _categoryService.GetByIdAsync(id);
-            if (category == null)
-            {
-                TempData["ErrorMessage"] = "Category not found.";
+            if (!ValidateEntityExists(category, "Category"))
                 return RedirectToAction(nameof(Index));
-            }
 
             // Get subcategories
             var allCategories = await _categoryService.GetAllAsync();
@@ -275,13 +262,9 @@ public class CategoriesController : Controller
             }
 
             return View(model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading category details for ID {CategoryId}", id);
-            TempData["ErrorMessage"] = $"Error loading category: {ex.Message}";
-            return RedirectToAction(nameof(Index));
-        }
+        },
+        "Error loading category.",
+        $"Error loading category details for ID {id}");
     }
 
     /// <summary>

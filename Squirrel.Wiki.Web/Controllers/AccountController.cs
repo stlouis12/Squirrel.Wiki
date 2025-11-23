@@ -7,26 +7,27 @@ using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Web.Models;
+using Squirrel.Wiki.Web.Services;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
-public class AccountController : Controller
+public class AccountController : BaseController
 {
     private readonly IUserContext _userContext;
     private readonly IUserService _userService;
     private readonly ISettingsService _settingsService;
-    private readonly ILogger<AccountController> _logger;
 
     public AccountController(
         IUserContext userContext,
         IUserService userService,
         ISettingsService settingsService,
-        ILogger<AccountController> logger)
+        ILogger<AccountController> logger,
+        INotificationService notifications)
+        : base(logger, notifications)
     {
         _userContext = userContext;
         _userService = userService;
         _settingsService = settingsService;
-        _logger = logger;
     }
 
     [HttpGet]
@@ -209,7 +210,7 @@ public class AccountController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading profile for user {UserId}", userId);
-            TempData["ErrorMessage"] = "An error occurred while loading your profile.";
+            NotifyError("An error occurred while loading your profile.");
             return RedirectToAction("Index", "Home");
         }
     }
@@ -275,7 +276,7 @@ public class AccountController : Controller
             // Change password
             await _userService.SetPasswordAsync(userId, model.NewPassword);
 
-            TempData["SuccessMessage"] = "Your password has been changed successfully.";
+            NotifySuccess("Your password has been changed successfully.");
             _logger.LogInformation("Password changed for user {Username} (ID: {UserId})", user.Username, userId);
 
             return RedirectToAction("Profile");

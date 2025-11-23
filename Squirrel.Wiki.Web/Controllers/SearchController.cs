@@ -3,29 +3,30 @@ using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Web.Models;
+using Squirrel.Wiki.Web.Services;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
 /// <summary>
 /// Controller for search functionality
 /// </summary>
-public class SearchController : Controller
+public class SearchController : BaseController
 {
     private readonly ISearchService _searchService;
     private readonly Squirrel.Wiki.Core.Security.IAuthorizationService _authorizationService;
     private readonly IPageRepository _pageRepository;
-    private readonly ILogger<SearchController> _logger;
 
     public SearchController(
         ISearchService searchService,
         Squirrel.Wiki.Core.Security.IAuthorizationService authorizationService,
         IPageRepository pageRepository,
-        ILogger<SearchController> logger)
+        ILogger<SearchController> logger,
+        INotificationService notifications)
+        : base(logger, notifications)
     {
         _searchService = searchService;
         _authorizationService = authorizationService;
         _pageRepository = pageRepository;
-        _logger = logger;
     }
 
     /// <summary>
@@ -107,7 +108,7 @@ public class SearchController : Controller
                 PageSize = pageSize
             };
             
-            TempData["Error"] = "An error occurred while searching. Please try again.";
+            NotifyError("An error occurred while searching. Please try again.");
             return View(errorViewModel);
         }
     }
@@ -164,22 +165,20 @@ public class SearchController : Controller
     [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
     public async Task<IActionResult> RebuildIndex(CancellationToken cancellationToken)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             await _searchService.RebuildIndexAsync(cancellationToken);
             
             _logger.LogInformation("Search index rebuilt successfully");
-            TempData["Success"] = "Search index rebuilt successfully";
+            NotifySuccess("Search index rebuilt successfully");
             
             return RedirectToAction("Index", "Home");
-        }
-        catch (Exception ex)
+        },
+        ex =>
         {
-            _logger.LogError(ex, "Error rebuilding search index");
-            TempData["Error"] = "An error occurred while rebuilding the search index";
-            
+            NotifyError("An error occurred while rebuilding the search index");
             return RedirectToAction("Index", "Home");
-        }
+        });
     }
 
     private static string TruncateExcerpt(string? text, int maxLength)

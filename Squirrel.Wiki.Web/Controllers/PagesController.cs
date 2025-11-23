@@ -6,6 +6,7 @@ using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Web.Models;
 using Squirrel.Wiki.Web.Filters;
+using Squirrel.Wiki.Web.Services;
 using DiffPlex;
 using DiffPlex.DiffBuilder;
 using DiffPlex.DiffBuilder.Model;
@@ -15,7 +16,7 @@ namespace Squirrel.Wiki.Web.Controllers;
 /// <summary>
 /// Controller for page CRUD operations, history, and tag management
 /// </summary>
-public class PagesController : Controller
+public class PagesController : BaseController
 {
     private readonly IPageService _pageService;
     private readonly ITagService _tagService;
@@ -25,7 +26,6 @@ public class PagesController : Controller
     private readonly Squirrel.Wiki.Core.Security.IAuthorizationService _authorizationService;
     private readonly IPageRepository _pageRepository;
     private readonly ISettingsService _settingsService;
-    private readonly ILogger<PagesController> _logger;
 
     public PagesController(
         IPageService pageService,
@@ -36,7 +36,9 @@ public class PagesController : Controller
         Squirrel.Wiki.Core.Security.IAuthorizationService authorizationService,
         IPageRepository pageRepository,
         ISettingsService settingsService,
-        ILogger<PagesController> logger)
+        ILogger<PagesController> logger,
+        INotificationService notifications)
+        : base(logger, notifications)
     {
         _pageService = pageService;
         _tagService = tagService;
@@ -46,7 +48,6 @@ public class PagesController : Controller
         _authorizationService = authorizationService;
         _pageRepository = pageRepository;
         _settingsService = settingsService;
-        _logger = logger;
     }
 
     /// <summary>
@@ -438,7 +439,7 @@ public class PagesController : Controller
             {
                 // TODO: Check if user is admin
                 // For now, show a message
-                TempData["Warning"] = "This page is locked and can only be edited by administrators.";
+                NotifyWarning("This page is locked and can only be edited by administrators.");
             }
 
             var content = await _pageService.GetLatestContentAsync(id, cancellationToken);
@@ -558,7 +559,7 @@ public class PagesController : Controller
     [Authorize(Policy = "RequireAdmin")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             await _pageService.DeletePageAsync(id, cancellationToken);
             
@@ -567,15 +568,14 @@ public class PagesController : Controller
 
             _logger.LogInformation("Page {PageId} deleted", id);
             
-            TempData["Success"] = "Page deleted successfully";
+            NotifySuccess("Page deleted successfully");
             return RedirectToAction(nameof(AllPages));
-        }
-        catch (Exception ex)
+        },
+        ex =>
         {
-            _logger.LogError(ex, "Error deleting page {PageId}", id);
-            TempData["Error"] = "An error occurred while deleting the page";
+            NotifyError("An error occurred while deleting the page");
             return RedirectToAction(nameof(AllPages));
-        }
+        });
     }
 
     /// <summary>
@@ -752,7 +752,7 @@ public class PagesController : Controller
     {
         _logger.LogInformation("Revert action called - PageId: {PageId}, VersionNumber: {VersionNumber}", id, versionNumber);
         
-        try
+        return await ExecuteAsync(async () =>
         {
             var username = User.Identity?.Name ?? "Anonymous";
             
@@ -765,21 +765,22 @@ public class PagesController : Controller
 
             _logger.LogInformation("Page {PageId} reverted to version {Version} by {Username}", id, versionNumber, username);
             
-            TempData["Success"] = $"Page successfully reverted to version {versionNumber}. A new version has been created.";
+            NotifySuccess($"Page successfully reverted to version {versionNumber}. A new version has been created.");
             return RedirectToAction("Index", "Wiki", new { id });
-        }
-        catch (KeyNotFoundException ex)
+        },
+        ex =>
         {
-            _logger.LogWarning(ex, "Version not found when reverting page {PageId} to version {Version}", id, versionNumber);
-            TempData["Error"] = $"Version {versionNumber} was not found for this page";
+            if (ex is KeyNotFoundException)
+            {
+                _logger.LogWarning(ex, "Version not found when reverting page {PageId} to version {Version}", id, versionNumber);
+                NotifyError($"Version {versionNumber} was not found for this page");
+            }
+            else
+            {
+                NotifyError($"An error occurred while reverting the page: {ex.Message}");
+            }
             return RedirectToAction(nameof(History), new { id });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error reverting page {PageId} to version {Version}. Exception: {Message}", id, versionNumber, ex.Message);
-            TempData["Error"] = $"An error occurred while reverting the page: {ex.Message}";
-            return RedirectToAction(nameof(History), new { id });
-        }
+        });
     }
 
     /// <summary>

@@ -6,6 +6,7 @@ using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Web.Models.Admin;
+using Squirrel.Wiki.Web.Services;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -13,20 +14,20 @@ namespace Squirrel.Wiki.Web.Controllers;
 /// Controller for managing menus
 /// </summary>
 [Authorize(Policy = "RequireAdmin")]
-public class MenusController : Controller
+public class MenusController : BaseController
 {
     private readonly IMenuService _menuService;
     private readonly IUserContext _userContext;
-    private readonly ILogger<MenusController> _logger;
 
     public MenusController(
         IMenuService menuService,
         IUserContext userContext,
-        ILogger<MenusController> logger)
+        ILogger<MenusController> logger,
+        INotificationService notifications)
+        : base(logger, notifications)
     {
         _menuService = menuService;
         _userContext = userContext;
-        _logger = logger;
     }
 
     /// <summary>
@@ -35,10 +36,9 @@ public class MenusController : Controller
     [HttpGet]
     public async Task<IActionResult> Index()
     {
-        var model = new MenuViewModel();
-
-        try
+        return await ExecuteAsync(async () =>
         {
+            var model = new MenuViewModel();
             var menus = await _menuService.GetAllAsync();
 
             model.Menus = menus.Select(m => new MenuListItem
@@ -62,14 +62,15 @@ public class MenusController : Controller
             {
                 model.ErrorMessage = TempData["ErrorMessage"]?.ToString();
             }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading menus");
-            model.ErrorMessage = "Error loading menus. Please try again.";
-        }
 
-        return View(model);
+            return View(model);
+        },
+        ex =>
+        {
+            var model = new MenuViewModel();
+            model.ErrorMessage = "Error loading menus. Please try again.";
+            return View(model);
+        });
     }
 
     /// <summary>
@@ -95,7 +96,7 @@ public class MenusController : Controller
     [HttpGet]
     public async Task<IActionResult> Edit(int id)
     {
-        try
+        return await ExecuteAsync(async () =>
         {
             var menu = await _menuService.GetByIdAsync(id);
             if (menu == null)
@@ -117,13 +118,9 @@ public class MenusController : Controller
 
             PopulateMenuTypes(model);
             return View(model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading menu {Id}", id);
-            TempData["ErrorMessage"] = "Error loading menu. Please try again.";
-            return RedirectToAction(nameof(Index));
-        }
+        },
+        "Error loading menu. Please try again.",
+        $"Error loading menu {id}");
     }
 
     /// <summary>
@@ -175,13 +172,13 @@ public class MenusController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(EditMenuViewModel model, bool forceActivation = false)
     {
-        if (!ModelState.IsValid)
+        if (!ValidateModelState())
         {
             PopulateMenuTypes(model);
             return View(model);
         }
 
-        try
+        return await ExecuteAsync(async () =>
         {
             bool isNew = model.Id == 0;
             var username = _userContext.Username ?? "System";
@@ -207,11 +204,11 @@ public class MenusController : Controller
                 // Check if menu was automatically set to inactive
                 if (model.IsEnabled && !createdMenu.IsEnabled)
                 {
-                    TempData["SuccessMessage"] = $"Menu '{model.Name}' created successfully, but set to inactive because another {((MenuType)model.MenuType).ToString()} menu is already active. You can activate this menu from the menu list.";
+                    NotifySuccess($"Menu '{model.Name}' created successfully, but set to inactive because another {((MenuType)model.MenuType).ToString()} menu is already active. You can activate this menu from the menu list.");
                 }
                 else
                 {
-                    TempData["SuccessMessage"] = $"Menu '{model.Name}' created successfully.";
+                    NotifySuccess($"Menu '{model.Name}' created successfully.");
                 }
             }
             else
@@ -235,30 +232,29 @@ public class MenusController : Controller
                 // Check if menu was automatically set to inactive
                 if (model.IsEnabled && !updatedMenu.IsEnabled)
                 {
-                    TempData["SuccessMessage"] = $"Menu '{model.Name}' updated successfully, but kept inactive because another {((MenuType)model.MenuType).ToString()} menu is already active. You can activate this menu from the menu list.";
+                    NotifySuccess($"Menu '{model.Name}' updated successfully, but kept inactive because another {((MenuType)model.MenuType).ToString()} menu is already active. You can activate this menu from the menu list.");
                 }
                 else
                 {
-                    TempData["SuccessMessage"] = $"Menu '{model.Name}' updated successfully.";
+                    NotifySuccess($"Menu '{model.Name}' updated successfully.");
                 }
             }
 
             return RedirectToAction(nameof(Index));
-        }
-        catch (InvalidOperationException ex)
+        },
+        ex =>
         {
-            // Handle validation errors (e.g., duplicate active menu of same type)
-            ModelState.AddModelError("", ex.Message);
+            if (ex is InvalidOperationException)
+            {
+                ModelState.AddModelError("", ex.Message);
+            }
+            else
+            {
+                ModelState.AddModelError("", "Error saving menu. Please try again.");
+            }
             PopulateMenuTypes(model);
             return View(model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error saving menu");
-            ModelState.AddModelError("", "Error saving menu. Please try again.");
-            PopulateMenuTypes(model);
-            return View(model);
-        }
+        });
     }
 
     /// <summary>

@@ -6,6 +6,7 @@ using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Web.Models.Admin;
 using Squirrel.Wiki.Web.Resources;
+using Squirrel.Wiki.Web.Services;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -13,22 +14,22 @@ namespace Squirrel.Wiki.Web.Controllers;
 /// Controller for managing application settings
 /// </summary>
 [Authorize(Policy = "RequireAdmin")]
-public class SettingsController : Controller
+public class SettingsController : BaseController
 {
     private readonly ISettingsService _settingsService;
     private readonly SquirrelDbContext _dbContext;
-    private readonly ILogger<SettingsController> _logger;
     private readonly IStringLocalizer<SharedResources> _localizer;
 
     public SettingsController(
         ISettingsService settingsService,
         SquirrelDbContext dbContext,
         ILogger<SettingsController> logger,
-        IStringLocalizer<SharedResources> localizer)
+        IStringLocalizer<SharedResources> localizer,
+        INotificationService notifications)
+        : base(logger, notifications)
     {
         _settingsService = settingsService;
         _dbContext = dbContext;
-        _logger = logger;
         _localizer = localizer;
     }
 
@@ -38,10 +39,10 @@ public class SettingsController : Controller
     [HttpGet]
     public async Task<IActionResult> Index()
     {
-        var model = new SettingsViewModel();
-
-        try
+        return await ExecuteAsync(async () =>
         {
+            var model = new SettingsViewModel();
+
             // Get all settings from database
             var allSettings = await _settingsService.GetAllSettingsAsync();
 
@@ -57,14 +58,15 @@ public class SettingsController : Controller
             {
                 model.ErrorMessage = TempData["ErrorMessage"]?.ToString();
             }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading settings");
-            model.ErrorMessage = _localizer["ErrorLoadingSettings"];
-        }
 
-        return View(model);
+            return View(model);
+        },
+        ex =>
+        {
+            var model = new SettingsViewModel();
+            model.ErrorMessage = _localizer["ErrorLoadingSettings"];
+            return View(model);
+        });
     }
 
     /// <summary>
@@ -78,7 +80,7 @@ public class SettingsController : Controller
             return NotFound();
         }
 
-        try
+        return await ExecuteAsync(async () =>
         {
             var value = await _settingsService.GetSettingAsync<string>(key);
             var settingDef = await GetSettingDefinitionAsync(key);
@@ -101,13 +103,9 @@ public class SettingsController : Controller
             };
 
             return View(model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading setting {Key}", key);
-            TempData["ErrorMessage"] = _localizer["ErrorLoadingSetting"];
-            return RedirectToAction(nameof(Index));
-        }
+        },
+        _localizer["ErrorLoadingSetting"],
+        $"Error loading setting {key}");
     }
 
     /// <summary>
@@ -117,12 +115,12 @@ public class SettingsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(EditSettingViewModel model)
     {
-        if (!ModelState.IsValid)
+        if (!ValidateModelState())
         {
             return View(model);
         }
 
-        try
+        return await ExecuteAsync(async () =>
         {
             // Convert value based on type
             object valueToSave = model.Type switch
@@ -136,15 +134,14 @@ public class SettingsController : Controller
 
             _logger.LogInformation("Setting {Key} updated by {User}", model.Key, User.Identity?.Name);
 
-            TempData["SuccessMessage"] = $"Setting '{model.DisplayName}' updated successfully.";
+            NotifySuccess($"Setting '{model.DisplayName}' updated successfully.");
             return RedirectToAction(nameof(Index));
-        }
-        catch (Exception ex)
+        },
+        ex =>
         {
-            _logger.LogError(ex, "Error saving setting {Key}", model.Key);
             ModelState.AddModelError("", "Error saving setting. Please try again.");
             return View(model);
-        }
+        });
     }
 
     /// <summary>
