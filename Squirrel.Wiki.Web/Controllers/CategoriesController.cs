@@ -16,11 +16,13 @@ namespace Squirrel.Wiki.Web.Controllers;
 public class CategoriesController : BaseController
 {
     private readonly ICategoryService _categoryService;
+    private readonly ICategoryTreeBuilder _treeBuilder;
     private readonly IPageService _pageService;
     private readonly IUserContext _userContext;
 
     public CategoriesController(
         ICategoryService categoryService,
+        ICategoryTreeBuilder treeBuilder,
         IPageService pageService,
         IUserContext userContext,
         ILogger<CategoriesController> logger,
@@ -28,6 +30,7 @@ public class CategoriesController : BaseController
         : base(logger, notifications)
     {
         _categoryService = categoryService;
+        _treeBuilder = treeBuilder;
         _pageService = pageService;
         _userContext = userContext;
     }
@@ -372,81 +375,15 @@ public class CategoriesController : BaseController
     #region Helper Methods
 
     /// <summary>
-    /// Build hierarchical category tree
+    /// Build hierarchical category tree using the tree builder service
     /// </summary>
     private async Task<List<CategoryTreeNode>> BuildCategoryTreeAsync(IEnumerable<CategoryDto> categories)
     {
-        var categoryList = categories.ToList();
-        var tree = new List<CategoryTreeNode>();
-        var lookup = new Dictionary<int, CategoryTreeNode>();
-
-        // Create nodes
-        foreach (var category in categoryList)
-        {
-            var node = new CategoryTreeNode
-            {
-                Id = category.Id,
-                Name = category.Name,
-                Slug = category.Slug,
-                Description = category.Description,
-                FullPath = category.FullPath,
-                ParentId = category.ParentId,
-                Level = category.Level,
-                PageCount = category.PageCount,
-                CreatedOn = category.CreatedOn,
-                ModifiedOn = category.ModifiedOn,
-                ModifiedBy = category.ModifiedBy,
-                Children = new List<CategoryTreeNode>()
-            };
-
-            lookup[category.Id] = node;
-        }
-
-        // Build tree structure
-        foreach (var category in categoryList)
-        {
-            var node = lookup[category.Id];
-            
-            if (category.ParentId.HasValue && lookup.ContainsKey(category.ParentId.Value))
-            {
-                lookup[category.ParentId.Value].Children.Add(node);
-            }
-            else
-            {
-                tree.Add(node);
-            }
-        }
-
-        // Calculate subcategory counts
-        foreach (var node in lookup.Values)
-        {
-            node.SubcategoryCount = node.Children.Count;
-        }
-
-        // Sort at each level
-        SortTreeNodes(tree);
-
-        return tree;
+        return await _treeBuilder.BuildTreeAsync(categories);
     }
 
     /// <summary>
-    /// Recursively sort tree nodes
-    /// </summary>
-    private void SortTreeNodes(List<CategoryTreeNode> nodes)
-    {
-        nodes.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
-        
-        foreach (var node in nodes)
-        {
-            if (node.Children.Any())
-            {
-                SortTreeNodes(node.Children);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Get available parent categories (excluding self and descendants)
+    /// Get available parent categories (excluding self and descendants) using the tree builder service
     /// </summary>
     private async Task<List<CategorySelectItem>> GetAvailableParentsAsync(int? excludeId)
     {
@@ -471,34 +408,13 @@ public class CategoriesController : BaseController
             await AddDescendantsAsync(excludeId.Value, excludedIds, allCategories);
         }
 
-        // Build flat list with indentation
-        var tree = await BuildCategoryTreeAsync(allCategories.Where(c => !excludedIds.Contains(c.Id)));
-        AddTreeToSelectList(tree, items, excludedIds);
+        // Build tree and flatten using the tree builder service
+        var tree = await _treeBuilder.BuildTreeAsync(allCategories.Where(c => !excludedIds.Contains(c.Id)));
+        var flattenedItems = _treeBuilder.FlattenTreeForSelection(tree, excludedIds);
+        
+        items.AddRange(flattenedItems);
 
         return items;
-    }
-
-    /// <summary>
-    /// Recursively add tree nodes to select list
-    /// </summary>
-    private void AddTreeToSelectList(List<CategoryTreeNode> nodes, List<CategorySelectItem> items, HashSet<int> excludedIds, string prefix = "")
-    {
-        foreach (var node in nodes)
-        {
-            items.Add(new CategorySelectItem
-            {
-                Id = node.Id,
-                Name = prefix + node.Name,
-                FullPath = node.FullPath,
-                Level = node.Level,
-                IsDisabled = excludedIds.Contains(node.Id)
-            });
-
-            if (node.Children.Any())
-            {
-                AddTreeToSelectList(node.Children, items, excludedIds, prefix + "  ");
-            }
-        }
     }
 
     /// <summary>

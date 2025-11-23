@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Squirrel.Wiki.Core.Services;
 
 namespace Squirrel.Wiki.Web.Models.Admin;
 
@@ -8,27 +9,6 @@ namespace Squirrel.Wiki.Web.Models.Admin;
 public class CategoryViewModel : BaseViewModel
 {
     public List<CategoryTreeNode> Categories { get; set; } = new();
-}
-
-/// <summary>
-/// Category tree node for hierarchical display
-/// </summary>
-public class CategoryTreeNode
-{
-    public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public string FullPath { get; set; } = string.Empty;
-    public int? ParentId { get; set; }
-    public int Level { get; set; }
-    public int PageCount { get; set; }
-    public int SubcategoryCount { get; set; }
-    public DateTime CreatedOn { get; set; }
-    public DateTime ModifiedOn { get; set; }
-    public string ModifiedBy { get; set; } = string.Empty;
-    public List<CategoryTreeNode> Children { get; set; } = new();
-    public bool IsExpanded { get; set; } = true;
 }
 
 /// <summary>
@@ -57,17 +37,6 @@ public class EditCategoryViewModel
     public bool IsNew => Id == 0;
 }
 
-/// <summary>
-/// Category select item for parent selection dropdown
-/// </summary>
-public class CategorySelectItem
-{
-    public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string FullPath { get; set; } = string.Empty;
-    public int Level { get; set; }
-    public bool IsDisabled { get; set; }
-}
 
 /// <summary>
 /// View model for category details

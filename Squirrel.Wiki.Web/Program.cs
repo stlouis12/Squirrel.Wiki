@@ -196,6 +196,7 @@ builder.Services.AddScoped<IMarkdownService, MarkdownService>();
 builder.Services.AddScoped<IPageService, PageService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<ICategoryTreeBuilder, CategoryTreeBuilder>();
 builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<IMenuService, MenuService>();
 builder.Services.AddScoped<ISearchService, LuceneSearchService>();

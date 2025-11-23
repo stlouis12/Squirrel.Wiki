@@ -19,6 +19,7 @@ public class CategoryService : ICategoryService
     private const string CacheKeyPrefix = "category:";
     private const string CacheKeyTree = "category:tree";
     private static readonly TimeSpan CacheExpiration = TimeSpan.FromMinutes(30);
+    private const int MaxCategoryDepth = 3; // Maximum nesting depth for categories
 
     public CategoryService(
         ICategoryRepository categoryRepository,
@@ -195,13 +196,22 @@ public class CategoryService : ICategoryService
             throw new InvalidOperationException($"Category name '{createDto.Name}' already exists under {parentName}.");
         }
 
-        // Validate parent exists if specified
+        // Validate parent exists and check depth limit if specified
         if (parentId.HasValue)
         {
             var parent = await _categoryRepository.GetByIdAsync(parentId.Value, cancellationToken);
             if (parent == null)
             {
                 throw new InvalidOperationException($"Parent category with ID {parentId.Value} not found.");
+            }
+
+            // Check depth limit - get parent's depth and ensure new category won't exceed max
+            var parentPath = await _categoryRepository.GetCategoryPathAsync(parentId.Value, cancellationToken);
+            var parentDepth = parentPath.Count() - 1; // 0-indexed depth
+            
+            if (parentDepth >= MaxCategoryDepth - 1)
+            {
+                throw new InvalidOperationException($"Cannot create category: maximum nesting depth of {MaxCategoryDepth} levels would be exceeded. Parent category is already at depth {parentDepth + 1}.");
             }
         }
 
@@ -260,6 +270,24 @@ public class CategoryService : ICategoryService
             {
                 throw new InvalidOperationException("Cannot move category: would create circular reference.");
             }
+
+            // Check depth limit when moving to a new parent
+            if (parentId.HasValue)
+            {
+                var parentPath = await _categoryRepository.GetCategoryPathAsync(parentId.Value, cancellationToken);
+                var parentDepth = parentPath.Count() - 1;
+                
+                // Get the depth of the subtree being moved
+                var categoryPath = await _categoryRepository.GetCategoryPathAsync(id, cancellationToken);
+                var currentDepth = categoryPath.Count() - 1;
+                var subtreeDepth = await GetSubtreeDepthAsync(id, cancellationToken);
+                var totalDepthAfterMove = parentDepth + 1 + subtreeDepth;
+                
+                if (totalDepthAfterMove > MaxCategoryDepth)
+                {
+                    throw new InvalidOperationException($"Cannot move category: would exceed maximum nesting depth of {MaxCategoryDepth} levels. This category has a subtree depth of {subtreeDepth + 1} levels, and the target parent is at depth {parentDepth + 1}.");
+                }
+            }
         }
 
         category.Name = updateDto.Name;
@@ -289,6 +317,21 @@ public class CategoryService : ICategoryService
         if (category == null)
         {
             throw new InvalidOperationException($"Category with ID {categoryId} not found.");
+        }
+
+        // Check depth limit when moving to a new parent
+        if (newParentId.HasValue)
+        {
+            var parentPath = await _categoryRepository.GetCategoryPathAsync(newParentId.Value, cancellationToken);
+            var parentDepth = parentPath.Count() - 1;
+            
+            var subtreeDepth = await GetSubtreeDepthAsync(categoryId, cancellationToken);
+            var totalDepthAfterMove = parentDepth + 1 + subtreeDepth;
+            
+            if (totalDepthAfterMove > MaxCategoryDepth)
+            {
+                throw new InvalidOperationException($"Cannot move category: would exceed maximum nesting depth of {MaxCategoryDepth} levels. This category has a subtree depth of {subtreeDepth + 1} levels, and the target parent is at depth {parentDepth + 1}.");
+            }
         }
 
         category.ParentCategoryId = newParentId;
@@ -525,6 +568,28 @@ public class CategoryService : ICategoryService
         {
             _logger.LogWarning(ex, "Failed to invalidate category cache");
         }
+    }
+
+    /// <summary>
+    /// Get the maximum depth of a category's subtree (0 if no children)
+    /// </summary>
+    private async Task<int> GetSubtreeDepthAsync(int categoryId, CancellationToken cancellationToken)
+    {
+        var children = await _categoryRepository.GetChildrenAsync(categoryId, cancellationToken);
+        
+        if (!children.Any())
+        {
+            return 0;
+        }
+
+        var maxChildDepth = 0;
+        foreach (var child in children)
+        {
+            var childDepth = await GetSubtreeDepthAsync(child.Id, cancellationToken);
+            maxChildDepth = Math.Max(maxChildDepth, childDepth);
+        }
+
+        return maxChildDepth + 1;
     }
 
     private static string GenerateSlug(string name)
