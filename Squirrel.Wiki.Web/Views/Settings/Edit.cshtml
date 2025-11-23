@@ -98,9 +98,13 @@
                                         <option value="">@Localizer["Select"]</option>
                                         @if (Model.Options != null)
                                         {
+                                            var timezoneDisplayNames = ViewBag.TimezoneDisplayNames as Dictionary<string, string>;
                                             foreach (var option in Model.Options)
                                             {
-                                                <option value="@option" selected="@(Model.Value == option)">@option</option>
+                                                var displayText = timezoneDisplayNames != null && timezoneDisplayNames.ContainsKey(option) 
+                                                    ? timezoneDisplayNames[option] 
+                                                    : option;
+                                                <option value="@option" selected="@(Model.Value == option)">@displayText</option>
                                             }
                                         }
                                     </select>

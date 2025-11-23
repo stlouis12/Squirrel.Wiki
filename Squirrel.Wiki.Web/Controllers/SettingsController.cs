@@ -19,18 +19,21 @@ public class SettingsController : BaseController
     private readonly ISettingsService _settingsService;
     private readonly SquirrelDbContext _dbContext;
     private readonly IStringLocalizer<SharedResources> _localizer;
+    private readonly ITimezoneService _timezoneService;
 
     public SettingsController(
         ISettingsService settingsService,
         SquirrelDbContext dbContext,
         ILogger<SettingsController> logger,
         IStringLocalizer<SharedResources> localizer,
-        INotificationService notifications)
+        INotificationService notifications,
+        ITimezoneService timezoneService)
         : base(logger, notifications)
     {
         _settingsService = settingsService;
         _dbContext = dbContext;
         _localizer = localizer;
+        _timezoneService = timezoneService;
     }
 
     /// <summary>
@@ -87,6 +90,15 @@ public class SettingsController : BaseController
                 ValidationPattern = settingDef.ValidationPattern,
                 Options = settingDef.Options
             };
+
+            // For timezone dropdown, provide display names
+            if (key == "TimeZone" && settingDef.Options != null)
+            {
+                ViewBag.TimezoneDisplayNames = settingDef.Options.ToDictionary(
+                    id => id,
+                    id => _timezoneService.GetTimezoneDisplayName(id)
+                );
+            }
 
             return View(model);
         },
@@ -189,7 +201,7 @@ public class SettingsController : BaseController
                 CreateSettingItem("SiteName", _localizer["SiteName"], "The name of your wiki", SettingType.Text, true, existingSettings, envInfo),
                 CreateSettingItem("SiteUrl", _localizer["SiteURL"], _localizer["SiteURLDescription"], SettingType.Url, true, existingSettings, envInfo),
                 CreateSettingItem("DefaultLanguage", _localizer["DefaultLanguage"], _localizer["DefaultLanguageDescription"], SettingType.Dropdown, true, existingSettings, envInfo, new List<string> { "en", "es", "fr", "de", "it" }),
-                CreateSettingItem("TimeZone", _localizer["TimeZone"], _localizer["TimeZoneDescription"], SettingType.Text, true, existingSettings, envInfo)
+                CreateSettingItem("TimeZone", _localizer["TimeZone"], _localizer["TimeZoneDescription"], SettingType.Dropdown, true, existingSettings, envInfo, _timezoneService.GetAvailableTimezoneIds().ToList())
             }
         });
 

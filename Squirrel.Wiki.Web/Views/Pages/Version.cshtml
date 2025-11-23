@@ -1,3 +1,4 @@
+@using Squirrel.Wiki.Web.Extensions
 @model Squirrel.Wiki.Web.Models.PageViewModel
 @{
     ViewData["Title"] = $"{Model.Title} - {Localizer["Version"]} {ViewData["VersionNumber"]}";
@@ -13,7 +14,17 @@
                 <strong>@Localizer["HistoricalVersion"]</strong> @Localizer["YouAreViewingVersion"] <strong>@versionNumber</strong> @Localizer["OfThisPage"]
                 <br>
                 <small class="text-muted">
-                    @Localizer["LastModifiedByOn"] <strong>@Model.ModifiedBy</strong> @Localizer["On"].ToString().ToLower() @Model.ModifiedOn.ToString("MMM dd, yyyy 'at' HH:mm")
+                    @Localizer["LastModifiedByOn"] <strong>@Model.ModifiedBy</strong> @Localizer["On"].ToString().ToLower() 
+                    @if (Model.TimezoneService != null)
+                    {
+                        <span title="@await Model.ModifiedOn.ToLocalTimeStringAsync(Model.TimezoneService, "F")">
+                            @await Model.ModifiedOn.ToLocalTimeStringAsync(Model.TimezoneService, "MMM dd, yyyy 'at' h:mm tt")
+                        </span>
+                    }
+                    else
+                    {
+                        @Model.ModifiedOn.ToString("MMM dd, yyyy 'at' HH:mm")
+                    }
                 </small>
             </div>
             <div>
@@ -36,7 +47,15 @@
                     <i class="bi bi-person"></i> @Localizer["CreatedByOn"] <strong>@Model.CreatedBy</strong>
                 </span>
                 <span class="ms-3">
-                    <i class="bi bi-calendar"></i> @Model.CreatedOn.ToString("MMM dd, yyyy")
+                    <i class="bi bi-calendar"></i> 
+                    @if (Model.TimezoneService != null)
+                    {
+                        @await Model.CreatedOn.ToLocalDateStringAsync(Model.TimezoneService)
+                    }
+                    else
+                    {
+                        @Model.CreatedOn.ToString("MMM dd, yyyy")
+                    }
                 </span>
                 @if (Model.CategoryId.HasValue && !string.IsNullOrEmpty(Model.CategoryName))
                 {

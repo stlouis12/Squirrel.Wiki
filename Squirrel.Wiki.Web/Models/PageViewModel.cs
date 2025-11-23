@@ -6,7 +6,7 @@ namespace Squirrel.Wiki.Web.Models;
 /// <summary>
 /// View model for displaying and editing wiki pages
 /// </summary>
-public class PageViewModel
+public class PageViewModel : BaseViewModel
 {
     public int Id { get; set; }
 
@@ -104,6 +104,16 @@ public class PageHistoryViewModel
     public string EditedBy { get; set; } = string.Empty;
     public DateTime EditedOn { get; set; }
     public string? ChangeComment { get; set; }
+}
+
+/// <summary>
+/// View model wrapper for page history list with timezone support
+/// </summary>
+public class PageHistoryListViewModel : BaseViewModel
+{
+    public List<PageHistoryViewModel> Versions { get; set; } = new();
+    public int PageId { get; set; }
+    public string PageTitle { get; set; } = string.Empty;
 }
 
 /// <summary>

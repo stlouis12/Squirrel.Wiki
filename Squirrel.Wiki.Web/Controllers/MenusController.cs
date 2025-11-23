@@ -22,9 +22,10 @@ public class MenusController : BaseController
     public MenusController(
         IMenuService menuService,
         IUserContext userContext,
+        ITimezoneService timezoneService,
         ILogger<MenusController> logger,
         INotificationService notifications)
-        : base(logger, notifications)
+        : base(logger, notifications, timezoneService)
     {
         _menuService = menuService;
         _userContext = userContext;
@@ -53,6 +54,7 @@ public class MenusController : BaseController
                 ModifiedBy = m.ModifiedBy ?? "System"
             }).ToList();
 
+            PopulateBaseViewModel(model);
             return View(model);
         },
         "Error loading menus. Please try again.",

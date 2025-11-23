@@ -1,3 +1,4 @@
+@using Squirrel.Wiki.Web.Extensions
 @model Squirrel.Wiki.Web.Models.PageListViewModel
 @{
     ViewData["Title"] = Localizer["AllPages"];
@@ -100,9 +101,18 @@
                                 </a>
                             </td>
                             <td>
-                                <small class="text-muted" title="@pageItem.ModifiedOn.ToString("F")">
-                                    @pageItem.ModifiedOn.ToString("MMM dd, yyyy")
-                                </small>
+                                @if (Model.TimezoneService != null)
+                                {
+                                    <small class="text-muted" title="@await pageItem.ModifiedOn.ToLocalTimeStringAsync(Model.TimezoneService, "F")">
+                                        @await pageItem.ModifiedOn.ToRelativeTimeStringAsync(Model.TimezoneService, Localizer)
+                                    </small>
+                                }
+                                else
+                                {
+                                    <small class="text-muted" title="@pageItem.ModifiedOn.ToString("F")">
+                                        @pageItem.ModifiedOn.ToString("MMM dd, yyyy")
+                                    </small>
+                                }
                             </td>
                             <td class="text-center">
                                 <div class="btn-group btn-group-sm" role="group">

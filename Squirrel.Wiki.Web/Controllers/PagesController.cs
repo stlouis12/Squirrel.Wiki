@@ -36,9 +36,10 @@ public class PagesController : BaseController
         Squirrel.Wiki.Core.Security.IAuthorizationService authorizationService,
         IPageRepository pageRepository,
         ISettingsService settingsService,
+        ITimezoneService timezoneService,
         ILogger<PagesController> logger,
         INotificationService notifications)
-        : base(logger, notifications)
+        : base(logger, notifications, timezoneService)
     {
         _pageService = pageService;
         _tagService = tagService;
@@ -159,6 +160,9 @@ public class PagesController : BaseController
                 FilterValue = filterValue,
                 Pages = pageSummaries
             };
+
+            // Populate timezone service for view
+            PopulateBaseViewModel(viewModel);
 
             return View(viewModel);
         }
@@ -608,7 +612,7 @@ public class PagesController : BaseController
 
             var history = await _pageService.GetPageHistoryAsync(id, cancellationToken);
             
-            var viewModel = history.Select(h => new PageHistoryViewModel
+            var versions = history.Select(h => new PageHistoryViewModel
             {
                 VersionId = h.Id,
                 PageId = id,
@@ -619,8 +623,15 @@ public class PagesController : BaseController
                 ChangeComment = h.ChangeComment
             }).ToList();
 
-            ViewData["PageId"] = id;
-            ViewData["PageTitle"] = page.Title;
+            var viewModel = new PageHistoryListViewModel
+            {
+                Versions = versions,
+                PageId = id,
+                PageTitle = page.Title
+            };
+
+            // Populate timezone service for view
+            PopulateBaseViewModel(viewModel);
             
             return View(viewModel);
         }

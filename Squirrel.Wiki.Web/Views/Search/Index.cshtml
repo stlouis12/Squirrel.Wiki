@@ -1,3 +1,4 @@
+@using Squirrel.Wiki.Web.Extensions
 @model Squirrel.Wiki.Web.Models.SearchResultsViewModel
 @{
     ViewData["Title"] = string.IsNullOrEmpty(Model.Query) ? Localizer["Search"] : $"{Localizer["Search"]}: {Model.Query}";
@@ -56,7 +57,15 @@
                                     <p class="mb-1 text-muted">@Html.Raw(result.Excerpt)</p>
                                     <small class="text-muted">
                                         <i class="bi bi-clock"></i> @Localizer["LastModifiedBy"] <strong>@result.ModifiedBy</strong> 
-                                        @Localizer["On"] @result.ModifiedOn.ToString("MMM dd, yyyy")
+                                        @Localizer["On"] 
+                                        @if (Model.TimezoneService != null)
+                                        {
+                                            @await result.ModifiedOn.ToLocalDateStringAsync(Model.TimezoneService)
+                                        }
+                                        else
+                                        {
+                                            @result.ModifiedOn.ToString("MMM dd, yyyy")
+                                        }
                                     </small>
                                 </div>
                                 <div class="ms-3">

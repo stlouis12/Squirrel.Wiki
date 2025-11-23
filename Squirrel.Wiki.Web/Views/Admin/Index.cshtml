@@ -1,3 +1,4 @@
+@using Squirrel.Wiki.Web.Extensions
 @model Squirrel.Wiki.Web.Models.Admin.DashboardViewModel
 @{
     ViewData["Title"] = Localizer["AdminDashboard"];
@@ -234,7 +235,16 @@
                                             <br>
                                             <small class="text-muted">@Localizer["By"] @activity.User</small>
                                         </div>
-                                        <small class="text-muted">@activity.Timestamp.ToString("g")</small>
+                                        <small class="text-muted">
+                                            @if (Model.TimezoneService != null)
+                                            {
+                                                @await activity.Timestamp.ToLocalTimeStringAsync(Model.TimezoneService, "g")
+                                            }
+                                            else
+                                            {
+                                                @activity.Timestamp.ToString("g")
+                                            }
+                                        </small>
                                     </div>
                                 </div>
                             }

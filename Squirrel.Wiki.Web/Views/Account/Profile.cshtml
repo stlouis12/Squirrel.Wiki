@@ -1,3 +1,4 @@
+@using Squirrel.Wiki.Web.Extensions
 @model Squirrel.Wiki.Web.Models.ProfileViewModel
 @{
     ViewData["Title"] = Localizer["UserProfile"];
@@ -92,7 +93,14 @@
                                 <div>
                                     @if (Model.LastLoginOn.HasValue)
                                     {
-                                        @Model.LastLoginOn.Value.ToString("MMMM dd, yyyy 'at' h:mm tt")
+                                        if (Model.TimezoneService != null)
+                                        {
+                                            @await Model.LastLoginOn.Value.ToLocalTimeStringAsync(Model.TimezoneService, "MMMM dd, yyyy 'at' h:mm tt")
+                                        }
+                                        else
+                                        {
+                                            @Model.LastLoginOn.Value.ToString("MMMM dd, yyyy 'at' h:mm tt")
+                                        }
                                     }
                                     else
                                     {
@@ -104,7 +112,16 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label text-muted small">@Localizer["AccountCreated"]</label>
-                                <div>@Model.CreatedOn.ToString("MMMM dd, yyyy")</div>
+                                <div>
+                                    @if (Model.TimezoneService != null)
+                                    {
+                                        @await Model.CreatedOn.ToLocalDateStringAsync(Model.TimezoneService)
+                                    }
+                                    else
+                                    {
+                                        @Model.CreatedOn.ToString("MMMM dd, yyyy")
+                                    }
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -123,7 +140,16 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label text-muted small">@Localizer["LastPasswordChange"]</label>
-                                    <div>@Model.LastPasswordChangeOn.Value.ToString("MMMM dd, yyyy")</div>
+                                    <div>
+                                        @if (Model.TimezoneService != null)
+                                        {
+                                            @await Model.LastPasswordChangeOn.Value.ToLocalDateStringAsync(Model.TimezoneService)
+                                        }
+                                        else
+                                        {
+                                            @Model.LastPasswordChangeOn.Value.ToString("MMMM dd, yyyy")
+                                        }
+                                    </div>
                                 </div>
                             </div>
                         }

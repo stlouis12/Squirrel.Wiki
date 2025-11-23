@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Localization;
+using Squirrel.Wiki.Core.Services;
+
 namespace Squirrel.Wiki.Web.Models;
 
 /// <summary>
@@ -39,4 +42,16 @@ public abstract class BaseViewModel
     /// Indicates if the user is authenticated
     /// </summary>
     public bool IsAuthenticated { get; set; }
+
+    /// <summary>
+    /// Timezone service for converting UTC timestamps to local time
+    /// This is injected by controllers and available to all views
+    /// </summary>
+    public ITimezoneService? TimezoneService { get; set; }
+
+    /// <summary>
+    /// String localizer for translating UI strings
+    /// This is injected by controllers and available to all views
+    /// </summary>
+    public IStringLocalizer? Localizer { get; set; }
 }

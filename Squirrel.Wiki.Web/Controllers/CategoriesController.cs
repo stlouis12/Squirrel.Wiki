@@ -25,9 +25,10 @@ public class CategoriesController : BaseController
         ICategoryTreeBuilder treeBuilder,
         IPageService pageService,
         IUserContext userContext,
+        ITimezoneService timezoneService,
         ILogger<CategoriesController> logger,
         INotificationService notifications)
-        : base(logger, notifications)
+        : base(logger, notifications, timezoneService)
     {
         _categoryService = categoryService;
         _treeBuilder = treeBuilder;
@@ -51,6 +52,7 @@ public class CategoriesController : BaseController
                 Categories = tree
             };
 
+            PopulateBaseViewModel(model);
             return View(model);
         },
         ex =>
@@ -262,6 +264,7 @@ public class CategoriesController : BaseController
                 model.ParentName = parent?.Name;
             }
 
+            PopulateBaseViewModel(model);
             return View(model);
         },
         "Error loading category.",

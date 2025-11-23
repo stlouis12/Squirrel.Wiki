@@ -1,3 +1,4 @@
+@using Squirrel.Wiki.Web.Extensions
 @model Squirrel.Wiki.Web.Models.Admin.UserListViewModel
 @{
     ViewData["Title"] = Localizer["UserManagement"];
@@ -122,7 +123,16 @@
                                     <td>
                                         @if (user.LastLoginOn.HasValue)
                                         {
-                                            @user.LastLoginOn.Value.ToString("yyyy-MM-dd HH:mm")
+                                            if (Model.TimezoneService != null)
+                                            {
+                                                <span title="@await user.LastLoginOn.Value.ToLocalTimeStringAsync(Model.TimezoneService, "F")">
+                                                    @await user.LastLoginOn.Value.ToRelativeTimeStringAsync(Model.TimezoneService, Localizer)
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                @user.LastLoginOn.Value.ToString("yyyy-MM-dd HH:mm")
+                                            }
                                         }
                                         else
                                         {

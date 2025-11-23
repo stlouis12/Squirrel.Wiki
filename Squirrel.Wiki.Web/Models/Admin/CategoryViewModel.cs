@@ -41,7 +41,7 @@ public class EditCategoryViewModel
 /// <summary>
 /// View model for category details
 /// </summary>
-public class CategoryDetailsViewModel
+public class CategoryDetailsViewModel : BaseViewModel
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
@@ -60,7 +60,7 @@ public class CategoryDetailsViewModel
     public string ModifiedBy { get; set; } = string.Empty;
     public List<CategoryTreeNode> Subcategories { get; set; } = new();
     public List<CategoryPageItem> Pages { get; set; } = new();
-    public List<string> Breadcrumbs { get; set; } = new();
+    public new List<string> Breadcrumbs { get; set; } = new();
 }
 
 /// <summary>

@@ -20,9 +20,10 @@ public class SearchController : BaseController
         ISearchService searchService,
         Squirrel.Wiki.Core.Security.IAuthorizationService authorizationService,
         IPageRepository pageRepository,
+        ITimezoneService timezoneService,
         ILogger<SearchController> logger,
         INotificationService notifications)
-        : base(logger, notifications)
+        : base(logger, notifications, timezoneService)
     {
         _searchService = searchService;
         _authorizationService = authorizationService;
@@ -95,6 +96,7 @@ public class SearchController : BaseController
                 Results = authorizedResults
             };
 
+            PopulateBaseViewModel(viewModel);
             return View(viewModel);
         }
         catch (Exception ex)
@@ -108,6 +110,7 @@ public class SearchController : BaseController
                 PageSize = pageSize
             };
             
+            PopulateBaseViewModel(errorViewModel);
             NotifyError("An error occurred while searching. Please try again.");
             return View(errorViewModel);
         }

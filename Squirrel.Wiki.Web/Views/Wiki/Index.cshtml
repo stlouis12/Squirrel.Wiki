@@ -1,3 +1,4 @@
+@using Squirrel.Wiki.Web.Extensions
 @model Squirrel.Wiki.Web.Models.PageViewModel
 @{
     ViewData["Title"] = Model.Title;
@@ -99,12 +100,30 @@
             <div class="row">
                 <div class="col-md-6">
                     <small class="text-muted">
-                        <i class="bi bi-person"></i> @Localizer["CreatedByOn"] <strong>@Model.CreatedBy</strong> @Localizer["On"].ToString().ToLower() @Model.CreatedOn.ToString("MMMM dd, yyyy")
+                        <i class="bi bi-person"></i> @Localizer["CreatedByOn"] <strong>@Model.CreatedBy</strong> @Localizer["On"].ToString().ToLower() 
+                        @if (Model.TimezoneService != null)
+                        {
+                            @await Model.CreatedOn.ToLocalDateStringAsync(Model.TimezoneService)
+                        }
+                        else
+                        {
+                            @Model.CreatedOn.ToString("MMMM dd, yyyy")
+                        }
                     </small>
                 </div>
                 <div class="col-md-6 text-md-end">
                     <small class="text-muted">
-                        <i class="bi bi-clock"></i> @Localizer["LastModifiedByOn"] <strong>@Model.ModifiedBy</strong> @Localizer["On"].ToString().ToLower() @Model.ModifiedOn.ToString("MMMM dd, yyyy 'at' HH:mm")
+                        <i class="bi bi-clock"></i> @Localizer["LastModifiedByOn"] <strong>@Model.ModifiedBy</strong> @Localizer["On"].ToString().ToLower() 
+                        @if (Model.TimezoneService != null)
+                        {
+                            <span title="@await Model.ModifiedOn.ToLocalTimeStringAsync(Model.TimezoneService, "F")">
+                                @await Model.ModifiedOn.ToLocalTimeStringAsync(Model.TimezoneService, "MMMM dd, yyyy 'at' h:mm tt")
+                            </span>
+                        }
+                        else
+                        {
+                            @Model.ModifiedOn.ToString("MMMM dd, yyyy 'at' HH:mm")
+                        }
                     </small>
                 </div>
             </div>

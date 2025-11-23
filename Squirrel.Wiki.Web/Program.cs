@@ -240,6 +240,7 @@ builder.Services.AddScoped<ITagService>(sp =>
 builder.Services.AddScoped<IMenuService, MenuService>();
 builder.Services.AddScoped<ISearchService, LuceneSearchService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
+builder.Services.AddScoped<ITimezoneService, TimezoneService>();
 builder.Services.AddScoped<IUrlTokenResolver, UrlTokenResolver>();
 builder.Services.AddScoped<FooterMarkupParser>();
 

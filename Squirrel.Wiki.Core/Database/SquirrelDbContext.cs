@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Core.Database.Entities;
 
 namespace Squirrel.Wiki.Core.Database;
@@ -9,11 +10,20 @@ namespace Squirrel.Wiki.Core.Database;
 /// </summary>
 public class SquirrelDbContext : DbContext, IDataProtectionKeyContext
 {
+    private readonly ILogger<SquirrelDbContext>? _logger;
+
     public SquirrelDbContext(DbContextOptions<SquirrelDbContext> options)
         : base(options)
     {
     }
 
+    public SquirrelDbContext(DbContextOptions<SquirrelDbContext> options, ILogger<SquirrelDbContext> logger)
+        : base(options)
+    {
+        _logger = logger;
+    }
+
+    // DbSet properties
     public DbSet<Page> Pages { get; set; } = null!;
     public DbSet<PageContent> PageContents { get; set; } = null!;
     public DbSet<User> Users { get; set; } = null!;
@@ -26,9 +36,60 @@ public class SquirrelDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<AuthenticationPlugin> AuthenticationPlugins { get; set; } = null!;
     public DbSet<AuthenticationPluginSetting> AuthenticationPluginSettings { get; set; } = null!;
     public DbSet<PluginAuditLog> PluginAuditLogs { get; set; } = null!;
-    
-    // Data Protection Keys for distributed deployments
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
+
+    /// <summary>
+    /// Ensures all DateTime values are stored as UTC before saving to database
+    /// </summary>
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        // Ensure all DateTime values are UTC before saving
+        var entries = ChangeTracker.Entries()
+            .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
+
+        foreach (var entry in entries)
+        {
+            foreach (var property in entry.Properties)
+            {
+                // Handle DateTime properties
+                if (property.Metadata.ClrType == typeof(DateTime))
+                {
+                    if (property.CurrentValue is DateTime dateTime)
+                    {
+                        if (dateTime.Kind != DateTimeKind.Utc)
+                        {
+                            _logger?.LogWarning(
+                                "Non-UTC DateTime detected in {EntityType}.{PropertyName}. Converting to UTC. Original Kind: {Kind}",
+                                entry.Metadata.Name,
+                                property.Metadata.Name,
+                                dateTime.Kind);
+                            
+                            property.CurrentValue = DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
+                        }
+                    }
+                }
+                // Handle nullable DateTime properties
+                else if (property.Metadata.ClrType == typeof(DateTime?))
+                {
+                    if (property.CurrentValue is DateTime nullableDateTime)
+                    {
+                        if (nullableDateTime.Kind != DateTimeKind.Utc)
+                        {
+                            _logger?.LogWarning(
+                                "Non-UTC DateTime detected in {EntityType}.{PropertyName}. Converting to UTC. Original Kind: {Kind}",
+                                entry.Metadata.Name,
+                                property.Metadata.Name,
+                                nullableDateTime.Kind);
+                            
+                            property.CurrentValue = DateTime.SpecifyKind(nullableDateTime, DateTimeKind.Utc);
+                        }
+                    }
+                }
+            }
+        }
+
+        return await base.SaveChangesAsync(cancellationToken);
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

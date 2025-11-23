@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 using Squirrel.Wiki.Contracts.Authentication;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Web.Models.Admin;
+using Squirrel.Wiki.Web.Resources;
 using Squirrel.Wiki.Web.Services;
 
 namespace Squirrel.Wiki.Web.Controllers;
@@ -18,9 +20,11 @@ public class UsersController : BaseController
 
     public UsersController(
         IUserService userService,
+        ITimezoneService timezoneService,
+        IStringLocalizer<SharedResources> localizer,
         ILogger<UsersController> logger,
         INotificationService notifications)
-        : base(logger, notifications)
+        : base(logger, notifications, timezoneService, localizer)
     {
         _userService = userService;
     }
@@ -88,6 +92,9 @@ public class UsersController : BaseController
                 IsActiveFilter = isActive
             };
 
+            // Populate timezone service for view
+            PopulateBaseViewModel(model);
+
             return View(model);
         },
         "Error loading users. Please try again.",
@@ -111,6 +118,7 @@ public class UsersController : BaseController
                 User = user
             };
 
+            PopulateBaseViewModel(model);
             return View(model);
         },
         "Error loading user details.",

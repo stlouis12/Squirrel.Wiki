@@ -1,4 +1,5 @@
 @using Squirrel.Wiki.Plugins
+@using Squirrel.Wiki.Web.Extensions
 @model Squirrel.Wiki.Web.Models.Admin.UserDetailsViewModel
 @{
     ViewData["Title"] = $"{Localizer["UserDetails"]} - {Model.User.Username}";
@@ -116,14 +117,30 @@
                     }
                     <div class="row mb-3">
                         <div class="col-md-4 fw-bold">@Localizer["CreatedOn"]:</div>
-                        <div class="col-md-8">@Model.User.CreatedOn.ToString("yyyy-MM-dd HH:mm")</div>
+                        <div class="col-md-8">
+                            @if (Model.TimezoneService != null)
+                            {
+                                @await Model.User.CreatedOn.ToLocalTimeStringAsync(Model.TimezoneService, "yyyy-MM-dd HH:mm")
+                            }
+                            else
+                            {
+                                @Model.User.CreatedOn.ToString("yyyy-MM-dd HH:mm")
+                            }
+                        </div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-4 fw-bold">@Localizer["LastLogin"]:</div>
                         <div class="col-md-8">
                             @if (Model.User.LastLoginOn.HasValue)
                             {
-                                @Model.User.LastLoginOn.Value.ToString("yyyy-MM-dd HH:mm")
+                                if (Model.TimezoneService != null)
+                                {
+                                    @await Model.User.LastLoginOn.Value.ToLocalTimeStringAsync(Model.TimezoneService, "yyyy-MM-dd HH:mm")
+                                }
+                                else
+                                {
+                                    @Model.User.LastLoginOn.Value.ToString("yyyy-MM-dd HH:mm")
+                                }
                             }
                             else
                             {
@@ -135,7 +152,16 @@
                     {
                         <div class="row mb-3">
                             <div class="col-md-4 fw-bold">@Localizer["LastPasswordChange"]:</div>
-                            <div class="col-md-8">@Model.User.LastPasswordChangeOn.Value.ToString("yyyy-MM-dd HH:mm")</div>
+                            <div class="col-md-8">
+                                @if (Model.TimezoneService != null)
+                                {
+                                    @await Model.User.LastPasswordChangeOn.Value.ToLocalTimeStringAsync(Model.TimezoneService, "yyyy-MM-dd HH:mm")
+                                }
+                                else
+                                {
+                                    @Model.User.LastPasswordChangeOn.Value.ToString("yyyy-MM-dd HH:mm")
+                                }
+                            </div>
                         </div>
                     }
                 </div>

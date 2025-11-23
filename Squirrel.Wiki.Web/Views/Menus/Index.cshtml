@@ -1,3 +1,4 @@
+@using Squirrel.Wiki.Web.Extensions
 @model Squirrel.Wiki.Web.Models.Admin.MenuViewModel
 @{
     ViewData["Title"] = Localizer["SiteCustomization"].Value;
@@ -75,7 +76,16 @@
                                     </td>
                                     <td>
                                         <small class="text-muted">
-                                            @menu.ModifiedOn.ToString("MMM dd, yyyy HH:mm")
+                                            @if (Model.TimezoneService != null)
+                                            {
+                            <span title="@await menu.ModifiedOn.ToLocalTimeStringAsync(Model.TimezoneService, "F")">
+                                                    @await menu.ModifiedOn.ToRelativeTimeStringAsync(Model.TimezoneService, Localizer)
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                @menu.ModifiedOn.ToString("MMM dd, yyyy HH:mm")
+                                            }
                                         </small>
                                     </td>
                                     <td>

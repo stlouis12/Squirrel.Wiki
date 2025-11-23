@@ -1,4 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
+using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Web.Models;
+using Squirrel.Wiki.Web.Resources;
 using Squirrel.Wiki.Web.Services;
 
 namespace Squirrel.Wiki.Web.Controllers;
@@ -11,11 +15,42 @@ public abstract class BaseController : Controller
 {
     protected readonly ILogger _logger;
     protected readonly INotificationService _notifications;
+    protected readonly ITimezoneService? _timezoneService;
+    protected readonly IStringLocalizer<SharedResources>? _localizer;
 
     protected BaseController(ILogger logger, INotificationService notifications)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
+    }
+
+    protected BaseController(
+        ILogger logger, 
+        INotificationService notifications, 
+        ITimezoneService? timezoneService = null,
+        IStringLocalizer<SharedResources>? localizer = null)
+        : this(logger, notifications)
+    {
+        _timezoneService = timezoneService;
+        _localizer = localizer;
+    }
+
+    /// <summary>
+    /// Populates common properties for a BaseViewModel, including timezone service and localizer
+    /// </summary>
+    /// <typeparam name="T">Type of the view model (must inherit from BaseViewModel)</typeparam>
+    /// <param name="viewModel">The view model to populate</param>
+    protected void PopulateBaseViewModel<T>(T viewModel) where T : BaseViewModel
+    {
+        if (_timezoneService != null)
+        {
+            viewModel.TimezoneService = _timezoneService;
+        }
+        
+        if (_localizer != null)
+        {
+            viewModel.Localizer = _localizer;
+        }
     }
 
     #region Notification Helpers

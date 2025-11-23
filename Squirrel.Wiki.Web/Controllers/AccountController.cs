@@ -21,9 +21,10 @@ public class AccountController : BaseController
         IUserContext userContext,
         IUserService userService,
         ISettingsService settingsService,
+        ITimezoneService timezoneService,
         ILogger<AccountController> logger,
         INotificationService notifications)
-        : base(logger, notifications)
+        : base(logger, notifications, timezoneService)
     {
         _userContext = userContext;
         _userService = userService;
@@ -205,6 +206,7 @@ public class AccountController : BaseController
                 LastPasswordChangeOn = user.LastPasswordChangeOn
             };
 
+            PopulateBaseViewModel(model);
             return View(model);
         }
         catch (Exception ex)

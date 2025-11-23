@@ -1,3 +1,4 @@
+@using Squirrel.Wiki.Web.Extensions
 @model Squirrel.Wiki.Web.Models.Admin.CategoryViewModel
 @{
     ViewData["Title"] = Localizer["CategoryManagement"].Value;
@@ -23,7 +24,7 @@
                 <div class="category-tree">
                     @foreach (var category in Model.Categories)
                     {
-                        @await Html.PartialAsync("_CategoryTreeNode", category)
+                        @await Html.PartialAsync("_CategoryTreeNode", category, new ViewDataDictionary(ViewData) { { "TimezoneService", Model.TimezoneService } })
                     }
                 </div>
             </div>

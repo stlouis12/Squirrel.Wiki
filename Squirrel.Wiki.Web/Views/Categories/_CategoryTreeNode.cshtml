@@ -1,4 +1,9 @@
+@using Squirrel.Wiki.Web.Extensions
+@using Squirrel.Wiki.Core.Services
 @model Squirrel.Wiki.Core.Services.CategoryTreeNode
+@{
+    var timezoneService = ViewData["TimezoneService"] as ITimezoneService;
+}
 
 <div class="category-node" data-category-id="@Model.Id" data-level="@Model.Level">
     <div class="category-item d-flex align-items-center py-2 px-3 border-bottom">
@@ -53,7 +58,17 @@
                         <i class="bi bi-diagram-3"></i> @Localizer["Level"] @Model.Level
                     </span>
                     <span>
-                        <i class="bi bi-clock"></i> @((Model.ModifiedOn ?? Model.CreatedOn).ToString("MMM dd, yyyy"))
+                        <i class="bi bi-clock"></i> 
+                        @if (timezoneService != null)
+                        {
+                            <span title="@await (Model.ModifiedOn ?? Model.CreatedOn).ToLocalTimeStringAsync(timezoneService, "F")">
+                                @await (Model.ModifiedOn ?? Model.CreatedOn).ToRelativeTimeStringAsync(timezoneService, Localizer)
+                            </span>
+                        }
+                        else
+                        {
+                            @((Model.ModifiedOn ?? Model.CreatedOn).ToString("MMM dd, yyyy"))
+                        }
                     </span>
                 </small>
             </div>
@@ -106,7 +121,7 @@
         <div class="category-children ms-4">
             @foreach (var child in Model.Children)
             {
-                @await Html.PartialAsync("_CategoryTreeNode", child)
+                @await Html.PartialAsync("_CategoryTreeNode", child, new ViewDataDictionary(ViewData) { { "TimezoneService", timezoneService } })
             }
         </div>
     }

@@ -1,3 +1,4 @@
+@using Squirrel.Wiki.Web.Extensions
 @model Squirrel.Wiki.Web.Models.Admin.CategoryDetailsViewModel
 @{
     ViewData["Title"] = Model.Name;
@@ -113,7 +114,14 @@
                                             </td>
                                             <td>
                                                 <small class="text-muted">
-                                                    @pageItem.ModifiedOn.ToString("MMM dd, yyyy HH:mm")
+                                                    @if (Model.TimezoneService != null)
+                                                    {
+                                                        @await pageItem.ModifiedOn.ToLocalTimeStringAsync(Model.TimezoneService, "MMM dd, yyyy HH:mm")
+                                                    }
+                                                    else
+                                                    {
+                                                        @pageItem.ModifiedOn.ToString("MMM dd, yyyy HH:mm")
+                                                    }
                                                 </small>
                                             </td>
                                             <td>
@@ -181,7 +189,15 @@
                         <dt class="col-sm-5">@Localizer["Created"]</dt>
                         <dd class="col-sm-7">
                             <small>
-                                @Model.CreatedOn.ToString("MMM dd, yyyy")<br />
+                                @if (Model.TimezoneService != null)
+                                {
+                                    @await Model.CreatedOn.ToLocalDateStringAsync(Model.TimezoneService)
+                                }
+                                else
+                                {
+                                    @Model.CreatedOn.ToString("MMM dd, yyyy")
+                                }
+                                <br />
                                 @Localizer["By"] @Model.CreatedBy
                             </small>
                         </dd>
@@ -189,7 +205,15 @@
                         <dt class="col-sm-5">@Localizer["Modified"]</dt>
                         <dd class="col-sm-7">
                             <small>
-                                @Model.ModifiedOn.ToString("MMM dd, yyyy")<br />
+                                @if (Model.TimezoneService != null)
+                                {
+                                    @await Model.ModifiedOn.ToLocalDateStringAsync(Model.TimezoneService)
+                                }
+                                else
+                                {
+                                    @Model.ModifiedOn.ToString("MMM dd, yyyy")
+                                }
+                                <br />
                                 @Localizer["By"] @Model.ModifiedBy
                             </small>
                         </dd>

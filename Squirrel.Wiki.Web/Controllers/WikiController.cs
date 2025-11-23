@@ -18,6 +18,7 @@ public class WikiController : Controller
     private readonly ICategoryService _categoryService;
     private readonly IAuthorizationService _authorizationService;
     private readonly IPageRepository _pageRepository;
+    private readonly ITimezoneService _timezoneService;
     private readonly ILogger<WikiController> _logger;
 
     public WikiController(
@@ -26,6 +27,7 @@ public class WikiController : Controller
         ICategoryService categoryService,
         IAuthorizationService authorizationService,
         IPageRepository pageRepository,
+        ITimezoneService timezoneService,
         ILogger<WikiController> logger)
     {
         _pageService = pageService;
@@ -33,6 +35,7 @@ public class WikiController : Controller
         _categoryService = categoryService;
         _authorizationService = authorizationService;
         _pageRepository = pageRepository;
+        _timezoneService = timezoneService;
         _logger = logger;
     }
 
@@ -172,6 +175,9 @@ public class WikiController : Controller
             {
                 return RedirectToAction(nameof(Index), new { id = pageDto.Id, slug = pageDto.Slug });
             }
+
+            // Populate timezone service for view
+            viewModel.TimezoneService = _timezoneService;
 
             return View(viewModel);
         }

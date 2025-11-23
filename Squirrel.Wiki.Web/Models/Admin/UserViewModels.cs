@@ -25,7 +25,7 @@ public class UserListViewModel : BaseViewModel
 /// <summary>
 /// View model for user details page
 /// </summary>
-public class UserDetailsViewModel
+public class UserDetailsViewModel : BaseViewModel
 {
     public UserDto User { get; set; } = null!;
 }

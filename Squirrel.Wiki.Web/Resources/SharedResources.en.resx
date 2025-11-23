@@ -2624,4 +2624,26 @@
   <data name="Notification_InvalidInput" xml:space="preserve">
     <value>Invalid input. Please check your data and try again.</value>
   </data>
+  <!-- Relative Time Strings -->
+  <data name="JustNow" xml:space="preserve">
+    <value>just now</value>
+  </data>
+  <data name="OneMinuteAgo" xml:space="preserve">
+    <value>1 minute ago</value>
+  </data>
+  <data name="MinutesAgo" xml:space="preserve">
+    <value>{0} minutes ago</value>
+  </data>
+  <data name="OneHourAgo" xml:space="preserve">
+    <value>1 hour ago</value>
+  </data>
+  <data name="HoursAgo" xml:space="preserve">
+    <value>{0} hours ago</value>
+  </data>
+  <data name="OneDayAgo" xml:space="preserve">
+    <value>1 day ago</value>
+  </data>
+  <data name="DaysAgo" xml:space="preserve">
+    <value>{0} days ago</value>
+  </data>
 </root>
