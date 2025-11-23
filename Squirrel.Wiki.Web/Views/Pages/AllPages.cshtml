@@ -95,7 +95,7 @@
                                 }
                             </td>
                             <td>
-                                <a href="@Url.Action("ByUser", "Pages", new { username = pageItem.CreatedBy })">
+                                <a href="@Url.Action("AllPages", "Pages", new { user = pageItem.CreatedBy })">
                                     @pageItem.CreatedBy
                                 </a>
                             </td>
