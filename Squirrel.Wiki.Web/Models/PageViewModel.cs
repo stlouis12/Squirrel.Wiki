@@ -109,7 +109,7 @@ public class PageHistoryViewModel
 /// <summary>
 /// View model for search results
 /// </summary>
-public class SearchResultsViewModel
+public class SearchResultsViewModel : BaseViewModel
 {
     public string Query { get; set; } = string.Empty;
     public List<SearchResultItemViewModel> Results { get; set; } = new();
@@ -138,7 +138,7 @@ public class SearchResultItemViewModel
 /// <summary>
 /// View model for page list
 /// </summary>
-public class PageListViewModel
+public class PageListViewModel : BaseViewModel
 {
     public List<PageSummaryViewModel> Pages { get; set; } = new();
     public string? FilterBy { get; set; }

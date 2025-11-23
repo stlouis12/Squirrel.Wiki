@@ -3,7 +3,7 @@ namespace Squirrel.Wiki.Web.Models.Admin;
 /// <summary>
 /// View model for the admin dashboard
 /// </summary>
-public class DashboardViewModel
+public class DashboardViewModel : BaseViewModel
 {
     public SystemStatistics Statistics { get; set; } = new();
     public List<RecentActivity> RecentActivities { get; set; } = new();

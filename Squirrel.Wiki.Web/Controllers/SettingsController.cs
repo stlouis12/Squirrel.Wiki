@@ -49,24 +49,10 @@ public class SettingsController : BaseController
             // Define setting groups with their configurations
             model.Groups = await GetSettingGroupsAsync(allSettings);
 
-            if (TempData["SuccessMessage"] != null)
-            {
-                model.SuccessMessage = TempData["SuccessMessage"]?.ToString();
-            }
-
-            if (TempData["ErrorMessage"] != null)
-            {
-                model.ErrorMessage = TempData["ErrorMessage"]?.ToString();
-            }
-
             return View(model);
         },
-        ex =>
-        {
-            var model = new SettingsViewModel();
-            model.ErrorMessage = _localizer["ErrorLoadingSettings"];
-            return View(model);
-        });
+        _localizer["ErrorLoadingSettings"],
+        "Error loading settings");
     }
 
     /// <summary>

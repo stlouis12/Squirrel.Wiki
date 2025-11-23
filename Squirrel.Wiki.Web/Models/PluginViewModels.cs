@@ -3,7 +3,7 @@ namespace Squirrel.Wiki.Web.Models;
 /// <summary>
 /// View model for the plugin list page
 /// </summary>
-public class PluginListViewModel
+public class PluginListViewModel : BaseViewModel
 {
     public List<PluginItemViewModel> Plugins { get; set; } = new();
 }

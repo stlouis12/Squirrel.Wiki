@@ -92,7 +92,14 @@
 
             var title = !string.IsNullOrEmpty(notification.Title) 
                 ? notification.Title 
-                : notification.Type.ToString();
+                : notification.Type switch
+                {
+                    NotificationType.Success => Localizer["Success"].Value,
+                    NotificationType.Error => Localizer["Error"].Value,
+                    NotificationType.Warning => Localizer["Warning"].Value,
+                    NotificationType.Info => Localizer["Info"].Value,
+                    _ => notification.Type.ToString()
+                };
 
             <div class="toast @toastClass" 
                  role="alert" 

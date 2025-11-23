@@ -6,11 +6,9 @@ namespace Squirrel.Wiki.Web.Models.Admin;
 /// <summary>
 /// View model for menu management
 /// </summary>
-public class MenuViewModel
+public class MenuViewModel : BaseViewModel
 {
     public List<MenuListItem> Menus { get; set; } = new();
-    public string? SuccessMessage { get; set; }
-    public string? ErrorMessage { get; set; }
 }
 
 /// <summary>

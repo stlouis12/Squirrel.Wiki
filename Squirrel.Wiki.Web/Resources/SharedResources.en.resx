@@ -2454,37 +2454,37 @@
   </data>
   <!-- Notification Messages - Menu Management -->
   <data name="Notification_MenuCreated" xml:space="preserve">
-    <value>Menu '{0}' created successfully.</value>
+    <value>Customization object '{0}' created successfully.</value>
   </data>
   <data name="Notification_MenuUpdated" xml:space="preserve">
-    <value>Menu '{0}' updated successfully.</value>
+    <value>Customization object '{0}' updated successfully.</value>
   </data>
   <data name="Notification_MenuDeleted" xml:space="preserve">
-    <value>Menu '{0}' deleted successfully.</value>
+    <value>Customization object '{0}' deleted successfully.</value>
   </data>
   <data name="Notification_MenuActivated" xml:space="preserve">
-    <value>Menu '{0}' activated successfully.</value>
+    <value>Customization object '{0}' activated successfully.</value>
   </data>
   <data name="Notification_MenuDeactivated" xml:space="preserve">
-    <value>Menu '{0}' deactivated successfully.</value>
+    <value>Customization object '{0}' deactivated successfully.</value>
   </data>
   <data name="Notification_MenuNotFound" xml:space="preserve">
-    <value>Menu not found.</value>
+    <value>Customization object not found.</value>
   </data>
   <data name="Notification_ErrorCreatingMenu" xml:space="preserve">
-    <value>An error occurred while creating the menu.</value>
+    <value>An error occurred while creating the customization object.</value>
   </data>
   <data name="Notification_ErrorUpdatingMenu" xml:space="preserve">
-    <value>An error occurred while updating the menu.</value>
+    <value>An error occurred while updating the customization object.</value>
   </data>
   <data name="Notification_ErrorDeletingMenu" xml:space="preserve">
-    <value>An error occurred while deleting the menu.</value>
+    <value>An error occurred while deleting the customization object.</value>
   </data>
   <data name="Notification_ErrorActivatingMenu" xml:space="preserve">
-    <value>An error occurred while activating the menu.</value>
+    <value>An error occurred while activating the customization object.</value>
   </data>
   <data name="Notification_ErrorDeactivatingMenu" xml:space="preserve">
-    <value>An error occurred while deactivating the menu.</value>
+    <value>An error occurred while deactivating the customization object.</value>
   </data>
   <!-- Notification Messages - Settings Management -->
   <data name="Notification_SettingUpdated" xml:space="preserve">

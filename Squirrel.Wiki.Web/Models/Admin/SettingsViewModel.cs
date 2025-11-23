@@ -3,11 +3,9 @@ namespace Squirrel.Wiki.Web.Models.Admin;
 /// <summary>
 /// View model for settings management
 /// </summary>
-public class SettingsViewModel
+public class SettingsViewModel : BaseViewModel
 {
     public List<SettingGroup> Groups { get; set; } = new();
-    public string? SuccessMessage { get; set; }
-    public string? ErrorMessage { get; set; }
 }
 
 /// <summary>

@@ -45,9 +45,7 @@ public class CategoriesController : BaseController
 
             var model = new CategoryViewModel
             {
-                Categories = tree,
-                SuccessMessage = TempData["SuccessMessage"] as string,
-                ErrorMessage = TempData["ErrorMessage"] as string
+                Categories = tree
             };
 
             return View(model);

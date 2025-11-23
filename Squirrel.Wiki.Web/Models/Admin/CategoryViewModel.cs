@@ -5,11 +5,9 @@ namespace Squirrel.Wiki.Web.Models.Admin;
 /// <summary>
 /// View model for category management
 /// </summary>
-public class CategoryViewModel
+public class CategoryViewModel : BaseViewModel
 {
     public List<CategoryTreeNode> Categories { get; set; } = new();
-    public string? SuccessMessage { get; set; }
-    public string? ErrorMessage { get; set; }
 }
 
 /// <summary>

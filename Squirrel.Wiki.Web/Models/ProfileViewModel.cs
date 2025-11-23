@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Squirrel.Wiki.Web.Models;
 
-public class ProfileViewModel
+public class ProfileViewModel : BaseViewModel
 {
     public string UserId { get; set; } = string.Empty;
 
@@ -24,9 +24,9 @@ public class ProfileViewModel
     [Display(Name = "Last Name")]
     public string LastName { get; set; } = string.Empty;
 
-    public bool IsAdmin { get; set; }
+    public new bool IsAdmin { get; set; }
 
-    public bool IsEditor { get; set; }
+    public new bool IsEditor { get; set; }
 
     [Display(Name = "Authentication Provider")]
     public string Provider { get; set; } = string.Empty;

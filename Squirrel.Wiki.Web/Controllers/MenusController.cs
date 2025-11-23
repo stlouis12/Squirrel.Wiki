@@ -53,24 +53,10 @@ public class MenusController : BaseController
                 ModifiedBy = m.ModifiedBy ?? "System"
             }).ToList();
 
-            if (TempData["SuccessMessage"] != null)
-            {
-                model.SuccessMessage = TempData["SuccessMessage"]?.ToString();
-            }
-
-            if (TempData["ErrorMessage"] != null)
-            {
-                model.ErrorMessage = TempData["ErrorMessage"]?.ToString();
-            }
-
             return View(model);
         },
-        ex =>
-        {
-            var model = new MenuViewModel();
-            model.ErrorMessage = "Error loading menus. Please try again.";
-            return View(model);
-        });
+        "Error loading menus. Please try again.",
+        "Error loading menus");
     }
 
     /// <summary>

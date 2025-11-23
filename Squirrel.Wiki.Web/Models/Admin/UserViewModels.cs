@@ -9,7 +9,7 @@ namespace Squirrel.Wiki.Web.Models.Admin;
 /// <summary>
 /// View model for user list page
 /// </summary>
-public class UserListViewModel
+public class UserListViewModel : BaseViewModel
 {
     public List<UserDto> Users { get; set; } = new();
     public int CurrentPage { get; set; }

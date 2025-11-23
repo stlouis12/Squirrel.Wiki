@@ -178,21 +178,6 @@
     <script src="~/js/toast-notifications.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Show success/error messages via toast
-            @if (!string.IsNullOrEmpty(Model.SuccessMessage))
-            {
-                <text>
-                Toast.success('@Localizer["MenuSaved"]', '@Html.Raw(Model.SuccessMessage.Replace("'", "\\'"))');
-                </text>
-            }
-            
-            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
-            {
-                <text>
-                Toast.error('@Localizer["Error"]', '@Html.Raw(Model.ErrorMessage.Replace("'", "\\'"))');
-                </text>
-            }
-            
             // Menu status toggle functionality
             document.querySelectorAll('.menu-status-toggle').forEach(function(checkbox) {
                 checkbox.addEventListener('change', function() {
