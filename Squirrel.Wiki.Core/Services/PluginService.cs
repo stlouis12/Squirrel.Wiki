@@ -40,7 +40,7 @@ public class PluginService : BaseService, IPluginService
         IHttpContextAccessor httpContextAccessor,
         EnvironmentVariableProvider envProvider,
         string pluginsPath)
-        : base(logger, cache, cacheInvalidation)
+        : base(logger, cache, cacheInvalidation, null)
     {
         _context = context;
         _pluginLoader = pluginLoader;
@@ -577,3 +577,4 @@ public class PluginService : BaseService, IPluginService
         }
     }
 }
+

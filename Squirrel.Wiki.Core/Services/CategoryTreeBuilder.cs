@@ -15,7 +15,7 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
         ILogger<CategoryTreeBuilder> logger,
         ICacheService cache,
         ICacheInvalidationService cacheInvalidation)
-        : base(logger, cache, cacheInvalidation)
+        : base(logger, cache, cacheInvalidation, null)
     {
         _pageService = pageService;
     }
@@ -374,3 +374,4 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
 
     #endregion
 }
+

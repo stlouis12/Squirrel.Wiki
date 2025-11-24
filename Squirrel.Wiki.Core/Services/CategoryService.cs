@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
@@ -25,7 +26,7 @@ public class CategoryService : BaseService, ICategoryService
         ISlugGenerator slugGenerator,
         ILogger<CategoryService> logger,
         ICacheInvalidationService cacheInvalidation)
-        : base(logger, cacheService, cacheInvalidation)
+        : base(logger, cacheService, cacheInvalidation, null)
     {
         _categoryRepository = categoryRepository;
         _pageRepository = pageRepository;

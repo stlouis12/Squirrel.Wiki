@@ -22,7 +22,7 @@ public class SearchService : BaseService, ISearchService
         ILogger<SearchService> logger,
         ICacheService cache,
         ICacheInvalidationService cacheInvalidation)
-        : base(logger, cache, cacheInvalidation)
+        : base(logger, cache, cacheInvalidation, null)
     {
         _pageRepository = pageRepository;
     }
@@ -635,3 +635,4 @@ public class SearchService : BaseService, ISearchService
         return await SearchAsync(query, pageNum, pageSize, cancellationToken);
     }
 }
+

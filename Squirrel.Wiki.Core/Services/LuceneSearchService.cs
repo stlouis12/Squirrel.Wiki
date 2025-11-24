@@ -33,7 +33,7 @@ public class LuceneSearchService : BaseService, ISearchService
         ICacheService cache,
         ICacheInvalidationService cacheInvalidation,
         IOptions<SearchSettings> searchSettings)
-        : base(logger, cache, cacheInvalidation)
+        : base(logger, cache, cacheInvalidation, null)
     {
         _pageRepository = pageRepository;
         _markdownService = markdownService;
@@ -583,3 +583,4 @@ public class SearchSettings
 {
     public string IndexPath { get; set; } = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "App_Data", "SearchIndex");
 }
+

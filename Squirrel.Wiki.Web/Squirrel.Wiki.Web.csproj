@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <!-- ASP.NET Core -->
+    <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
     <PackageReference Include="DiffPlex" Version="1.9.0" />
     
     <!-- Entity Framework Core Design (for migrations) -->
@@ -59,10 +60,7 @@
     <MakeDir Directories="$(OidcPluginDir)" Condition="!Exists('$(OidcPluginDir)')" />
     
     <!-- Copy plugin DLL to its subdirectory -->
-    <Copy SourceFiles="$(OidcPluginSource)" 
-          DestinationFolder="$(OidcPluginDir)" 
-          SkipUnchangedFiles="true"
-          Condition="Exists('$(OidcPluginSource)')" />
+    <Copy SourceFiles="$(OidcPluginSource)" DestinationFolder="$(OidcPluginDir)" SkipUnchangedFiles="true" Condition="Exists('$(OidcPluginSource)')" />
     
     <Message Text="Copied OIDC plugin to $(OidcPluginDir)" Importance="high" Condition="Exists('$(OidcPluginSource)')" />
     <Warning Text="OIDC plugin not found at $(OidcPluginSource)" Condition="!Exists('$(OidcPluginSource)')" />

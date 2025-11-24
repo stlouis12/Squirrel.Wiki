@@ -45,6 +45,9 @@ builder.Services.AddSingleton<IStringLocalizer>(sp =>
     return factory.Create(typeof(SharedResources));
 });
 
+// Configure AutoMapper
+builder.Services.AddAutoMapper(typeof(Squirrel.Wiki.Core.Mapping.UserMappingProfile).Assembly);
+
 // Add response caching
 builder.Services.AddResponseCaching();
 

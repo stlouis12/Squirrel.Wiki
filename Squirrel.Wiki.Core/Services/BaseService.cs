@@ -1,10 +1,11 @@
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 
 namespace Squirrel.Wiki.Core.Services;
 
 /// <summary>
 /// Base service class providing common functionality for all services
-/// Includes logging, caching, and cache invalidation capabilities
+/// Includes logging, caching, cache invalidation, and object mapping capabilities
 /// </summary>
 public abstract class BaseService
 {
@@ -24,19 +25,27 @@ public abstract class BaseService
     protected readonly ICacheInvalidationService CacheInvalidation;
 
     /// <summary>
+    /// AutoMapper instance for entity-to-DTO mappings
+    /// </summary>
+    protected readonly IMapper Mapper;
+
+    /// <summary>
     /// Initializes a new instance of the BaseService class
     /// </summary>
     /// <param name="logger">Logger instance for the derived service</param>
     /// <param name="cache">Cache service for data caching</param>
     /// <param name="cacheInvalidation">Cache invalidation service</param>
+    /// <param name="mapper">AutoMapper instance for object mapping</param>
     protected BaseService(
         ILogger logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation)
+        ICacheInvalidationService cacheInvalidation,
+        IMapper mapper)
     {
         Logger = logger;
         Cache = cache;
         CacheInvalidation = cacheInvalidation;
+        Mapper = mapper;
     }
 
     /// <summary>

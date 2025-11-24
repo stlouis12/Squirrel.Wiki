@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 using Squirrel.Wiki.Core.Database.Entities;
@@ -19,6 +20,7 @@ public class MenuService : BaseService, IMenuService
     private readonly IMarkdownService _markdownService;
     private readonly IUserContext _userContext;
     private readonly IUrlTokenResolver _urlTokenResolver;
+    
     
     private const string CacheKeyPrefix = "menu:";
     private const string CacheKeyActive = "menu:active";
@@ -45,10 +47,11 @@ public class MenuService : BaseService, IMenuService
         IMarkdownService markdownService,
         IUserContext userContext,
         IUrlTokenResolver urlTokenResolver,
+        IMapper mapper,
         ILogger<MenuService> logger,
         ICacheService cache,
         ICacheInvalidationService cacheInvalidation)
-        : base(logger, cache, cacheInvalidation)
+        : base(logger, cache, cacheInvalidation, mapper)
     {
         _menuRepository = menuRepository;
         _pageRepository = pageRepository;
@@ -56,6 +59,7 @@ public class MenuService : BaseService, IMenuService
         _markdownService = markdownService;
         _userContext = userContext;
         _urlTokenResolver = urlTokenResolver;
+        
     }
 
     public async Task<MenuDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
@@ -76,7 +80,7 @@ public class MenuService : BaseService, IMenuService
             return null;
         }
 
-        var dto = MapToDto(menu);
+        var dto = Mapper.Map<MenuDto>(menu);
         await Cache.SetAsync(cacheKey, dto, null, cancellationToken);
 
         return dto;
@@ -101,7 +105,7 @@ public class MenuService : BaseService, IMenuService
             return null;
         }
 
-        var dto = MapToDto(menu);
+        var dto = Mapper.Map<MenuDto>(menu);
         await Cache.SetAsync(cacheKey, dto, null, cancellationToken);
 
         return dto;
@@ -126,7 +130,7 @@ public class MenuService : BaseService, IMenuService
             return null;
         }
 
-        var dto = MapToDto(menu);
+        var dto = Mapper.Map<MenuDto>(menu);
         await Cache.SetAsync(cacheKey, dto, null, cancellationToken);
 
         return dto;
@@ -135,7 +139,7 @@ public class MenuService : BaseService, IMenuService
     public async Task<IEnumerable<MenuDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var menus = await _menuRepository.GetAllAsync(cancellationToken);
-        return menus.Select(MapToDto).OrderBy(m => m.DisplayOrder);
+        return Mapper.Map<IEnumerable<MenuDto>>(menus).OrderBy(m => m.DisplayOrder);
     }
 
     public async Task<IEnumerable<MenuDto>> GetActiveMenusAsync(CancellationToken cancellationToken = default)
@@ -150,9 +154,7 @@ public class MenuService : BaseService, IMenuService
 
         LogDebug("Active menus cache miss");
         var menus = await _menuRepository.GetAllAsync(cancellationToken);
-        var dtos = menus
-            .Where(m => m.IsEnabled)
-            .Select(MapToDto)
+        var dtos = Mapper.Map<List<MenuDto>>(menus.Where(m => m.IsEnabled))
             .OrderBy(m => m.DisplayOrder)
             .ToList();
         
@@ -200,7 +202,7 @@ public class MenuService : BaseService, IMenuService
 
         await InvalidateCacheAsync(cancellationToken);
 
-        return MapToDto(menu);
+        return Mapper.Map<MenuDto>(menu);
     }
 
     public async Task<MenuDto> UpdateAsync(int id, MenuUpdateDto updateDto, bool forceActivation = false, CancellationToken cancellationToken = default)
@@ -245,7 +247,7 @@ public class MenuService : BaseService, IMenuService
 
         await InvalidateMenuCacheAsync(id, cancellationToken);
 
-        return MapToDto(menu);
+        return Mapper.Map<MenuDto>(menu);
     }
 
     public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
@@ -572,7 +574,7 @@ public class MenuService : BaseService, IMenuService
         // Only return if it exists and is enabled
         if (menu != null && menu.IsEnabled)
         {
-            return MapToDto(menu);
+            return Mapper.Map<MenuDto>(menu);
         }
         
         return null;
@@ -736,23 +738,5 @@ public class MenuService : BaseService, IMenuService
     public async Task<bool> HasActiveMenuOfTypeAsync(MenuType menuType, int? excludeMenuId = null, CancellationToken cancellationToken = default)
     {
         return await _menuRepository.HasActiveMenuOfTypeAsync(menuType, excludeMenuId, cancellationToken);
-    }
-
-    private static MenuDto MapToDto(Menu menu)
-    {
-        return new MenuDto
-        {
-            Id = menu.Id,
-            Name = menu.Name,
-            MenuType = (int)menu.MenuType,
-            Description = menu.Description,
-            MenuMarkup = menu.Markup,
-            FooterLeftZone = menu.FooterLeftZone,
-            FooterRightZone = menu.FooterRightZone,
-            DisplayOrder = menu.DisplayOrder,
-            IsEnabled = menu.IsEnabled,
-            ModifiedOn = menu.ModifiedOn,
-            ModifiedBy = menu.ModifiedBy
-        };
     }
 }

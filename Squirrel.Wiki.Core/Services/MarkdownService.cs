@@ -21,7 +21,7 @@ public class MarkdownService : BaseService, IMarkdownService
         ILogger<MarkdownService> logger,
         ICacheService cache,
         ICacheInvalidationService cacheInvalidation)
-        : base(logger, cache, cacheInvalidation)
+        : base(logger, cache, cacheInvalidation, null)
     {
         _slugGenerator = slugGenerator;
         
@@ -268,3 +268,4 @@ public class MarkdownService : BaseService, IMarkdownService
         return html;
     }
 }
+

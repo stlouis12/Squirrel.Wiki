@@ -28,7 +28,7 @@ public class SettingsService : BaseService, ISettingsService
         ILogger<SettingsService> logger,
         ICacheService cache,
         ICacheInvalidationService cacheInvalidation)
-        : base(logger, cache, cacheInvalidation)
+        : base(logger, cache, cacheInvalidation, null)
     {
         _dbContext = dbContext;
         _userContext = userContext;
@@ -350,3 +350,4 @@ public class SettingsService : BaseService, ISettingsService
         }
     }
 }
+

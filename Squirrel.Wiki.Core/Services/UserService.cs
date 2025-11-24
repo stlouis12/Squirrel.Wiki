@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Authentication;
 using Squirrel.Wiki.Core.Database.Entities;
@@ -22,8 +23,9 @@ public class UserService : BaseService, IUserService
         ISettingsService settingsService,
         ILogger<UserService> logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation)
-        : base(logger, cache, cacheInvalidation)
+        ICacheInvalidationService cacheInvalidation,
+        IMapper mapper)
+        : base(logger, cache, cacheInvalidation, mapper)
     {
         _userRepository = userRepository;
         _pageRepository = pageRepository;
@@ -33,43 +35,43 @@ public class UserService : BaseService, IUserService
     public async Task<UserDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var user = await _userRepository.GetByIdAsync(id, cancellationToken);
-        return user != null ? MapToDto(user) : null;
+        return user != null ? Mapper.Map<UserDto>(user) : null;
     }
 
     public async Task<UserDto?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default)
     {
         var user = await _userRepository.GetByUsernameAsync(username, cancellationToken);
-        return user != null ? MapToDto(user) : null;
+        return user != null ? Mapper.Map<UserDto>(user) : null;
     }
 
     public async Task<UserDto?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
         var user = await _userRepository.GetByEmailAsync(email, cancellationToken);
-        return user != null ? MapToDto(user) : null;
+        return user != null ? Mapper.Map<UserDto>(user) : null;
     }
 
     public async Task<UserDto?> GetByExternalIdAsync(string externalId, CancellationToken cancellationToken = default)
     {
         var user = await _userRepository.GetByExternalIdAsync(externalId, cancellationToken);
-        return user != null ? MapToDto(user) : null;
+        return user != null ? Mapper.Map<UserDto>(user) : null;
     }
 
     public async Task<IEnumerable<UserDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var users = await _userRepository.GetAllAsync(cancellationToken);
-        return users.Select(MapToDto);
+        return Mapper.Map<IEnumerable<UserDto>>(users);
     }
 
     public async Task<IEnumerable<UserDto>> GetAdminsAsync(CancellationToken cancellationToken = default)
     {
         var users = await _userRepository.GetAllAsync(cancellationToken);
-        return users.Where(u => u.IsAdmin).Select(MapToDto);
+        return Mapper.Map<IEnumerable<UserDto>>(users.Where(u => u.IsAdmin));
     }
 
     public async Task<IEnumerable<UserDto>> GetEditorsAsync(CancellationToken cancellationToken = default)
     {
         var users = await _userRepository.GetAllAsync(cancellationToken);
-        return users.Where(u => u.IsEditor).Select(MapToDto);
+        return Mapper.Map<IEnumerable<UserDto>>(users.Where(u => u.IsEditor));
     }
 
     public async Task<UserDto> CreateAsync(UserCreateDto createDto, CancellationToken cancellationToken = default)
@@ -104,7 +106,7 @@ public class UserService : BaseService, IUserService
 
         LogInfo("Created user {Username} with ID {UserId}", user.Username, user.Id);
 
-        return MapToDto(user);
+        return Mapper.Map<UserDto>(user);
     }
 
     public async Task<UserDto> UpdateAsync(Guid id, UserUpdateDto updateDto, CancellationToken cancellationToken = default)
@@ -136,7 +138,7 @@ public class UserService : BaseService, IUserService
 
         LogInfo("Updated user {Username} (ID: {UserId})", user.Username, user.Id);
 
-        return MapToDto(user);
+        return Mapper.Map<UserDto>(user);
     }
 
     public async Task PromoteToAdminAsync(Guid id, CancellationToken cancellationToken = default)
@@ -356,7 +358,7 @@ public class UserService : BaseService, IUserService
         await _userRepository.UpdateAsync(user, cancellationToken);
 
         LogInfo("User {Username} authenticated successfully", user.Username);
-        return MapToDto(user);
+        return Mapper.Map<UserDto>(user);
     }
 
     public async Task<UserDto> CreateLocalUserAsync(string username, string email, string password, string displayName, bool isAdmin = false, bool isEditor = false, CancellationToken cancellationToken = default)
@@ -405,7 +407,7 @@ public class UserService : BaseService, IUserService
 
         LogInfo("Created local user {Username} with ID {UserId}", user.Username, user.Id);
 
-        return MapToDto(user);
+        return Mapper.Map<UserDto>(user);
     }
 
     public async Task SetPasswordAsync(Guid userId, string newPassword, CancellationToken cancellationToken = default)
@@ -626,34 +628,5 @@ public class UserService : BaseService, IUserService
     private static string HashPassword(string password)
     {
         return BCrypt.Net.BCrypt.HashPassword(password, 12);
-    }
-
-    private static UserDto MapToDto(User user)
-    {
-        var roles = new List<string>();
-        if (user.IsAdmin) roles.Add("Admin");
-        if (user.IsEditor) roles.Add("Editor");
-        
-        return new UserDto
-        {
-            Id = user.Id,
-            Username = user.Username,
-            Email = user.Email,
-            DisplayName = user.DisplayName,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            ExternalId = user.ExternalId ?? string.Empty,
-            IsAdmin = user.IsAdmin,
-            IsEditor = user.IsEditor,
-            IsActive = user.IsActive,
-            IsLocked = user.IsLocked,
-            FailedLoginAttempts = user.FailedLoginAttempts,
-            LockedUntil = user.LockedUntil,
-            Provider = user.Provider,
-            Roles = roles,
-            CreatedOn = user.CreatedOn,
-            LastLoginOn = user.LastLoginOn,
-            LastPasswordChangeOn = user.LastPasswordChangeOn
-        };
     }
 }

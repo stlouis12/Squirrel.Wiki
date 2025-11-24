@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
@@ -25,10 +26,11 @@ public class TagService : BaseService, ITagService
     public TagService(
         ITagRepository tagRepository,
         IPageRepository pageRepository,
+        IMapper mapper,
         ILogger<TagService> logger,
         ICacheService cache,
         ICacheInvalidationService cacheInvalidation)
-        : base(logger, cache, cacheInvalidation)
+        : base(logger, cache, cacheInvalidation, mapper)
     {
         _tagRepository = tagRepository;
         _pageRepository = pageRepository;
@@ -37,7 +39,7 @@ public class TagService : BaseService, ITagService
     public async Task<TagDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var tag = await _tagRepository.GetByIdAsync(id, cancellationToken);
-        return tag != null ? MapToDto(tag) : null;
+        return tag != null ? Mapper.Map<TagDto>(tag) : null;
     }
 
     public async Task<TagDto?> GetByNameAsync(string name, CancellationToken cancellationToken = default)
@@ -52,7 +54,7 @@ public class TagService : BaseService, ITagService
 
         LogDebug("Tag cache miss for key: {CacheKey}", cacheKey);
         var tag = await _tagRepository.GetByNameAsync(name, cancellationToken);
-        var result = tag != null ? MapToDto(tag) : null;
+        var result = tag != null ? Mapper.Map<TagDto>(tag) : null;
 
         if (result != null)
         {
@@ -73,7 +75,7 @@ public class TagService : BaseService, ITagService
 
         LogDebug("Tag cache miss for key: {CacheKey}", AllTagsKey);
         var tags = await _tagRepository.GetAllAsync(cancellationToken);
-        var resultList = tags.Select(MapToDto).ToList();
+        var resultList = Mapper.Map<List<TagDto>>(tags);
 
         await Cache.SetAsync(AllTagsKey, resultList, null, cancellationToken);
 
@@ -151,7 +153,7 @@ public class TagService : BaseService, ITagService
 
         LogDebug("Tag cache miss for key: {CacheKey}", cacheKey);
         var tags = await _tagRepository.GetTagsForPageAsync(pageId, cancellationToken);
-        var resultList = tags.Select(MapToDto).ToList();
+        var resultList = Mapper.Map<List<TagDto>>(tags);
 
         await Cache.SetAsync(cacheKey, resultList, null, cancellationToken);
 
@@ -260,7 +262,7 @@ public class TagService : BaseService, ITagService
 
         await InvalidateAllTagCachesAsync(cancellationToken);
 
-        return MapToDto(tag);
+        return Mapper.Map<TagDto>(tag);
     }
 
     public async Task<TagDto> GetOrCreateAsync(string name, CancellationToken cancellationToken = default)
@@ -269,7 +271,7 @@ public class TagService : BaseService, ITagService
         
         if (tag != null)
         {
-            return MapToDto(tag);
+            return Mapper.Map<TagDto>(tag);
         }
 
         var result = await CreateAsync(name, cancellationToken);
@@ -306,7 +308,7 @@ public class TagService : BaseService, ITagService
         await InvalidateTagByNameAsync(oldName, cancellationToken);
         await InvalidateTagByNameAsync(newName, cancellationToken);
 
-        return MapToDto(tag);
+        return Mapper.Map<TagDto>(tag);
     }
 
     public async Task<TagDto> RenameAsync(int id, string newName, CancellationToken cancellationToken = default)
@@ -408,7 +410,7 @@ public class TagService : BaseService, ITagService
             .Where(t => t.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
             .OrderBy(t => t.Name);
 
-        return matchingTags.Select(MapToDto);
+        return Mapper.Map<IEnumerable<TagDto>>(matchingTags);
     }
 
     public async Task<IEnumerable<TagDto>> GetRelatedTagsAsync(int tagId, int count = 10, CancellationToken cancellationToken = default)
@@ -454,7 +456,7 @@ public class TagService : BaseService, ITagService
             var relatedTag = await _tagRepository.GetByIdAsync(relatedTagId, cancellationToken);
             if (relatedTag != null)
             {
-                relatedTags.Add(MapToDto(relatedTag));
+                relatedTags.Add(Mapper.Map<TagDto>(relatedTag));
             }
         }
 
@@ -497,15 +499,6 @@ public class TagService : BaseService, ITagService
             TotalTaggedPages = totalTaggedPages,
             UnusedTags = unusedCount,
             AverageTagsPerPage = Math.Round(averageTagsPerPage, 2)
-        };
-    }
-
-    private static TagDto MapToDto(Tag tag)
-    {
-        return new TagDto
-        {
-            Id = tag.Id,
-            Name = tag.Name
         };
     }
 

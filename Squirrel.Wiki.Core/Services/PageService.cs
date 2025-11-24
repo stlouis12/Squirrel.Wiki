@@ -34,7 +34,7 @@ public class PageService : BaseService, IPageService
         ISlugGenerator slugGenerator,
         ILogger<PageService> logger,
         ICacheInvalidationService cacheInvalidation)
-        : base(logger, cacheService, cacheInvalidation)
+        : base(logger, cacheService, cacheInvalidation, null)
     {
         _pageRepository = pageRepository;
         _tagRepository = tagRepository;
@@ -745,3 +745,4 @@ public class PageService : BaseService, IPageService
         await CacheInvalidation.InvalidatePageAsync(pageId, cancellationToken);
     }
 }
+
