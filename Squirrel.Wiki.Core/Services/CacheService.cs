@@ -1,35 +1,39 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Squirrel.Wiki.Core.Database;
 using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace Squirrel.Wiki.Core.Services;
 
 /// <summary>
-/// Generic caching service that integrates with application settings
+/// Generic caching service that reads settings directly from database to avoid circular dependencies
 /// </summary>
 public class CacheService : ICacheService
 {
     private readonly IDistributedCache _cache;
     private readonly IMemoryCache? _memoryCache;
-    private readonly ISettingsService _settingsService;
+    private readonly SquirrelDbContext _context;
     private readonly ILogger<CacheService> _logger;
     private bool? _isEnabled;
     private TimeSpan? _defaultExpiration;
+    private DateTime _lastSettingsCheck = DateTime.MinValue;
+    private static readonly TimeSpan SettingsCacheDuration = TimeSpan.FromMinutes(5);
     
     // Track cache keys for pattern-based removal
     private static readonly ConcurrentDictionary<string, byte> _cacheKeys = new();
 
     public CacheService(
         IDistributedCache cache,
-        ISettingsService settingsService,
+        SquirrelDbContext context,
         ILogger<CacheService> logger,
         IMemoryCache? memoryCache = null)
     {
         _cache = cache;
         _memoryCache = memoryCache;
-        _settingsService = settingsService;
+        _context = context;
         _logger = logger;
     }
 
@@ -37,23 +41,85 @@ public class CacheService : ICacheService
     {
         get
         {
-            if (!_isEnabled.HasValue)
-            {
-                // Cache the enabled setting to avoid repeated database calls
-                _isEnabled = _settingsService.GetSettingAsync<bool>("CacheEnabled").GetAwaiter().GetResult();
-            }
-            return _isEnabled.Value;
+            RefreshSettingsIfNeeded();
+            return _isEnabled ?? true; // Default to enabled if not set
         }
     }
 
-    private async Task<TimeSpan> GetDefaultExpirationAsync()
+    private TimeSpan GetDefaultExpiration()
     {
-        if (!_defaultExpiration.HasValue)
+        RefreshSettingsIfNeeded();
+        return _defaultExpiration ?? TimeSpan.FromMinutes(30); // Default to 30 minutes
+    }
+
+    /// <summary>
+    /// Refresh settings from database if cache has expired
+    /// This reads directly from database without using cache to avoid circular dependency
+    /// </summary>
+    private void RefreshSettingsIfNeeded()
+    {
+        if (DateTime.UtcNow - _lastSettingsCheck < SettingsCacheDuration)
         {
-            var minutes = await _settingsService.GetSettingAsync<int>("CacheExpirationMinutes");
-            _defaultExpiration = TimeSpan.FromMinutes(minutes > 0 ? minutes : 30); // Default 30 minutes
+            return; // Settings are still fresh
         }
-        return _defaultExpiration.Value;
+
+        try
+        {
+            // Check environment variable first, then database setting
+            var cacheEnabledEnv = Environment.GetEnvironmentVariable("SQUIRREL_CACHE_ENABLED");
+            if (!string.IsNullOrEmpty(cacheEnabledEnv))
+            {
+                _isEnabled = bool.TryParse(cacheEnabledEnv, out var enabled) ? enabled : true;
+                _logger.LogDebug("CacheEnabled loaded from environment variable: {Value}", _isEnabled);
+            }
+            else
+            {
+                // Read CacheEnabled setting directly from database (no caching)
+                var cacheEnabledSetting = _context.SiteConfigurations
+                    .AsNoTracking()
+                    .FirstOrDefault(s => s.Key == "CacheEnabled");
+                
+                _isEnabled = cacheEnabledSetting != null && 
+                             bool.TryParse(cacheEnabledSetting.Value, out var enabled) ? 
+                             enabled : true;
+                _logger.LogDebug("CacheEnabled loaded from database: {Value}", _isEnabled);
+            }
+
+            // Check environment variable first, then database setting
+            var cacheExpirationEnv = Environment.GetEnvironmentVariable("SQUIRREL_CACHE_EXPIRATION_MINUTES");
+            int minutes;
+            if (!string.IsNullOrEmpty(cacheExpirationEnv))
+            {
+                minutes = int.TryParse(cacheExpirationEnv, out var mins) ? mins : 30;
+                _logger.LogDebug("CacheExpirationMinutes loaded from environment variable: {Value}", minutes);
+            }
+            else
+            {
+                // Read CacheExpirationMinutes setting directly from database (no caching)
+                var expirationSetting = _context.SiteConfigurations
+                    .AsNoTracking()
+                    .FirstOrDefault(s => s.Key == "CacheExpirationMinutes");
+                
+                minutes = expirationSetting != null && 
+                             int.TryParse(expirationSetting.Value, out var mins) ? 
+                             mins : 30;
+                _logger.LogDebug("CacheExpirationMinutes loaded from database: {Value}", minutes);
+            }
+            
+            _defaultExpiration = TimeSpan.FromMinutes(minutes > 0 ? minutes : 30);
+            
+            _lastSettingsCheck = DateTime.UtcNow;
+            
+            _logger.LogDebug("Cache settings refreshed from database: Enabled={Enabled}, Expiration={Minutes}min", 
+                _isEnabled, _defaultExpiration.Value.TotalMinutes);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to refresh cache settings from database, using defaults");
+            _isEnabled = true;
+            _defaultExpiration = TimeSpan.FromMinutes(30);
+            _lastSettingsCheck = DateTime.UtcNow;
+        }
     }
 
     public async Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default) where T : class
@@ -94,7 +160,7 @@ public class CacheService : ICacheService
         try
         {
             var json = JsonSerializer.Serialize(value);
-            var expirationTime = expiration ?? await GetDefaultExpirationAsync();
+            var expirationTime = expiration ?? GetDefaultExpiration();
             
             await _cache.SetStringAsync(
                 key,
@@ -179,12 +245,12 @@ public class CacheService : ICacheService
     }
 
     /// <summary>
-    /// Refresh cached settings (call when settings change)
+    /// Refresh cached settings immediately (call when settings change in the database)
+    /// Forces a reload of cache settings from the database on the next access
     /// </summary>
     public void RefreshSettings()
     {
-        _isEnabled = null;
-        _defaultExpiration = null;
-        _logger.LogInformation("Cache settings refreshed");
+        _lastSettingsCheck = DateTime.MinValue; // Force refresh on next access
+        _logger.LogInformation("Cache settings will be refreshed from database on next access");
     }
 }

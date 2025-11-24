@@ -21,7 +21,6 @@ public class PageService : BaseService, IPageService
 
     private const string CacheKeyPrefix = "page:";
     private const string CacheKeyAllPages = "pages:all";
-    private static readonly TimeSpan CacheExpiration = TimeSpan.FromMinutes(30);
 
     public PageService(
         IPageRepository pageRepository,
@@ -65,7 +64,7 @@ public class PageService : BaseService, IPageService
         var pageDto = await MapToPageDtoAsync(page, content, cancellationToken);
 
         // Cache the result
-        await Cache.SetAsync(cacheKey, pageDto, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, pageDto, null, cancellationToken);
 
         return pageDto;
     }
@@ -114,7 +113,7 @@ public class PageService : BaseService, IPageService
             pageDtos.Add(await MapToPageDtoAsync(page, content, categoryCache, cancellationToken));
         }
 
-        await Cache.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, pageDtos, null, cancellationToken);
         return pageDtos;
     }
 
@@ -142,7 +141,7 @@ public class PageService : BaseService, IPageService
             pageDtos.Add(await MapToPageDtoAsync(page, content, categoryCache, cancellationToken));
         }
 
-        await Cache.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, pageDtos, null, cancellationToken);
         return pageDtos;
     }
 
@@ -170,7 +169,7 @@ public class PageService : BaseService, IPageService
             pageDtos.Add(await MapToPageDtoAsync(page, content, categoryCache, cancellationToken));
         }
 
-        await Cache.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, pageDtos, null, cancellationToken);
         return pageDtos;
     }
 
@@ -198,7 +197,7 @@ public class PageService : BaseService, IPageService
             pageDtos.Add(await MapToPageDtoAsync(page, content, categoryCache, cancellationToken));
         }
 
-        await Cache.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, pageDtos, null, cancellationToken);
         return pageDtos;
     }
 

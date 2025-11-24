@@ -21,10 +21,6 @@ public class TagService : BaseService, ITagService
     private const string PageKeyPrefix = "tags:page:";
     private const string ByNameKeyPrefix = "tags:by-name:";
 
-    // Cache expiration times
-    private static readonly TimeSpan LongExpiration = TimeSpan.FromMinutes(30);
-    private static readonly TimeSpan ShortExpiration = TimeSpan.FromMinutes(15);
-
     public TagService(
         ITagRepository tagRepository,
         IPageRepository pageRepository,
@@ -59,7 +55,7 @@ public class TagService : BaseService, ITagService
 
         if (result != null)
         {
-            await Cache.SetAsync(cacheKey, result, LongExpiration, cancellationToken);
+            await Cache.SetAsync(cacheKey, result, null, cancellationToken);
         }
 
         return result;
@@ -78,7 +74,7 @@ public class TagService : BaseService, ITagService
         var tags = await _tagRepository.GetAllAsync(cancellationToken);
         var resultList = tags.Select(MapToDto).ToList();
 
-        await Cache.SetAsync(AllTagsKey, resultList, LongExpiration, cancellationToken);
+        await Cache.SetAsync(AllTagsKey, resultList, null, cancellationToken);
 
         return resultList;
     }
@@ -113,7 +109,7 @@ public class TagService : BaseService, ITagService
         }
 
         var resultList = tagCounts.OrderByDescending(t => t.PageCount).ToList();
-        await Cache.SetAsync(AllWithCountsKey, resultList, ShortExpiration, cancellationToken);
+        await Cache.SetAsync(AllWithCountsKey, resultList, null, cancellationToken);
 
         return resultList;
     }
@@ -137,7 +133,7 @@ public class TagService : BaseService, ITagService
             PageCount = t.PageTags?.Count ?? 0
         }).ToList();
 
-        await Cache.SetAsync(cacheKey, resultList, ShortExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, resultList, null, cancellationToken);
 
         return resultList;
     }
@@ -156,7 +152,7 @@ public class TagService : BaseService, ITagService
         var tags = await _tagRepository.GetTagsForPageAsync(pageId, cancellationToken);
         var resultList = tags.Select(MapToDto).ToList();
 
-        await Cache.SetAsync(cacheKey, resultList, LongExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, resultList, null, cancellationToken);
 
         return resultList;
     }
@@ -235,7 +231,7 @@ public class TagService : BaseService, ITagService
         });
 
         var resultList = cloudItems.OrderBy(t => t.Name).ToList();
-        await Cache.SetAsync(cacheKey, resultList, ShortExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, resultList, null, cancellationToken);
 
         return resultList;
     }

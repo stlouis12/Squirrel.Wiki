@@ -210,16 +210,18 @@ builder.Services.AddSingleton<EnvironmentVariableProvider>();
 
 // Register Services
 builder.Services.AddSingleton<ISlugGenerator, SlugGenerator>();
+
+// Register shared cache service (must be before services that depend on it)
+builder.Services.AddScoped<ICacheService, CacheService>();
+
+// Register cache invalidation service (must be before services that depend on it)
+builder.Services.AddScoped<ICacheInvalidationService, CacheInvalidationService>();
+
+// Register services that depend on cache services
 builder.Services.AddScoped<IMarkdownService, MarkdownService>();
 builder.Services.AddScoped<IPageService, PageService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
-
-// Register shared cache service
-builder.Services.AddScoped<ICacheService, CacheService>();
-
-// Register cache invalidation service
-builder.Services.AddScoped<ICacheInvalidationService, CacheInvalidationService>();
 
 // Register CategoryTreeBuilder (now with integrated caching via BaseService)
 builder.Services.AddScoped<ICategoryTreeBuilder, CategoryTreeBuilder>();

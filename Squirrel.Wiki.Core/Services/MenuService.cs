@@ -21,7 +21,6 @@ public class MenuService : BaseService, IMenuService
     
     private const string CacheKeyPrefix = "menu:";
     private const string CacheKeyActive = "menu:active";
-    private static readonly TimeSpan CacheExpiration = TimeSpan.FromMinutes(30);
 
     // Menu tokens that can be used in menu markup
     private static readonly Dictionary<string, string> URL_TOKENS = new(StringComparer.OrdinalIgnoreCase)
@@ -77,7 +76,7 @@ public class MenuService : BaseService, IMenuService
         }
 
         var dto = MapToDto(menu);
-        await Cache.SetAsync(cacheKey, dto, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, dto, null, cancellationToken);
 
         return dto;
     }
@@ -102,7 +101,7 @@ public class MenuService : BaseService, IMenuService
         }
 
         var dto = MapToDto(menu);
-        await Cache.SetAsync(cacheKey, dto, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, dto, null, cancellationToken);
 
         return dto;
     }
@@ -127,7 +126,7 @@ public class MenuService : BaseService, IMenuService
         }
 
         var dto = MapToDto(menu);
-        await Cache.SetAsync(cacheKey, dto, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, dto, null, cancellationToken);
 
         return dto;
     }
@@ -156,7 +155,7 @@ public class MenuService : BaseService, IMenuService
             .OrderBy(m => m.DisplayOrder)
             .ToList();
         
-        await Cache.SetAsync(CacheKeyActive, dtos, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(CacheKeyActive, dtos, null, cancellationToken);
 
         return dtos;
     }

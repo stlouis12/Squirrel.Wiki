@@ -15,7 +15,6 @@ public class CategoryService : BaseService, ICategoryService
     private readonly ISlugGenerator _slugGenerator;
     private const string CacheKeyPrefix = "category:";
     private const string CacheKeyTree = "category:tree";
-    private static readonly TimeSpan CacheExpiration = TimeSpan.FromMinutes(30);
     private const int MaxCategoryDepth = 3; // Maximum nesting depth for categories
 
     public CategoryService(
@@ -50,7 +49,7 @@ public class CategoryService : BaseService, ICategoryService
 
         var dto = await MapToDtoAsync(category, cancellationToken);
         
-        await Cache.SetAsync(cacheKey, dto, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, dto, null, cancellationToken);
 
         return dto;
     }
@@ -122,7 +121,7 @@ public class CategoryService : BaseService, ICategoryService
             tree.Add(await BuildTreeNodeAsync(root, cancellationToken));
         }
 
-        await Cache.SetAsync(CacheKeyTree, tree, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(CacheKeyTree, tree, null, cancellationToken);
 
         return tree;
     }
