@@ -7,6 +7,7 @@ using Serilog;
 using Squirrel.Wiki.Core.Configuration;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Web.Middleware;
@@ -104,7 +105,11 @@ builder.Services.AddDbContext<SquirrelDbContext>(options =>
             options.UseSqlite(connectionString);
             break;
         default:
-            throw new InvalidOperationException($"Unsupported database provider: {databaseProvider}");
+            throw new ConfigurationException(
+                $"The configured database provider '{databaseProvider}' is not supported. Supported providers are: PostgreSQL, MySQL, MariaDB, SQLServer, SQLite.",
+                "UNSUPPORTED_DATABASE_PROVIDER"
+            ).WithContext("ConfiguredProvider", databaseProvider)
+             .WithContext("SupportedProviders", "PostgreSQL, MySQL, MariaDB, SQLServer, SQLite");
     }
 
     if (builder.Environment.IsDevelopment())

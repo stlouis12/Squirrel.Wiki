@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Squirrel.Wiki.Core.Exceptions;
 using System.Text.Json;
 
 namespace Squirrel.Wiki.Web.Services;
@@ -26,7 +27,10 @@ public class TempDataNotificationService : INotificationService
         get
         {
             var httpContext = _httpContextAccessor.HttpContext 
-                ?? throw new InvalidOperationException("HttpContext is not available");
+                ?? throw new ConfigurationException(
+                    "HttpContext is not available. This service can only be used within an HTTP request context.",
+                    "HTTP_CONTEXT_UNAVAILABLE"
+                );
             return _tempDataFactory.GetTempData(httpContext);
         }
     }
