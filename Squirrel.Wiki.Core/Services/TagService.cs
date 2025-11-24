@@ -6,22 +6,35 @@ using Squirrel.Wiki.Core.Models;
 namespace Squirrel.Wiki.Core.Services;
 
 /// <summary>
-/// Service implementation for tag management operations
+/// Service implementation for tag management operations with integrated caching
 /// </summary>
-public class TagService : ITagService
+public class TagService : BaseService, ITagService
 {
     private readonly ITagRepository _tagRepository;
     private readonly IPageRepository _pageRepository;
-    private readonly ILogger<TagService> _logger;
+
+    // Cache key constants
+    private const string AllTagsKey = "tags:all";
+    private const string AllWithCountsKey = "tags:all-with-counts";
+    private const string PopularKeyPrefix = "tags:popular:";
+    private const string CloudKeyPrefix = "tags:cloud:";
+    private const string PageKeyPrefix = "tags:page:";
+    private const string ByNameKeyPrefix = "tags:by-name:";
+
+    // Cache expiration times
+    private static readonly TimeSpan LongExpiration = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan ShortExpiration = TimeSpan.FromMinutes(15);
 
     public TagService(
         ITagRepository tagRepository,
         IPageRepository pageRepository,
-        ILogger<TagService> logger)
+        ILogger<TagService> logger,
+        ICacheService cache,
+        ICacheInvalidationService cacheInvalidation)
+        : base(logger, cache, cacheInvalidation)
     {
         _tagRepository = tagRepository;
         _pageRepository = pageRepository;
-        _logger = logger;
     }
 
     public async Task<TagDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
@@ -32,14 +45,42 @@ public class TagService : ITagService
 
     public async Task<TagDto?> GetByNameAsync(string name, CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"{ByNameKeyPrefix}{name.ToLowerInvariant()}";
+        var cached = await Cache.GetAsync<TagDto>(cacheKey, cancellationToken);
+        if (cached != null)
+        {
+            LogDebug("Tag cache hit for key: {CacheKey}", cacheKey);
+            return cached;
+        }
+
+        LogDebug("Tag cache miss for key: {CacheKey}", cacheKey);
         var tag = await _tagRepository.GetByNameAsync(name, cancellationToken);
-        return tag != null ? MapToDto(tag) : null;
+        var result = tag != null ? MapToDto(tag) : null;
+
+        if (result != null)
+        {
+            await Cache.SetAsync(cacheKey, result, LongExpiration, cancellationToken);
+        }
+
+        return result;
     }
 
     public async Task<IEnumerable<TagDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        var cached = await Cache.GetAsync<List<TagDto>>(AllTagsKey, cancellationToken);
+        if (cached != null)
+        {
+            LogDebug("Tag cache hit for key: {CacheKey}", AllTagsKey);
+            return cached;
+        }
+
+        LogDebug("Tag cache miss for key: {CacheKey}", AllTagsKey);
         var tags = await _tagRepository.GetAllAsync(cancellationToken);
-        return tags.Select(MapToDto);
+        var resultList = tags.Select(MapToDto).ToList();
+
+        await Cache.SetAsync(AllTagsKey, resultList, LongExpiration, cancellationToken);
+
+        return resultList;
     }
 
     public async Task<IEnumerable<TagDto>> GetAllTagsAsync(CancellationToken cancellationToken = default)
@@ -49,6 +90,14 @@ public class TagService : ITagService
 
     public async Task<IEnumerable<TagWithCountDto>> GetAllWithCountsAsync(CancellationToken cancellationToken = default)
     {
+        var cached = await Cache.GetAsync<List<TagWithCountDto>>(AllWithCountsKey, cancellationToken);
+        if (cached != null)
+        {
+            LogDebug("Tag cache hit for key: {CacheKey}", AllWithCountsKey);
+            return cached;
+        }
+
+        LogDebug("Tag cache miss for key: {CacheKey}", AllWithCountsKey);
         var tags = await _tagRepository.GetAllAsync(cancellationToken);
         var tagCounts = new List<TagWithCountDto>();
 
@@ -63,24 +112,53 @@ public class TagService : ITagService
             });
         }
 
-        return tagCounts.OrderByDescending(t => t.PageCount);
+        var resultList = tagCounts.OrderByDescending(t => t.PageCount).ToList();
+        await Cache.SetAsync(AllWithCountsKey, resultList, ShortExpiration, cancellationToken);
+
+        return resultList;
     }
 
     public async Task<IEnumerable<TagWithCountDto>> GetPopularTagsAsync(int count = 20, CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"{PopularKeyPrefix}{count}";
+        var cached = await Cache.GetAsync<List<TagWithCountDto>>(cacheKey, cancellationToken);
+        if (cached != null)
+        {
+            LogDebug("Tag cache hit for key: {CacheKey}", cacheKey);
+            return cached;
+        }
+
+        LogDebug("Tag cache miss for key: {CacheKey}", cacheKey);
         var popularTags = await _tagRepository.GetPopularTagsAsync(count, cancellationToken);
-        return popularTags.Select(t => new TagWithCountDto
+        var resultList = popularTags.Select(t => new TagWithCountDto
         {
             Id = t.Id,
             Name = t.Name,
             PageCount = t.PageTags?.Count ?? 0
-        });
+        }).ToList();
+
+        await Cache.SetAsync(cacheKey, resultList, ShortExpiration, cancellationToken);
+
+        return resultList;
     }
 
     public async Task<IEnumerable<TagDto>> GetTagsForPageAsync(int pageId, CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"{PageKeyPrefix}{pageId}";
+        var cached = await Cache.GetAsync<List<TagDto>>(cacheKey, cancellationToken);
+        if (cached != null)
+        {
+            LogDebug("Tag cache hit for key: {CacheKey}", cacheKey);
+            return cached;
+        }
+
+        LogDebug("Tag cache miss for key: {CacheKey}", cacheKey);
         var tags = await _tagRepository.GetTagsForPageAsync(pageId, cancellationToken);
-        return tags.Select(MapToDto);
+        var resultList = tags.Select(MapToDto).ToList();
+
+        await Cache.SetAsync(cacheKey, resultList, LongExpiration, cancellationToken);
+
+        return resultList;
     }
 
     public async Task<IEnumerable<PageDto>> GetPagesWithTagAsync(string tagName, CancellationToken cancellationToken = default)
@@ -109,6 +187,15 @@ public class TagService : ITagService
 
     public async Task<IEnumerable<TagCloudItemDto>> GetTagCloudAsync(int minCount = 1, int maxTags = 50, CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"{CloudKeyPrefix}{minCount}:{maxTags}";
+        var cached = await Cache.GetAsync<List<TagCloudItemDto>>(cacheKey, cancellationToken);
+        if (cached != null)
+        {
+            LogDebug("Tag cache hit for key: {CacheKey}", cacheKey);
+            return cached;
+        }
+
+        LogDebug("Tag cache miss for key: {CacheKey}", cacheKey);
         var tagsWithCounts = await GetAllWithCountsAsync(cancellationToken);
         var filteredTags = tagsWithCounts
             .Where(t => t.PageCount >= minCount)
@@ -126,7 +213,7 @@ public class TagService : ITagService
         var maxUsage = filteredTags.Max(t => t.PageCount);
         var range = maxUsage - minUsage;
 
-        return filteredTags.Select(t =>
+        var cloudItems = filteredTags.Select(t =>
         {
             int weight;
             if (range == 0)
@@ -145,7 +232,12 @@ public class TagService : ITagService
                 Count = t.PageCount,
                 Weight = weight
             };
-        }).OrderBy(t => t.Name);
+        });
+
+        var resultList = cloudItems.OrderBy(t => t.Name).ToList();
+        await Cache.SetAsync(cacheKey, resultList, ShortExpiration, cancellationToken);
+
+        return resultList;
     }
 
     public async Task<TagDto> CreateAsync(string name, CancellationToken cancellationToken = default)
@@ -164,7 +256,9 @@ public class TagService : ITagService
 
         await _tagRepository.AddAsync(tag, cancellationToken);
 
-        _logger.LogInformation("Created tag {TagName} with ID {TagId}", tag.Name, tag.Id);
+        LogInfo("Created tag {TagName} with ID {TagId}", tag.Name, tag.Id);
+
+        await InvalidateAllTagCachesAsync(cancellationToken);
 
         return MapToDto(tag);
     }
@@ -178,7 +272,9 @@ public class TagService : ITagService
             return MapToDto(tag);
         }
 
-        return await CreateAsync(name, cancellationToken);
+        var result = await CreateAsync(name, cancellationToken);
+        // Cache invalidation already handled in CreateAsync
+        return result;
     }
 
     public async Task<TagDto> UpdateAsync(int id, string newName, CancellationToken cancellationToken = default)
@@ -196,10 +292,15 @@ public class TagService : ITagService
             throw new InvalidOperationException($"Tag name '{newName}' is already taken.");
         }
 
+        var oldName = tag.Name;
         tag.Name = newName.Trim();
         await _tagRepository.UpdateAsync(tag, cancellationToken);
 
-        _logger.LogInformation("Updated tag ID {TagId} to name {TagName}", tag.Id, tag.Name);
+        LogInfo("Updated tag ID {TagId} to name {TagName}", tag.Id, tag.Name);
+
+        await InvalidateAllTagCachesAsync(cancellationToken);
+        await InvalidateTagByNameAsync(oldName, cancellationToken);
+        await InvalidateTagByNameAsync(newName, cancellationToken);
 
         return MapToDto(tag);
     }
@@ -251,8 +352,10 @@ public class TagService : ITagService
         // Delete the source tag
         await _tagRepository.DeleteAsync(sourceTag, cancellationToken);
 
-        _logger.LogInformation("Merged tag {SourceTag} (ID: {SourceId}) into {TargetTag} (ID: {TargetId})",
+        LogInfo("Merged tag {SourceTag} (ID: {SourceId}) into {TargetTag} (ID: {TargetId})",
             sourceTag.Name, sourceTagId, targetTag.Name, targetTagId);
+
+        await InvalidateAllTagCachesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
@@ -263,9 +366,13 @@ public class TagService : ITagService
             throw new InvalidOperationException($"Tag with ID {id} not found.");
         }
 
+        var tagName = tag.Name;
         await _tagRepository.DeleteAsync(tag, cancellationToken);
 
-        _logger.LogInformation("Deleted tag {TagName} (ID: {TagId})", tag.Name, tag.Id);
+        LogInfo("Deleted tag {TagName} (ID: {TagId})", tagName, id);
+
+        await InvalidateAllTagCachesAsync(cancellationToken);
+        await InvalidateTagByNameAsync(tagName, cancellationToken);
     }
 
     public async Task<int> CleanupUnusedTagsAsync(CancellationToken cancellationToken = default)
@@ -280,7 +387,8 @@ public class TagService : ITagService
 
         if (count > 0)
         {
-            _logger.LogInformation("Cleaned up {Count} unused tags", count);
+            LogInfo("Cleaned up {Count} unused tags", count);
+            await InvalidateAllTagCachesAsync(cancellationToken);
         }
 
         return count;
@@ -393,4 +501,48 @@ public class TagService : ITagService
             Name = tag.Name
         };
     }
+
+    #region Cache Invalidation Methods
+
+    /// <summary>
+    /// Invalidates all tag-related caches
+    /// </summary>
+    private async Task InvalidateAllTagCachesAsync(CancellationToken cancellationToken)
+    {
+        LogInfo("Invalidating all tag caches");
+        await Cache.RemoveByPatternAsync("tags:*", cancellationToken);
+    }
+
+    /// <summary>
+    /// Invalidates cache for a specific tag name
+    /// </summary>
+    private async Task InvalidateTagByNameAsync(string name, CancellationToken cancellationToken)
+    {
+        var cacheKey = $"{ByNameKeyPrefix}{name.ToLowerInvariant()}";
+        LogDebug("Invalidating tag cache for name: {TagName}", name);
+        await Cache.RemoveAsync(cacheKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// Invalidates tag count-related caches (when page-tag associations change)
+    /// </summary>
+    public async Task InvalidateTagCountCachesAsync(CancellationToken cancellationToken = default)
+    {
+        LogInfo("Invalidating tag count caches");
+        await Cache.RemoveAsync(AllWithCountsKey, cancellationToken);
+        await Cache.RemoveByPatternAsync($"{PopularKeyPrefix}*", cancellationToken);
+        await Cache.RemoveByPatternAsync($"{CloudKeyPrefix}*", cancellationToken);
+    }
+
+    /// <summary>
+    /// Invalidates tag cache for a specific page
+    /// </summary>
+    public async Task InvalidateTagCachesForPageAsync(int pageId, CancellationToken cancellationToken = default)
+    {
+        var cacheKey = $"{PageKeyPrefix}{pageId}";
+        LogDebug("Invalidating tag cache for page: {PageId}", pageId);
+        await Cache.RemoveAsync(cacheKey, cancellationToken);
+    }
+
+    #endregion
 }

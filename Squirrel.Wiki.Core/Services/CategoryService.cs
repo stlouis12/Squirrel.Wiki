@@ -1,6 +1,4 @@
-using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Models;
@@ -10,13 +8,11 @@ namespace Squirrel.Wiki.Core.Services;
 /// <summary>
 /// Service implementation for category management operations
 /// </summary>
-public class CategoryService : ICategoryService
+public class CategoryService : BaseService, ICategoryService
 {
     private readonly ICategoryRepository _categoryRepository;
     private readonly IPageRepository _pageRepository;
-    private readonly IDistributedCache _cache;
     private readonly ISlugGenerator _slugGenerator;
-    private readonly ILogger<CategoryService> _logger;
     private const string CacheKeyPrefix = "category:";
     private const string CacheKeyTree = "category:tree";
     private static readonly TimeSpan CacheExpiration = TimeSpan.FromMinutes(30);
@@ -25,25 +21,25 @@ public class CategoryService : ICategoryService
     public CategoryService(
         ICategoryRepository categoryRepository,
         IPageRepository pageRepository,
-        IDistributedCache cache,
+        ICacheService cacheService,
         ISlugGenerator slugGenerator,
-        ILogger<CategoryService> logger)
+        ILogger<CategoryService> logger,
+        ICacheInvalidationService cacheInvalidation)
+        : base(logger, cacheService, cacheInvalidation)
     {
         _categoryRepository = categoryRepository;
         _pageRepository = pageRepository;
-        _cache = cache;
         _slugGenerator = slugGenerator;
-        _logger = logger;
     }
 
     public async Task<CategoryDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"{CacheKeyPrefix}{id}";
-        var cached = await _cache.GetStringAsync(cacheKey, cancellationToken);
+        var cached = await Cache.GetAsync<CategoryDto>(cacheKey, cancellationToken);
         
         if (cached != null)
         {
-            return JsonSerializer.Deserialize<CategoryDto>(cached);
+            return cached;
         }
 
         var category = await _categoryRepository.GetByIdAsync(id, cancellationToken);
@@ -54,11 +50,7 @@ public class CategoryService : ICategoryService
 
         var dto = await MapToDtoAsync(category, cancellationToken);
         
-        await _cache.SetStringAsync(
-            cacheKey,
-            JsonSerializer.Serialize(dto),
-            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheExpiration },
-            cancellationToken);
+        await Cache.SetAsync(cacheKey, dto, CacheExpiration, cancellationToken);
 
         return dto;
     }
@@ -115,11 +107,11 @@ public class CategoryService : ICategoryService
 
     public async Task<IEnumerable<CategoryTreeDto>> GetCategoryTreeAsync(CancellationToken cancellationToken = default)
     {
-        var cached = await _cache.GetStringAsync(CacheKeyTree, cancellationToken);
+        var cached = await Cache.GetAsync<List<CategoryTreeDto>>(CacheKeyTree, cancellationToken);
         
         if (cached != null)
         {
-            return JsonSerializer.Deserialize<List<CategoryTreeDto>>(cached) ?? new List<CategoryTreeDto>();
+            return cached;
         }
 
         var rootCategories = await _categoryRepository.GetRootCategoriesAsync(cancellationToken);
@@ -130,11 +122,7 @@ public class CategoryService : ICategoryService
             tree.Add(await BuildTreeNodeAsync(root, cancellationToken));
         }
 
-        await _cache.SetStringAsync(
-            CacheKeyTree,
-            JsonSerializer.Serialize(tree),
-            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheExpiration },
-            cancellationToken);
+        await Cache.SetAsync(CacheKeyTree, tree, CacheExpiration, cancellationToken);
 
         return tree;
     }
@@ -235,7 +223,7 @@ public class CategoryService : ICategoryService
 
         await _categoryRepository.AddAsync(category, cancellationToken);
 
-        _logger.LogInformation("Created category {CategoryName} with ID {CategoryId} under parent {ParentId}", 
+        LogInfo("Created category {CategoryName} with ID {CategoryId} under parent {ParentId}", 
             category.Name, category.Id, parentId);
 
         await InvalidateCacheAsync(cancellationToken);
@@ -302,7 +290,7 @@ public class CategoryService : ICategoryService
 
         await _categoryRepository.UpdateAsync(category, cancellationToken);
 
-        _logger.LogInformation("Updated category {CategoryName} (ID: {CategoryId})", category.Name, category.Id);
+        LogInfo("Updated category {CategoryName} (ID: {CategoryId})", category.Name, category.Id);
 
         await InvalidateCacheAsync(cancellationToken);
 
@@ -340,7 +328,7 @@ public class CategoryService : ICategoryService
         category.ParentCategoryId = newParentId;
         await _categoryRepository.UpdateAsync(category, cancellationToken);
 
-        _logger.LogInformation("Moved category {CategoryName} (ID: {CategoryId}) to parent {ParentId}", 
+        LogInfo("Moved category {CategoryName} (ID: {CategoryId}) to parent {ParentId}", 
             category.Name, category.Id, newParentId);
 
         await InvalidateCacheAsync(cancellationToken);
@@ -373,7 +361,7 @@ public class CategoryService : ICategoryService
 
         await _categoryRepository.DeleteAsync(category, cancellationToken);
 
-        _logger.LogInformation("Deleted category {CategoryName} (ID: {CategoryId})", category.Name, category.Id);
+        LogInfo("Deleted category {CategoryName} (ID: {CategoryId})", category.Name, category.Id);
 
         await InvalidateCacheAsync(cancellationToken);
     }
@@ -560,19 +548,6 @@ public class CategoryService : ICategoryService
         };
     }
 
-    private async Task InvalidateCacheAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await _cache.RemoveAsync(CacheKeyTree, cancellationToken);
-            _logger.LogDebug("Invalidated category cache");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to invalidate category cache");
-        }
-    }
-
     /// <summary>
     /// Get the maximum depth of a category's subtree (0 if no children)
     /// </summary>
@@ -637,7 +612,7 @@ public class CategoryService : ICategoryService
             
             if (current == null)
             {
-                _logger.LogDebug("Category path segment '{Segment}' not found in path '{Path}'", segmentName, path);
+                LogDebug("Category path segment '{Segment}' not found in path '{Path}'", segmentName, path);
                 return null;
             }
         }
@@ -699,7 +674,7 @@ public class CategoryService : ICategoryService
         category.DisplayOrder = newDisplayOrder;
         await _categoryRepository.UpdateAsync(category, cancellationToken);
 
-        _logger.LogInformation("Reordered category {CategoryName} (ID: {CategoryId}) to position {DisplayOrder}", 
+        LogInfo("Reordered category {CategoryName} (ID: {CategoryId}) to position {DisplayOrder}", 
             category.Name, category.Id, newDisplayOrder);
 
         await InvalidateCacheAsync(cancellationToken);
@@ -725,7 +700,7 @@ public class CategoryService : ICategoryService
                     page.CategoryId = category.ParentCategoryId;
                     await _pageRepository.UpdateAsync(page, cancellationToken);
                 }
-                _logger.LogInformation("Moved {PageCount} pages from category {CategoryId} to parent category {ParentId}", 
+                LogInfo("Moved {PageCount} pages from category {CategoryId} to parent category {ParentId}", 
                     pages.Count(), id, category.ParentCategoryId);
                 break;
 
@@ -746,7 +721,7 @@ public class CategoryService : ICategoryService
                     page.CategoryId = options.TargetCategoryId.Value;
                     await _pageRepository.UpdateAsync(page, cancellationToken);
                 }
-                _logger.LogInformation("Moved {PageCount} pages from category {CategoryId} to category {TargetId}", 
+                LogInfo("Moved {PageCount} pages from category {CategoryId} to category {TargetId}", 
                     pages.Count(), id, options.TargetCategoryId.Value);
                 break;
 
@@ -756,7 +731,7 @@ public class CategoryService : ICategoryService
                     page.CategoryId = null;
                     await _pageRepository.UpdateAsync(page, cancellationToken);
                 }
-                _logger.LogInformation("Removed category from {PageCount} pages in category {CategoryId}", 
+                LogInfo("Removed category from {PageCount} pages in category {CategoryId}", 
                     pages.Count(), id);
                 break;
         }
@@ -771,8 +746,17 @@ public class CategoryService : ICategoryService
         // Delete the category
         await _categoryRepository.DeleteAsync(category, cancellationToken);
 
-        _logger.LogInformation("Deleted category {CategoryName} (ID: {CategoryId})", category.Name, category.Id);
+        LogInfo("Deleted category {CategoryName} (ID: {CategoryId})", category.Name, category.Id);
 
         await InvalidateCacheAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Invalidate category caches using the centralized cache invalidation service
+    /// </summary>
+    private async Task InvalidateCacheAsync(CancellationToken cancellationToken)
+    {
+        // Use the centralized cache invalidation service which handles all category-related caches
+        await CacheInvalidation.InvalidateCategoryAsync(0, cancellationToken);
     }
 }

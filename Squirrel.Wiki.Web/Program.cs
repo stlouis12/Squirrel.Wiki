@@ -218,6 +218,9 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 // Register shared cache service
 builder.Services.AddScoped<ICacheService, CacheService>();
 
+// Register cache invalidation service
+builder.Services.AddScoped<ICacheInvalidationService, CacheInvalidationService>();
+
 // Register CategoryTreeBuilder with caching decorator
 builder.Services.AddScoped<CategoryTreeBuilder>(); // Register concrete implementation
 builder.Services.AddScoped<ICategoryTreeBuilder>(sp =>
@@ -228,15 +231,8 @@ builder.Services.AddScoped<ICategoryTreeBuilder>(sp =>
     return new CachedCategoryTreeBuilder(innerBuilder, cacheService, logger);
 });
 
-// Register TagService with caching decorator
-builder.Services.AddScoped<TagService>(); // Register concrete implementation
-builder.Services.AddScoped<ITagService>(sp =>
-{
-    var innerService = sp.GetRequiredService<TagService>();
-    var cacheService = sp.GetRequiredService<ICacheService>();
-    var logger = sp.GetRequiredService<ILogger<CachedTagService>>();
-    return new CachedTagService(innerService, cacheService, logger);
-});
+// Register TagService (now with integrated caching)
+builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<IMenuService, MenuService>();
 builder.Services.AddScoped<ISearchService, LuceneSearchService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();

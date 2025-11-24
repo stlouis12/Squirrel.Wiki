@@ -9,17 +9,15 @@ namespace Squirrel.Wiki.Core.Services;
 /// <summary>
 /// Service implementation for page management operations
 /// </summary>
-public class PageService : IPageService
+public class PageService : BaseService, IPageService
 {
     private readonly IPageRepository _pageRepository;
     private readonly ITagRepository _tagRepository;
     private readonly ICategoryRepository _categoryRepository;
     private readonly IMarkdownService _markdownService;
     private readonly ISettingsService _settingsService;
-    private readonly ICacheService _cacheService;
     private readonly ITagService _tagService;
     private readonly ISlugGenerator _slugGenerator;
-    private readonly ILogger<PageService> _logger;
 
     private const string CacheKeyPrefix = "page:";
     private const string CacheKeyAllPages = "pages:all";
@@ -34,31 +32,31 @@ public class PageService : IPageService
         ICacheService cacheService,
         ITagService tagService,
         ISlugGenerator slugGenerator,
-        ILogger<PageService> logger)
+        ILogger<PageService> logger,
+        ICacheInvalidationService cacheInvalidation)
+        : base(logger, cacheService, cacheInvalidation)
     {
         _pageRepository = pageRepository;
         _tagRepository = tagRepository;
         _categoryRepository = categoryRepository;
         _markdownService = markdownService;
         _settingsService = settingsService;
-        _cacheService = cacheService;
         _tagService = tagService;
         _slugGenerator = slugGenerator;
-        _logger = logger;
     }
 
     public async Task<PageDto> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         // Try cache first
         var cacheKey = $"{CacheKeyPrefix}{id}";
-        var cachedPage = await _cacheService.GetAsync<PageDto>(cacheKey, cancellationToken);
+        var cachedPage = await Cache.GetAsync<PageDto>(cacheKey, cancellationToken);
         if (cachedPage != null)
         {
-            _logger.LogDebug("Page cache hit for key: {CacheKey}", cacheKey);
+            LogDebug("Page cache hit for key: {CacheKey}", cacheKey);
             return cachedPage;
         }
 
-        _logger.LogDebug("Page cache miss for key: {CacheKey}", cacheKey);
+        LogDebug("Page cache miss for key: {CacheKey}", cacheKey);
         var page = await _pageRepository.GetByIdAsync(id, cancellationToken);
         if (page == null)
             throw new KeyNotFoundException($"Page with ID {id} not found");
@@ -67,7 +65,7 @@ public class PageService : IPageService
         var pageDto = await MapToPageDtoAsync(page, content, cancellationToken);
 
         // Cache the result
-        await _cacheService.SetAsync(cacheKey, pageDto, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, pageDto, CacheExpiration, cancellationToken);
 
         return pageDto;
     }
@@ -95,15 +93,15 @@ public class PageService : IPageService
     public async Task<IEnumerable<PageDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var cacheKey = CacheKeyAllPages;
-        var cached = await _cacheService.GetAsync<List<PageDto>>(cacheKey, cancellationToken);
+        var cached = await Cache.GetAsync<List<PageDto>>(cacheKey, cancellationToken);
         
         if (cached != null)
         {
-            _logger.LogDebug("All pages cache hit");
+            LogDebug("All pages cache hit");
             return cached;
         }
 
-        _logger.LogDebug("All pages cache miss");
+        LogDebug("All pages cache miss");
         var pages = await _pageRepository.GetAllActiveAsync(cancellationToken);
         var pageDtos = new List<PageDto>();
 
@@ -116,22 +114,22 @@ public class PageService : IPageService
             pageDtos.Add(await MapToPageDtoAsync(page, content, categoryCache, cancellationToken));
         }
 
-        await _cacheService.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
         return pageDtos;
     }
 
     public async Task<IEnumerable<PageDto>> GetByCategoryAsync(int categoryId, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"pages:category:{categoryId}";
-        var cached = await _cacheService.GetAsync<List<PageDto>>(cacheKey, cancellationToken);
+        var cached = await Cache.GetAsync<List<PageDto>>(cacheKey, cancellationToken);
         
         if (cached != null)
         {
-            _logger.LogDebug("Pages by category cache hit for category: {CategoryId}", categoryId);
+            LogDebug("Pages by category cache hit for category: {CategoryId}", categoryId);
             return cached;
         }
 
-        _logger.LogDebug("Pages by category cache miss for category: {CategoryId}", categoryId);
+        LogDebug("Pages by category cache miss for category: {CategoryId}", categoryId);
         var pages = await _pageRepository.GetByCategoryIdAsync(categoryId, cancellationToken);
         var pageDtos = new List<PageDto>();
 
@@ -144,22 +142,22 @@ public class PageService : IPageService
             pageDtos.Add(await MapToPageDtoAsync(page, content, categoryCache, cancellationToken));
         }
 
-        await _cacheService.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
         return pageDtos;
     }
 
     public async Task<IEnumerable<PageDto>> GetByTagAsync(string tag, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"pages:tag:{tag.ToLowerInvariant()}";
-        var cached = await _cacheService.GetAsync<List<PageDto>>(cacheKey, cancellationToken);
+        var cached = await Cache.GetAsync<List<PageDto>>(cacheKey, cancellationToken);
         
         if (cached != null)
         {
-            _logger.LogDebug("Pages by tag cache hit for tag: {Tag}", tag);
+            LogDebug("Pages by tag cache hit for tag: {Tag}", tag);
             return cached;
         }
 
-        _logger.LogDebug("Pages by tag cache miss for tag: {Tag}", tag);
+        LogDebug("Pages by tag cache miss for tag: {Tag}", tag);
         var pages = await _pageRepository.GetByTagAsync(tag, cancellationToken);
         var pageDtos = new List<PageDto>();
 
@@ -172,22 +170,22 @@ public class PageService : IPageService
             pageDtos.Add(await MapToPageDtoAsync(page, content, categoryCache, cancellationToken));
         }
 
-        await _cacheService.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
         return pageDtos;
     }
 
     public async Task<IEnumerable<PageDto>> GetByAuthorAsync(string username, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"pages:author:{username.ToLowerInvariant()}";
-        var cached = await _cacheService.GetAsync<List<PageDto>>(cacheKey, cancellationToken);
+        var cached = await Cache.GetAsync<List<PageDto>>(cacheKey, cancellationToken);
         
         if (cached != null)
         {
-            _logger.LogDebug("Pages by author cache hit for author: {Username}", username);
+            LogDebug("Pages by author cache hit for author: {Username}", username);
             return cached;
         }
 
-        _logger.LogDebug("Pages by author cache miss for author: {Username}", username);
+        LogDebug("Pages by author cache miss for author: {Username}", username);
         var pages = await _pageRepository.GetByCreatedByAsync(username, cancellationToken);
         var pageDtos = new List<PageDto>();
 
@@ -200,13 +198,13 @@ public class PageService : IPageService
             pageDtos.Add(await MapToPageDtoAsync(page, content, categoryCache, cancellationToken));
         }
 
-        await _cacheService.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, pageDtos, CacheExpiration, cancellationToken);
         return pageDtos;
     }
 
     public async Task<PageDto> CreateAsync(PageCreateDto createDto, string username, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Creating new page: {Title} by {Username}", createDto.Title, username);
+        LogInfo("Creating new page: {Title} by {Username}", createDto.Title, username);
 
         // Generate slug if not provided
         var slug = string.IsNullOrWhiteSpace(createDto.Slug)
@@ -248,14 +246,14 @@ public class PageService : IPageService
         // Invalidate cache
         await InvalidatePageCacheAsync(page.Id, cancellationToken);
 
-        _logger.LogInformation("Page created successfully: {PageId}", page.Id);
+        LogInfo("Page created successfully: {PageId}", page.Id);
 
         return await MapToPageDtoAsync(page, pageContent, cancellationToken);
     }
 
     public async Task<PageDto> UpdateAsync(int id, PageUpdateDto updateDto, string username, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Updating page: {PageId} by {Username}", id, username);
+        LogInfo("Updating page: {PageId} by {Username}", id, username);
 
         var page = await _pageRepository.GetByIdAsync(id, cancellationToken);
         if (page == null)
@@ -285,7 +283,7 @@ public class PageService : IPageService
         if (enableVersioning)
         {
             // Versioning enabled: Create new version
-            _logger.LogDebug("Page versioning enabled - creating new version for page {PageId}", id);
+            LogDebug("Page versioning enabled - creating new version for page {PageId}", id);
             
             var allVersions = await _pageRepository.GetAllContentVersionsAsync(id, cancellationToken);
             var maxVersion = allVersions.Any() ? allVersions.Max(v => v.VersionNumber) : 0;
@@ -305,7 +303,7 @@ public class PageService : IPageService
         else
         {
             // Versioning disabled: Update existing version
-            _logger.LogDebug("Page versioning disabled - updating existing version for page {PageId}", id);
+            LogDebug("Page versioning disabled - updating existing version for page {PageId}", id);
             
             var existingContent = await _pageRepository.GetLatestContentAsync(id, cancellationToken);
             
@@ -349,29 +347,29 @@ public class PageService : IPageService
         // Invalidate cache
         await InvalidatePageCacheAsync(page.Id, cancellationToken);
 
-        _logger.LogInformation("Page updated successfully: {PageId}", page.Id);
+        LogInfo("Page updated successfully: {PageId}", page.Id);
 
         return await MapToPageDtoAsync(page, pageContent, cancellationToken);
     }
 
     public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Soft deleting page: {PageId}", id);
+        LogInfo("Soft deleting page: {PageId}", id);
 
         await _pageRepository.SoftDeleteAsync(id, cancellationToken);
         await InvalidatePageCacheAsync(id, cancellationToken);
 
-        _logger.LogInformation("Page soft deleted successfully: {PageId}", id);
+        LogInfo("Page soft deleted successfully: {PageId}", id);
     }
 
     public async Task<PageDto> RestoreAsync(int id, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Restoring page: {PageId}", id);
+        LogInfo("Restoring page: {PageId}", id);
 
         await _pageRepository.RestoreAsync(id, cancellationToken);
         await InvalidatePageCacheAsync(id, cancellationToken);
 
-        _logger.LogInformation("Page restored successfully: {PageId}", id);
+        LogInfo("Page restored successfully: {PageId}", id);
 
         return await GetByIdAsync(id, cancellationToken);
     }
@@ -399,7 +397,7 @@ public class PageService : IPageService
 
     public async Task<PageDto> RevertToVersionAsync(int pageId, int version, string username, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Reverting page {PageId} to version {Version}", pageId, version);
+        LogInfo("Reverting page {PageId} to version {Version}", pageId, version);
 
         var oldContent = await _pageRepository.GetContentByVersionAsync(pageId, version, cancellationToken);
         if (oldContent == null)
@@ -432,7 +430,7 @@ public class PageService : IPageService
 
         await InvalidatePageCacheAsync(pageId, cancellationToken);
 
-        _logger.LogInformation("Page reverted successfully: {PageId}", pageId);
+        LogInfo("Page reverted successfully: {PageId}", pageId);
 
         return await MapToPageDtoAsync(page, newContent, cancellationToken);
     }
@@ -697,16 +695,16 @@ public class PageService : IPageService
         await _pageRepository.UpdateAsync(page, cancellationToken);
 
         // Invalidate tag caches when page tags change
-        if (_tagService is CachedTagService cachedTagService)
+        if (_tagService is TagService tagService)
         {
-            await cachedTagService.InvalidateTagCachesForPageAsync(pageId, cancellationToken);
-            await cachedTagService.InvalidateTagCountCachesAsync(cancellationToken);
+            await tagService.InvalidateTagCachesForPageAsync(pageId, cancellationToken);
+            await tagService.InvalidateTagCountCachesAsync(cancellationToken);
         }
     }
 
     private async Task UpdateLinksToPageAsync(string oldTitle, string newTitle, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Updating links from '{OldTitle}' to '{NewTitle}'", oldTitle, newTitle);
+        LogInfo("Updating links from '{OldTitle}' to '{NewTitle}'", oldTitle, newTitle);
 
         var allPages = await _pageRepository.GetAllAsync(cancellationToken);
         
@@ -743,30 +741,7 @@ public class PageService : IPageService
 
     private async Task InvalidatePageCacheAsync(int pageId, CancellationToken cancellationToken)
     {
-        _logger.LogDebug("Invalidating page cache for page: {PageId}", pageId);
-        
-        // Invalidate specific page cache
-        await _cacheService.RemoveAsync($"{CacheKeyPrefix}{pageId}", cancellationToken);
-        
-        // Invalidate all pages cache
-        await _cacheService.RemoveAsync(CacheKeyAllPages, cancellationToken);
-        
-        // Invalidate all collection caches (category, tag, author filters)
-        // These will be rebuilt on next request
-        await _cacheService.RemoveByPatternAsync("pages:category:*", cancellationToken);
-        await _cacheService.RemoveByPatternAsync("pages:tag:*", cancellationToken);
-        await _cacheService.RemoveByPatternAsync("pages:author:*", cancellationToken);
-        
-        // Invalidate tag caches (for %ALLTAGS% token in menus)
-        await _cacheService.RemoveByPatternAsync("tags:*", cancellationToken);
-        _logger.LogDebug("Invalidated tag caches for menu token updates");
-        
-        // Invalidate menu caches (for sidebar updates with %ALLTAGS% and %ALLCATEGORIES% tokens)
-        await _cacheService.RemoveByPatternAsync("menu:*", cancellationToken);
-        _logger.LogDebug("Invalidated menu caches for sidebar updates");
-        
-        // Invalidate category tree cache (for sidebar category counts)
-        await _cacheService.RemoveAsync("category:tree", cancellationToken);
-        _logger.LogDebug("Invalidated category tree cache");
+        // Use the centralized cache invalidation service
+        await CacheInvalidation.InvalidatePageAsync(pageId, cancellationToken);
     }
 }
