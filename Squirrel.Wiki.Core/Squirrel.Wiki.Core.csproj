@@ -51,6 +51,9 @@
     <!-- HTTP Context Accessor for UserContext -->
     <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.0" />
     
+    <!-- Authorization -->
+    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="8.0.11" />
+    
     <!-- Data Protection for encryption -->
     <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="8.0.11" />
     

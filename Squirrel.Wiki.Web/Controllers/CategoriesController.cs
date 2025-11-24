@@ -56,11 +56,6 @@ public class CategoriesController : BaseController
 
             PopulateBaseViewModel(model);
             return View(model);
-        },
-        ex =>
-        {
-            NotifyError($"Error loading categories: {ex.Message}");
-            return View(new CategoryViewModel());
         });
     }
 
@@ -88,9 +83,7 @@ public class CategoriesController : BaseController
             }
 
             return View("Edit", model);
-        },
-        "Error loading form.",
-        "Error loading create category form");
+        });
     }
 
     /// <summary>
@@ -116,9 +109,7 @@ public class CategoriesController : BaseController
             };
 
             return View(model);
-        },
-        "Error loading category.",
-        $"Error loading edit category form for ID {id}");
+        });
     }
 
     /// <summary>

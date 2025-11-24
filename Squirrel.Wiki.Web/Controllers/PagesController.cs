@@ -24,7 +24,8 @@ public class PagesController : BaseController
     private readonly ICategoryService _categoryService;
     private readonly IMarkdownService _markdownService;
     private readonly ISearchService _searchService;
-    private readonly Squirrel.Wiki.Core.Security.IAuthorizationService _authorizationService;
+    private readonly Squirrel.Wiki.Core.Security.IAuthorizationService _coreAuthorizationService;
+    private readonly Microsoft.AspNetCore.Authorization.IAuthorizationService _authorizationService;
     private readonly IPageRepository _pageRepository;
     private readonly ISettingsService _settingsService;
 
@@ -34,7 +35,8 @@ public class PagesController : BaseController
         ICategoryService categoryService,
         IMarkdownService markdownService,
         ISearchService searchService,
-        Squirrel.Wiki.Core.Security.IAuthorizationService authorizationService,
+        Squirrel.Wiki.Core.Security.IAuthorizationService coreAuthorizationService,
+        Microsoft.AspNetCore.Authorization.IAuthorizationService authorizationService,
         IPageRepository pageRepository,
         ISettingsService settingsService,
         ITimezoneService timezoneService,
@@ -47,6 +49,7 @@ public class PagesController : BaseController
         _categoryService = categoryService;
         _markdownService = markdownService;
         _searchService = searchService;
+        _coreAuthorizationService = coreAuthorizationService;
         _authorizationService = authorizationService;
         _pageRepository = pageRepository;
         _settingsService = settingsService;
@@ -198,7 +201,7 @@ public class PagesController : BaseController
                 var pageEntities = await _pageRepository.GetByIdsAsync(pageIds, cancellationToken);
                 
                 // ✅ Batch authorization check
-                var authResults = await _authorizationService.CanViewPagesAsync(pageEntities, cancellationToken);
+                var authResults = await _coreAuthorizationService.CanViewPagesAsync(pageEntities, cancellationToken);
                 var authorizedCount = authResults.Count(r => r.Value);
                 
                 // Only include tags that have at least one visible page
@@ -513,11 +516,6 @@ public class PagesController : BaseController
             
             NotifyLocalizedSuccess("Notification_PageDeleted");
             return RedirectToAction(nameof(AllPages));
-        },
-        ex =>
-        {
-            NotifyError("An error occurred while deleting the page");
-            return RedirectToAction(nameof(AllPages));
         });
     }
 
@@ -717,19 +715,6 @@ public class PagesController : BaseController
             
             NotifyLocalizedSuccess("Notification_PageReverted", versionNumber.ToString());
             return RedirectToAction("Index", "Wiki", new { id });
-        },
-        ex =>
-        {
-            if (ex is KeyNotFoundException)
-            {
-                _logger.LogWarning(ex, "Version not found when reverting page {PageId} to version {Version}", id, versionNumber);
-                NotifyError($"Version {versionNumber} was not found for this page");
-            }
-            else
-            {
-                NotifyError($"An error occurred while reverting the page: {ex.Message}");
-            }
-            return RedirectToAction(nameof(History), new { id });
         });
     }
 
@@ -842,7 +827,7 @@ public class PagesController : BaseController
         var pageIdToDto = pagesList.ToDictionary(p => p.Id);
         
         // ✅ Batch authorization check
-        var authResults = await _authorizationService.CanViewPagesAsync(pageEntities, cancellationToken);
+        var authResults = await _coreAuthorizationService.CanViewPagesAsync(pageEntities, cancellationToken);
         
         // Filter to only authorized pages
         var authorizedPages = new List<PageDto>();

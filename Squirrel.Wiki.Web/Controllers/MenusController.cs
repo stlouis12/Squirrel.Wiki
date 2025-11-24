@@ -57,9 +57,7 @@ public class MenusController : BaseController
 
             PopulateBaseViewModel(model);
             return View(model);
-        },
-        "Error loading menus. Please try again.",
-        "Error loading menus");
+        });
     }
 
     /// <summary>
@@ -107,9 +105,7 @@ public class MenusController : BaseController
 
             PopulateMenuTypes(model);
             return View(model);
-        },
-        "Error loading menu. Please try again.",
-        $"Error loading menu {id}");
+        });
     }
 
     /// <summary>

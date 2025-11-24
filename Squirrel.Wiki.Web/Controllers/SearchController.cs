@@ -1,7 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services;
-using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models;
@@ -15,12 +15,12 @@ namespace Squirrel.Wiki.Web.Controllers;
 public class SearchController : BaseController
 {
     private readonly ISearchService _searchService;
-    private readonly Squirrel.Wiki.Core.Security.IAuthorizationService _authorizationService;
+    private readonly IAuthorizationService _authorizationService;
     private readonly IPageRepository _pageRepository;
 
     public SearchController(
         ISearchService searchService,
-        Squirrel.Wiki.Core.Security.IAuthorizationService authorizationService,
+        IAuthorizationService authorizationService,
         IPageRepository pageRepository,
         ITimezoneService timezoneService,
         ILogger<SearchController> logger,
@@ -123,11 +123,6 @@ public class SearchController : BaseController
             NotifyLocalizedSuccess("Notification_SearchIndexRebuilt");
             
             return RedirectToAction("Index", "Home");
-        },
-        ex =>
-        {
-            NotifyError("An error occurred while rebuilding the search index");
-            return RedirectToAction("Index", "Home");
         });
     }
 
@@ -162,12 +157,12 @@ public class SearchController : BaseController
             _logger.LogInformation("Search completed - Query: '{Query}', Results: {ResultCount}, Total: {TotalResults}", 
                 query, results.Results.Count(), results.TotalResults);
             
-            // Filter results based on authorization
+            // Filter results based on authorization using new policy-based authorization
             var authorizedResults = new List<SearchResultItemViewModel>();
             foreach (var result in results.Results)
             {
                 var pageEntity = await _pageRepository.GetByIdAsync(result.PageId, cancellationToken);
-                if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
+                if (pageEntity != null && await CanViewPageAsync(_authorizationService, pageEntity))
                 {
                     authorizedResults.Add(new SearchResultItemViewModel
                     {
@@ -217,12 +212,12 @@ public class SearchController : BaseController
         {
             var results = await _searchService.SearchAsync(query, 1, limit, cancellationToken);
             
-            // Filter results based on authorization
+            // Filter results based on authorization using new policy-based authorization
             var authorizedSuggestions = new List<object>();
             foreach (var result in results.Results)
             {
                 var pageEntity = await _pageRepository.GetByIdAsync(result.PageId, cancellationToken);
-                if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
+                if (pageEntity != null && await CanViewPageAsync(_authorizationService, pageEntity))
                 {
                     authorizedSuggestions.Add(new
                     {

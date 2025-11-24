@@ -97,9 +97,7 @@ public class UsersController : BaseController
             PopulateBaseViewModel(model);
 
             return View(model);
-        },
-        "Error loading users. Please try again.",
-        "Error loading user list");
+        });
     }
 
     /// <summary>
@@ -121,9 +119,7 @@ public class UsersController : BaseController
 
             PopulateBaseViewModel(model);
             return View(model);
-        },
-        "Error loading user details.",
-        $"Error loading user details for {id}");
+        });
     }
 
     /// <summary>
@@ -201,9 +197,7 @@ public class UsersController : BaseController
             };
 
             return View(model);
-        },
-        "Error loading user.",
-        $"Error loading user for edit: {id}");
+        });
     }
 
     /// <summary>
@@ -266,9 +260,7 @@ public class UsersController : BaseController
             _logger.LogInformation("User {Username} deactivated (delete requested) by {AdminUser}", user.Username, User.Identity?.Name);
             NotifyLocalizedSuccess("Notification_UserDeleted", user.Username);
             return RedirectToAction(nameof(Index));
-        },
-        "An error occurred while deleting the user. Please try again.",
-        $"Error deleting user {id}");
+        });
     }
 
     /// <summary>
@@ -296,9 +288,7 @@ public class UsersController : BaseController
             _logger.LogInformation("User {Username} deactivated by {AdminUser}", user.Username, User.Identity?.Name);
             NotifyLocalizedSuccess("Notification_UserDeactivated", user.Username);
             return RedirectToAction(nameof(Details), new { id });
-        },
-        "An error occurred while deactivating the user.",
-        $"Error deactivating user {id}");
+        });
     }
 
     /// <summary>
@@ -319,9 +309,7 @@ public class UsersController : BaseController
             _logger.LogInformation("User {Username} activated by {AdminUser}", user.Username, User.Identity?.Name);
             NotifyLocalizedSuccess("Notification_UserActivated", user.Username);
             return RedirectToAction(nameof(Details), new { id });
-        },
-        "An error occurred while activating the user.",
-        $"Error activating user {id}");
+        });
     }
 
     /// <summary>
@@ -342,9 +330,7 @@ public class UsersController : BaseController
             _logger.LogInformation("User {Username} unlocked by {AdminUser}", user.Username, User.Identity?.Name);
             NotifyLocalizedSuccess("Notification_UserUnlocked", user.Username);
             return RedirectToAction(nameof(Details), new { id });
-        },
-        "An error occurred while unlocking the user.",
-        $"Error unlocking user {id}");
+        });
     }
 
     /// <summary>
@@ -372,9 +358,7 @@ public class UsersController : BaseController
             };
 
             return View(model);
-        },
-        "Error loading reset password form.",
-        $"Error loading reset password form for {id}");
+        });
     }
 
     /// <summary>

@@ -1,10 +1,14 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
+using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models;
 using Squirrel.Wiki.Web.Resources;
 using Squirrel.Wiki.Web.Services;
+using System.Security.Claims;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -340,6 +344,28 @@ public abstract class BaseController : Controller
             return false;
         }
         return true;
+    }
+
+    #endregion
+
+    #region Authorization Helpers
+
+    /// <summary>
+    /// Checks if the current user is authorized to view a page.
+    /// Uses policy-based authorization for consistent security checks.
+    /// 
+    /// NOTE: This method is kept for SearchController which needs to filter individual search results.
+    /// For batch operations, prefer using IAuthorizationService.CanViewPagesAsync() from the Core layer
+    /// for better performance.
+    /// </summary>
+    /// <param name="authorizationService">The authorization service (injected in derived controllers)</param>
+    /// <param name="page">The page entity to check authorization for</param>
+    /// <returns>True if authorized, false otherwise</returns>
+    protected async Task<bool> CanViewPageAsync(
+        IAuthorizationService authorizationService,
+        Page page)
+    {
+        return await authorizationService.IsAuthorizedAsync(User, page, "CanViewPage");
     }
 
     #endregion

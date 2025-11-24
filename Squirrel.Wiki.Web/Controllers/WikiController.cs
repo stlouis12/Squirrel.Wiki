@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Models;
@@ -17,7 +18,8 @@ public class WikiController : Controller
     private readonly IPageService _pageService;
     private readonly IMarkdownService _markdownService;
     private readonly ICategoryService _categoryService;
-    private readonly IAuthorizationService _authorizationService;
+    private readonly Squirrel.Wiki.Core.Security.IAuthorizationService _coreAuthorizationService;
+    private readonly Microsoft.AspNetCore.Authorization.IAuthorizationService _authorizationService;
     private readonly IPageRepository _pageRepository;
     private readonly ITimezoneService _timezoneService;
     private readonly ILogger<WikiController> _logger;
@@ -26,7 +28,8 @@ public class WikiController : Controller
         IPageService pageService,
         IMarkdownService markdownService,
         ICategoryService categoryService,
-        IAuthorizationService authorizationService,
+        Squirrel.Wiki.Core.Security.IAuthorizationService coreAuthorizationService,
+        Microsoft.AspNetCore.Authorization.IAuthorizationService authorizationService,
         IPageRepository pageRepository,
         ITimezoneService timezoneService,
         ILogger<WikiController> logger)
@@ -34,6 +37,7 @@ public class WikiController : Controller
         _pageService = pageService;
         _markdownService = markdownService;
         _categoryService = categoryService;
+        _coreAuthorizationService = coreAuthorizationService;
         _authorizationService = authorizationService;
         _pageRepository = pageRepository;
         _timezoneService = timezoneService;
@@ -78,7 +82,7 @@ public class WikiController : Controller
                 {
                     "PAGE_NOT_FOUND" => NotFound($"The page with ID {id} could not be found"),
                     "PAGE_NO_CONTENT" => NotFound($"No content found for page {id}"),
-                    "PAGE_UNAUTHORIZED" => !_authorizationService.IsAuthenticated()
+                    "PAGE_UNAUTHORIZED" => !_coreAuthorizationService.IsAuthenticated()
                         ? RedirectToAction("Login", "Account", new { returnUrl = Request.Path })
                         : StatusCode(403, "You do not have permission to view this page"),
                     _ => StatusCode(500, "An error occurred while loading the page")
@@ -160,9 +164,19 @@ public class WikiController : Controller
                 ).WithContext("PageId", id);
             }
 
-            // Check authorization to view this page
+            // Check authorization to view this page using new policy-based authorization
             var pageEntity = await _pageRepository.GetByIdAsync(id, cancellationToken);
-            if (pageEntity == null || !await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
+            if (pageEntity == null)
+            {
+                _logger.LogWarning("Page entity with ID {PageId} not found", id);
+                return Result<PageViewModel>.Failure(
+                    $"The page with ID {id} could not be found",
+                    "PAGE_NOT_FOUND"
+                ).WithContext("PageId", id);
+            }
+
+            var authResult = await _authorizationService.AuthorizeAsync(User, pageEntity, "CanViewPage");
+            if (!authResult.Succeeded)
             {
                 var user = User.Identity?.Name ?? "Anonymous";
                 _logger.LogWarning("User {User} denied access to page {PageId}", user, id);
@@ -172,7 +186,7 @@ public class WikiController : Controller
                     "PAGE_UNAUTHORIZED"
                 ).WithContext("PageId", id)
                  .WithContext("User", user)
-                 .WithContext("IsAuthenticated", _authorizationService.IsAuthenticated());
+                 .WithContext("IsAuthenticated", _coreAuthorizationService.IsAuthenticated());
             }
 
             // Get the latest content
@@ -200,9 +214,9 @@ public class WikiController : Controller
                 },
                 cancellationToken);
 
-            // Check edit and delete permissions for this specific page
-            var username = User.Identity?.Name;
-            var userRole = User.IsInRole("Admin") ? "Admin" : User.IsInRole("Editor") ? "Editor" : User.IsInRole("Viewer") ? "Viewer" : null;
+            // Check edit and delete permissions using new policy-based authorization
+            var canEdit = await _authorizationService.IsAuthorizedAsync(User, pageEntity, "CanEditPage");
+            var canDelete = await _authorizationService.IsAuthorizedAsync(User, pageEntity, "CanDeletePage");
             
             // Map to view model
             var viewModel = new PageViewModel
@@ -218,8 +232,8 @@ public class WikiController : Controller
                 CreatedOn = pageDto.CreatedOn,
                 ModifiedBy = pageDto.ModifiedBy,
                 ModifiedOn = pageDto.ModifiedOn,
-                CanEdit = await _authorizationService.CanEditPageAsync(pageDto, username, userRole),
-                CanDelete = await _authorizationService.CanDeletePageAsync(pageDto, userRole),
+                CanEdit = canEdit,
+                CanDelete = canDelete,
                 IsHomePage = isHomePage,
                 TimezoneService = _timezoneService
             };
@@ -297,14 +311,28 @@ public class WikiController : Controller
                 ).WithContext("PageId", id);
             }
 
+            // Get page entity for authorization checks
+            var pageEntity = await _pageRepository.GetByIdAsync(id, cancellationToken);
+            if (pageEntity == null)
+            {
+                return Result<PageViewModel>.Failure(
+                    $"The page with ID {id} could not be found",
+                    "PAGE_NOT_FOUND"
+                ).WithContext("PageId", id);
+            }
+
+            // Check edit and delete permissions using new policy-based authorization
+            var canEdit = await _authorizationService.IsAuthorizedAsync(User, pageEntity, "CanEditPage");
+            var canDelete = await _authorizationService.IsAuthorizedAsync(User, pageEntity, "CanDeletePage");
+
             var viewModel = new PageViewModel
             {
                 Id = pageDto.Id,
                 Title = pageDto.Title,
                 Slug = pageDto.Slug,
                 IsLocked = pageDto.IsLocked,
-                CanEdit = true, // TODO: Check user permissions
-                CanDelete = false // TODO: Check user permissions
+                CanEdit = canEdit,
+                CanDelete = canDelete
             };
 
             return Result<PageViewModel>.Success(viewModel);

@@ -58,11 +58,6 @@ public class PluginsController : BaseController
             };
 
             return View(viewModel);
-        },
-        ex =>
-        {
-            NotifyError("Failed to load plugins: " + ex.Message);
-            return View(new PluginListViewModel());
         });
     }
 
@@ -117,9 +112,7 @@ public class PluginsController : BaseController
             }
 
             return View(viewModel);
-        },
-        "Failed to load plugin details.",
-        $"Error loading plugin details for ID: {id}");
+        });
     }
 
     /// <summary>
@@ -159,9 +152,7 @@ public class PluginsController : BaseController
             };
 
             return View(viewModel);
-        },
-        "Failed to load configuration form.",
-        $"Error loading configuration form for plugin ID: {id}");
+        });
     }
 
     /// <summary>

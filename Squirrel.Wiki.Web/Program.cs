@@ -174,13 +174,30 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddAuthorization(options =>
 {
-    // Require actual roles for both development and production
+    // Role-based policies
     options.AddPolicy("RequireAdmin", policy => 
         policy.RequireRole("Admin"));
     
     options.AddPolicy("RequireEditor", policy =>
         policy.RequireRole("Editor", "Admin"));
+    
+    // Resource-based policies for page access
+    options.AddPolicy("CanViewPage", policy =>
+        policy.Requirements.Add(new Squirrel.Wiki.Core.Security.Authorization.PageAccessRequirement(
+            Squirrel.Wiki.Core.Security.Authorization.PageAccessType.View)));
+    
+    options.AddPolicy("CanEditPage", policy =>
+        policy.Requirements.Add(new Squirrel.Wiki.Core.Security.Authorization.PageAccessRequirement(
+            Squirrel.Wiki.Core.Security.Authorization.PageAccessType.Edit)));
+    
+    options.AddPolicy("CanDeletePage", policy =>
+        policy.Requirements.Add(new Squirrel.Wiki.Core.Security.Authorization.PageAccessRequirement(
+            Squirrel.Wiki.Core.Security.Authorization.PageAccessType.Delete)));
 });
+
+// Register authorization handlers
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, 
+    Squirrel.Wiki.Core.Security.Authorization.PageAccessHandler>();
 
 // Add HttpContextAccessor for UserContext
 builder.Services.AddHttpContextAccessor();
