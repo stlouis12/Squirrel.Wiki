@@ -1,4 +1,7 @@
 using Markdig;
+using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Squirrel.Wiki.Core.Services;
@@ -6,14 +9,19 @@ namespace Squirrel.Wiki.Core.Services;
 /// <summary>
 /// Service for Markdown rendering and processing using Markdig
 /// </summary>
-public class MarkdownService : IMarkdownService
+public class MarkdownService : BaseService, IMarkdownService
 {
     private readonly MarkdownPipeline _pipeline;
     private readonly ISlugGenerator _slugGenerator;
     private static readonly Regex WikiLinkRegex = new(@"\[\[([^\]]+)\]\]", RegexOptions.Compiled);
     private static readonly Regex MarkdownLinkRegex = new(@"\[([^\]]+)\]\(([^\)]+)\)", RegexOptions.Compiled);
 
-    public MarkdownService(ISlugGenerator slugGenerator)
+    public MarkdownService(
+        ISlugGenerator slugGenerator,
+        ILogger<MarkdownService> logger,
+        ICacheService cache,
+        ICacheInvalidationService cacheInvalidation)
+        : base(logger, cache, cacheInvalidation)
     {
         _slugGenerator = slugGenerator;
         
@@ -30,10 +38,21 @@ public class MarkdownService : IMarkdownService
             .Build();
     }
 
-    public Task<string> ToHtmlAsync(string markdown, CancellationToken cancellationToken = default)
+    public async Task<string> ToHtmlAsync(string markdown, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(markdown))
-            return Task.FromResult(string.Empty);
+            return string.Empty;
+
+        // Generate cache key based on markdown content hash
+        var cacheKey = $"markdown:html:{GenerateContentHash(markdown)}";
+
+        // Try to get from cache
+        var cachedHtml = await Cache.GetAsync<string>(cacheKey, cancellationToken);
+        if (cachedHtml != null)
+        {
+            LogDebug("Markdown HTML retrieved from cache");
+            return cachedHtml;
+        }
 
         // Convert wiki-style links [[Page Title]] to markdown links
         markdown = ConvertWikiLinksToMarkdown(markdown);
@@ -41,7 +60,11 @@ public class MarkdownService : IMarkdownService
         // Convert to HTML using Markdig
         var html = Markdown.ToHtml(markdown, _pipeline);
 
-        return Task.FromResult(html);
+        // Cache the result using the configured cache expiration setting
+        await Cache.SetAsync(cacheKey, html, null, cancellationToken);
+        LogDebug("Markdown HTML cached");
+
+        return html;
     }
 
     public Task<string> ToPlainTextAsync(string markdown, CancellationToken cancellationToken = default)
@@ -179,6 +202,16 @@ public class MarkdownService : IMarkdownService
             
             return $"[{displayText}](/{slug})";
         });
+    }
+
+    /// <summary>
+    /// Generates a hash of the markdown content for cache key generation
+    /// </summary>
+    private static string GenerateContentHash(string content)
+    {
+        using var sha256 = SHA256.Create();
+        var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(content));
+        return Convert.ToBase64String(hashBytes).Replace("+", "-").Replace("/", "_").Replace("=", "");
     }
 
 

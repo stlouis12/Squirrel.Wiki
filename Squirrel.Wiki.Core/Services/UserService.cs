@@ -9,23 +9,24 @@ namespace Squirrel.Wiki.Core.Services;
 /// <summary>
 /// Service implementation for user management operations
 /// </summary>
-public class UserService : IUserService
+public class UserService : BaseService, IUserService
 {
     private readonly IUserRepository _userRepository;
     private readonly IPageRepository _pageRepository;
     private readonly ISettingsService _settingsService;
-    private readonly ILogger<UserService> _logger;
 
     public UserService(
         IUserRepository userRepository,
         IPageRepository pageRepository,
         ISettingsService settingsService,
-        ILogger<UserService> logger)
+        ILogger<UserService> logger,
+        ICacheService cache,
+        ICacheInvalidationService cacheInvalidation)
+        : base(logger, cache, cacheInvalidation)
     {
         _userRepository = userRepository;
         _pageRepository = pageRepository;
         _settingsService = settingsService;
-        _logger = logger;
     }
 
     public async Task<UserDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -100,7 +101,7 @@ public class UserService : IUserService
 
         await _userRepository.AddAsync(user, cancellationToken);
 
-        _logger.LogInformation("Created user {Username} with ID {UserId}", user.Username, user.Id);
+        LogInfo("Created user {Username} with ID {UserId}", user.Username, user.Id);
 
         return MapToDto(user);
     }
@@ -132,7 +133,7 @@ public class UserService : IUserService
 
         await _userRepository.UpdateAsync(user, cancellationToken);
 
-        _logger.LogInformation("Updated user {Username} (ID: {UserId})", user.Username, user.Id);
+        LogInfo("Updated user {Username} (ID: {UserId})", user.Username, user.Id);
 
         return MapToDto(user);
     }
@@ -148,7 +149,7 @@ public class UserService : IUserService
         user.IsAdmin = true;
         await _userRepository.UpdateAsync(user, cancellationToken);
 
-        _logger.LogInformation("Promoted user {Username} (ID: {UserId}) to admin", user.Username, user.Id);
+        LogInfo("Promoted user {Username} (ID: {UserId}) to admin", user.Username, user.Id);
     }
 
     public async Task DemoteFromAdminAsync(Guid id, CancellationToken cancellationToken = default)
@@ -162,7 +163,7 @@ public class UserService : IUserService
         user.IsAdmin = false;
         await _userRepository.UpdateAsync(user, cancellationToken);
 
-        _logger.LogInformation("Demoted user {Username} (ID: {UserId}) from admin", user.Username, user.Id);
+        LogInfo("Demoted user {Username} (ID: {UserId}) from admin", user.Username, user.Id);
     }
 
     public async Task PromoteToEditorAsync(Guid id, CancellationToken cancellationToken = default)
@@ -176,7 +177,7 @@ public class UserService : IUserService
         user.IsEditor = true;
         await _userRepository.UpdateAsync(user, cancellationToken);
 
-        _logger.LogInformation("Promoted user {Username} (ID: {UserId}) to editor", user.Username, user.Id);
+        LogInfo("Promoted user {Username} (ID: {UserId}) to editor", user.Username, user.Id);
     }
 
     public async Task DemoteFromEditorAsync(Guid id, CancellationToken cancellationToken = default)
@@ -190,7 +191,7 @@ public class UserService : IUserService
         user.IsEditor = false;
         await _userRepository.UpdateAsync(user, cancellationToken);
 
-        _logger.LogInformation("Demoted user {Username} (ID: {UserId}) from editor", user.Username, user.Id);
+        LogInfo("Demoted user {Username} (ID: {UserId}) from editor", user.Username, user.Id);
     }
 
     public async Task<bool> IsUsernameAvailableAsync(string username, Guid? excludeUserId = null, CancellationToken cancellationToken = default)
@@ -286,21 +287,21 @@ public class UserService : IUserService
 
         if (user == null)
         {
-            _logger.LogWarning("Authentication failed: User not found for {UsernameOrEmail}", usernameOrEmail);
+            LogWarning("Authentication failed: User not found for {UsernameOrEmail}", usernameOrEmail);
             return null;
         }
 
         // Only local users can authenticate with password
         if (user.Provider != AuthenticationProvider.Local)
         {
-            _logger.LogWarning("Authentication failed: User {Username} is not a local user", user.Username);
+            LogWarning("Authentication failed: User {Username} is not a local user", user.Username);
             return null;
         }
 
         // Check if password hash exists
         if (string.IsNullOrEmpty(user.PasswordHash))
         {
-            _logger.LogWarning("Authentication failed: No password set for user {Username}", user.Username);
+            LogWarning("Authentication failed: No password set for user {Username}", user.Username);
             return null;
         }
 
@@ -333,13 +334,13 @@ public class UserService : IUserService
                 user.LockedUntil = DateTime.UtcNow.AddMinutes(lockDurationMinutes);
                 await _userRepository.UpdateAsync(user, cancellationToken);
                 
-                _logger.LogWarning("Account locked for user {Username} due to {Attempts} failed login attempts. Locked until {LockedUntil}", 
+                LogWarning("Account locked for user {Username} due to {Attempts} failed login attempts. Locked until {LockedUntil}", 
                     user.Username, user.FailedLoginAttempts, user.LockedUntil);
                 throw new InvalidOperationException($"Account has been locked due to multiple failed login attempts. Please try again after {user.LockedUntil:yyyy-MM-dd HH:mm}.");
             }
             
             await _userRepository.UpdateAsync(user, cancellationToken);
-            _logger.LogWarning("Authentication failed: Invalid password for user {Username} (Attempt {Attempts}/{MaxAttempts})", 
+            LogWarning("Authentication failed: Invalid password for user {Username} (Attempt {Attempts}/{MaxAttempts})", 
                 user.Username, user.FailedLoginAttempts, maxLoginAttempts);
             return null;
         }
@@ -349,7 +350,7 @@ public class UserService : IUserService
         user.LastLoginOn = DateTime.UtcNow;
         await _userRepository.UpdateAsync(user, cancellationToken);
 
-        _logger.LogInformation("User {Username} authenticated successfully", user.Username);
+        LogInfo("User {Username} authenticated successfully", user.Username);
         return MapToDto(user);
     }
 
@@ -396,7 +397,7 @@ public class UserService : IUserService
 
         await _userRepository.AddAsync(user, cancellationToken);
 
-        _logger.LogInformation("Created local user {Username} with ID {UserId}", user.Username, user.Id);
+        LogInfo("Created local user {Username} with ID {UserId}", user.Username, user.Id);
 
         return MapToDto(user);
     }
@@ -428,7 +429,7 @@ public class UserService : IUserService
 
         await _userRepository.UpdateAsync(user, cancellationToken);
 
-        _logger.LogInformation("Password changed for user {Username} (ID: {UserId})", user.Username, user.Id);
+        LogInfo("Password changed for user {Username} (ID: {UserId})", user.Username, user.Id);
     }
 
     public Task<PasswordValidationResult> ValidatePasswordAsync(string password)
@@ -483,13 +484,13 @@ public class UserService : IUserService
         if (user == null)
         {
             // Don't reveal that the email doesn't exist
-            _logger.LogWarning("Password reset requested for non-existent email: {Email}", email);
+            LogWarning("Password reset requested for non-existent email: {Email}", email);
             return string.Empty;
         }
 
         if (user.Provider != AuthenticationProvider.Local)
         {
-            _logger.LogWarning("Password reset requested for non-local user: {Username}", user.Username);
+            LogWarning("Password reset requested for non-local user: {Username}", user.Username);
             return string.Empty;
         }
 
@@ -502,7 +503,7 @@ public class UserService : IUserService
 
         await _userRepository.UpdateAsync(user, cancellationToken);
 
-        _logger.LogInformation("Password reset initiated for user {Username} (ID: {UserId})", user.Username, user.Id);
+        LogInfo("Password reset initiated for user {Username} (ID: {UserId})", user.Username, user.Id);
 
         return token;
     }
@@ -514,13 +515,13 @@ public class UserService : IUserService
 
         if (user == null)
         {
-            _logger.LogWarning("Invalid password reset token attempted");
+            LogWarning("Invalid password reset token attempted");
             return false;
         }
 
         if (user.PasswordResetExpiry == null || user.PasswordResetExpiry < DateTime.UtcNow)
         {
-            _logger.LogWarning("Expired password reset token attempted for user {Username}", user.Username);
+            LogWarning("Expired password reset token attempted for user {Username}", user.Username);
             return false;
         }
 
@@ -528,7 +529,7 @@ public class UserService : IUserService
         var passwordValidation = await ValidatePasswordAsync(newPassword);
         if (!passwordValidation.IsValid)
         {
-            _logger.LogWarning("Password reset failed validation for user {Username}", user.Username);
+            LogWarning("Password reset failed validation for user {Username}", user.Username);
             return false;
         }
 
@@ -539,7 +540,7 @@ public class UserService : IUserService
 
         await _userRepository.UpdateAsync(user, cancellationToken);
 
-        _logger.LogInformation("Password reset completed for user {Username} (ID: {UserId})", user.Username, user.Id);
+        LogInfo("Password reset completed for user {Username} (ID: {UserId})", user.Username, user.Id);
 
         return true;
     }
@@ -557,7 +558,7 @@ public class UserService : IUserService
 
         await _userRepository.UpdateAsync(user, cancellationToken);
 
-        _logger.LogInformation("Locked account for user {Username} (ID: {UserId}) until {LockedUntil}", 
+        LogInfo("Locked account for user {Username} (ID: {UserId}) until {LockedUntil}", 
             user.Username, user.Id, user.LockedUntil);
     }
 
@@ -575,7 +576,7 @@ public class UserService : IUserService
 
         await _userRepository.UpdateAsync(user, cancellationToken);
 
-        _logger.LogInformation("Unlocked account for user {Username} (ID: {UserId})", user.Username, user.Id);
+        LogInfo("Unlocked account for user {Username} (ID: {UserId})", user.Username, user.Id);
     }
 
     public async Task ActivateAccountAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -590,7 +591,7 @@ public class UserService : IUserService
 
         await _userRepository.UpdateAsync(user, cancellationToken);
 
-        _logger.LogInformation("Activated account for user {Username} (ID: {UserId})", user.Username, user.Id);
+        LogInfo("Activated account for user {Username} (ID: {UserId})", user.Username, user.Id);
     }
 
     public async Task DeactivateAccountAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -605,7 +606,7 @@ public class UserService : IUserService
 
         await _userRepository.UpdateAsync(user, cancellationToken);
 
-        _logger.LogInformation("Deactivated account for user {Username} (ID: {UserId})", user.Username, user.Id);
+        LogInfo("Deactivated account for user {Username} (ID: {UserId})", user.Username, user.Id);
     }
 
     // ============================================================================

@@ -18,11 +18,10 @@ namespace Squirrel.Wiki.Core.Services;
 /// <summary>
 /// Lucene.NET-based search service implementation for high-performance full-text search
 /// </summary>
-public class LuceneSearchService : ISearchService
+public class LuceneSearchService : BaseService, ISearchService
 {
     private readonly IPageRepository _pageRepository;
     private readonly IMarkdownService _markdownService;
-    private readonly ILogger<LuceneSearchService> _logger;
     private readonly string _indexPath;
     private static readonly LuceneVersion LUCENE_VERSION = LuceneVersion.LUCENE_48;
     private static readonly Regex HtmlTagRegex = new(@"<[^>]*>", RegexOptions.Compiled);
@@ -31,11 +30,13 @@ public class LuceneSearchService : ISearchService
         IPageRepository pageRepository,
         IMarkdownService markdownService,
         ILogger<LuceneSearchService> logger,
+        ICacheService cache,
+        ICacheInvalidationService cacheInvalidation,
         IOptions<SearchSettings> searchSettings)
+        : base(logger, cache, cacheInvalidation)
     {
         _pageRepository = pageRepository;
         _markdownService = markdownService;
-        _logger = logger;
         _indexPath = searchSettings.Value.IndexPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "App_Data", "SearchIndex");
         
         EnsureIndexDirectoryExists();
@@ -56,7 +57,7 @@ public class LuceneSearchService : ISearchService
             });
         }
 
-        _logger.LogInformation("Lucene search for: {SearchTerm}", searchTerm);
+        LogInfo("Lucene search for: {SearchTerm}", searchTerm);
 
         try
         {
@@ -118,7 +119,7 @@ public class LuceneSearchService : ISearchService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error searching Lucene index");
+            LogError(ex, "Error searching Lucene index");
             
             // Fall back to empty results
             return Task.FromResult(new SearchResultsDto
@@ -140,14 +141,14 @@ public class LuceneSearchService : ISearchService
             var page = await _pageRepository.GetByIdAsync(pageId, cancellationToken);
             if (page == null)
             {
-                _logger.LogWarning("Page {PageId} not found for indexing", pageId);
+                LogWarning("Page {PageId} not found for indexing", pageId);
                 return;
             }
 
             var latestContent = await _pageRepository.GetLatestContentAsync(pageId, cancellationToken);
             if (latestContent == null)
             {
-                _logger.LogWarning("No content found for page {PageId}", pageId);
+                LogWarning("No content found for page {PageId}", pageId);
                 return;
             }
 
@@ -190,11 +191,11 @@ public class LuceneSearchService : ISearchService
             writer.AddDocument(doc);
             writer.Commit();
 
-            _logger.LogDebug("Indexed page {PageId}: {Title}", pageId, page.Title);
+            LogDebug("Indexed page {PageId}: {Title}", pageId, page.Title);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error indexing page {PageId}", pageId);
+            LogError(ex, "Error indexing page {PageId}", pageId);
             throw;
         }
     }
@@ -209,7 +210,7 @@ public class LuceneSearchService : ISearchService
 
     public async Task RebuildIndexAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Rebuilding search index");
+        LogInfo("Rebuilding search index");
 
         try
         {
@@ -227,7 +228,7 @@ public class LuceneSearchService : ISearchService
             var allPages = await _pageRepository.GetAllAsync(cancellationToken);
             var pagesList = allPages.ToList();
 
-            _logger.LogInformation("Indexing {Count} pages", pagesList.Count);
+            LogInfo("Indexing {Count} pages", pagesList.Count);
 
             foreach (var page in pagesList)
             {
@@ -256,11 +257,11 @@ public class LuceneSearchService : ISearchService
             }
 
             writer.Commit();
-            _logger.LogInformation("Search index rebuilt successfully with {Count} pages", pagesList.Count);
+            LogInfo("Search index rebuilt successfully with {Count} pages", pagesList.Count);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error rebuilding search index");
+            LogError(ex, "Error rebuilding search index");
             throw;
         }
     }
@@ -277,11 +278,11 @@ public class LuceneSearchService : ISearchService
             writer.DeleteDocuments(new Term("id", pageId.ToString()));
             writer.Commit();
 
-            _logger.LogDebug("Removed page {PageId} from index", pageId);
+            LogDebug("Removed page {PageId} from index", pageId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error removing page {PageId} from index", pageId);
+            LogError(ex, "Error removing page {PageId} from index", pageId);
         }
 
         await Task.CompletedTask;
@@ -299,11 +300,11 @@ public class LuceneSearchService : ISearchService
             writer.ForceMerge(1); // Optimize to single segment
             writer.Commit();
 
-            _logger.LogInformation("Search index optimized");
+            LogInfo("Search index optimized");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error optimizing search index");
+            LogError(ex, "Error optimizing search index");
         }
 
         await Task.CompletedTask;
@@ -339,7 +340,7 @@ public class LuceneSearchService : ISearchService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting index stats");
+            LogError(ex, "Error getting index stats");
             return Task.FromResult(new SearchIndexStatsDto
             {
                 TotalDocuments = 0,
@@ -364,11 +365,11 @@ public class LuceneSearchService : ISearchService
             using var writer = new IndexWriter(directory, indexConfig);
             writer.Commit();
 
-            _logger.LogInformation("Search index cleared");
+            LogInfo("Search index cleared");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error clearing search index");
+            LogError(ex, "Error clearing search index");
         }
 
         await Task.CompletedTask;
@@ -557,7 +558,7 @@ public class LuceneSearchService : ISearchService
         if (!IODirectory.Exists(_indexPath))
         {
             IODirectory.CreateDirectory(_indexPath);
-            _logger.LogInformation("Created search index directory: {IndexPath}", _indexPath);
+            LogInfo("Created search index directory: {IndexPath}", _indexPath);
         }
     }
 

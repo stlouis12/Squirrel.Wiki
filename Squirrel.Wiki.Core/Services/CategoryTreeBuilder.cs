@@ -4,19 +4,20 @@ using Squirrel.Wiki.Core.Models;
 namespace Squirrel.Wiki.Core.Services;
 
 /// <summary>
-/// Service for building and manipulating hierarchical category trees
+/// Service for building and manipulating hierarchical category trees with caching
 /// </summary>
-public class CategoryTreeBuilder : ICategoryTreeBuilder
+public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
 {
     private readonly IPageService _pageService;
-    private readonly ILogger<CategoryTreeBuilder> _logger;
 
     public CategoryTreeBuilder(
         IPageService pageService,
-        ILogger<CategoryTreeBuilder> logger)
+        ILogger<CategoryTreeBuilder> logger,
+        ICacheService cache,
+        ICacheInvalidationService cacheInvalidation)
+        : base(logger, cache, cacheInvalidation)
     {
         _pageService = pageService;
-        _logger = logger;
     }
 
     /// <inheritdoc/>
@@ -25,6 +26,19 @@ public class CategoryTreeBuilder : ICategoryTreeBuilder
         CategoryTreeOptions? options = null)
     {
         options ??= new CategoryTreeOptions();
+        
+        // Generate cache key based on categories and options
+        var cacheKey = CacheKeys.Build(CacheKeys.Categories, "tree", GenerateCacheKeySuffix(categories, options));
+        
+        // Try to get from cache
+        var cached = await Cache.GetAsync<List<CategoryTreeNode>>(cacheKey);
+        if (cached != null)
+        {
+            LogDebug("Cache hit for category tree with key {CacheKey}", cacheKey);
+            return cached;
+        }
+
+        LogDebug("Cache miss for category tree with key {CacheKey}, building tree", cacheKey);
         
         var categoryList = categories.ToList();
         var tree = new List<CategoryTreeNode>();
@@ -73,7 +87,10 @@ public class CategoryTreeBuilder : ICategoryTreeBuilder
             tree = LimitDepth(tree, options.MaxDepth.Value);
         }
 
-        return await Task.FromResult(tree);
+        // Cache the result
+        await Cache.SetAsync(cacheKey, tree);
+
+        return tree;
     }
 
     /// <inheritdoc/>
@@ -112,10 +129,26 @@ public class CategoryTreeBuilder : ICategoryTreeBuilder
         IEnumerable<CategoryTreeNode> tree,
         HashSet<int>? excludedIds = null)
     {
+        // Generate cache key for flattened tree
+        var cacheKey = CacheKeys.Build(CacheKeys.Categories, "flatten", GenerateFlattenCacheKeySuffix(tree, excludedIds));
+        
+        // Try to get from cache (synchronous wrapper for async cache)
+        var cached = Cache.GetAsync<List<CategorySelectItem>>(cacheKey).GetAwaiter().GetResult();
+        if (cached != null)
+        {
+            LogDebug("Cache hit for flattened category tree with key {CacheKey}", cacheKey);
+            return cached;
+        }
+
+        LogDebug("Cache miss for flattened category tree with key {CacheKey}, flattening tree", cacheKey);
+        
         var items = new List<CategorySelectItem>();
         excludedIds ??= new HashSet<int>();
         
         FlattenTreeRecursive(tree, items, excludedIds, "");
+        
+        // Cache the result (fire and forget)
+        _ = Cache.SetAsync(cacheKey, items);
         
         return items;
     }
@@ -246,7 +279,7 @@ public class CategoryTreeBuilder : ICategoryTreeBuilder
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error applying authorization filter to category {CategoryId}", node.Id);
+                LogError(ex, "Error applying authorization filter to category {CategoryId}", node.Id);
                 node.PageCount = 0;
             }
         }
@@ -277,6 +310,66 @@ public class CategoryTreeBuilder : ICategoryTreeBuilder
                 FlattenTreeRecursive(node.Children, items, excludedIds, prefix + "  ");
             }
         }
+    }
+
+    /// <summary>
+    /// Generates cache key suffix based on categories and options
+    /// </summary>
+    private string GenerateCacheKeySuffix(
+        IEnumerable<CategoryDto> categories,
+        CategoryTreeOptions? options)
+    {
+        // Create a deterministic cache key suffix based on:
+        // 1. Category IDs (sorted for consistency)
+        // 2. Options (if provided)
+        
+        var categoryIds = string.Join(",", categories.Select(c => c.Id).OrderBy(id => id));
+        var optionsHash = options != null ? GetOptionsHash(options) : "default";
+        
+        return $"{categoryIds}:{optionsHash}";
+    }
+
+    /// <summary>
+    /// Generates cache key suffix for flattened tree
+    /// </summary>
+    private string GenerateFlattenCacheKeySuffix(
+        IEnumerable<CategoryTreeNode> tree,
+        HashSet<int>? excludedIds)
+    {
+        // Create cache key suffix for flattened tree
+        var treeIds = string.Join(",", GetAllNodeIds(tree).OrderBy(id => id));
+        var excludeKey = excludedIds != null && excludedIds.Any() 
+            ? string.Join(",", excludedIds.OrderBy(id => id))
+            : "none";
+        
+        return $"{treeIds}:exclude:{excludeKey}";
+    }
+
+    /// <summary>
+    /// Gets all node IDs from tree recursively
+    /// </summary>
+    private IEnumerable<int> GetAllNodeIds(IEnumerable<CategoryTreeNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            yield return node.Id;
+            
+            if (node.Children.Any())
+            {
+                foreach (var childId in GetAllNodeIds(node.Children))
+                {
+                    yield return childId;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Creates a simple hash of options for cache key
+    /// </summary>
+    private string GetOptionsHash(CategoryTreeOptions options)
+    {
+        return $"sort:{options.SortByName}_depth:{options.MaxDepth?.ToString() ?? "none"}";
     }
 
     #endregion

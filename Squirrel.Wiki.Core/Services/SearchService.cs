@@ -12,18 +12,19 @@ namespace Squirrel.Wiki.Core.Services;
 /// This is a database-based search implementation. For production use with large datasets,
 /// consider integrating a full-text search engine like Elasticsearch or Azure Cognitive Search.
 /// </remarks>
-public class SearchService : ISearchService
+public class SearchService : BaseService, ISearchService
 {
     private readonly IPageRepository _pageRepository;
-    private readonly ILogger<SearchService> _logger;
     private static readonly Regex HtmlTagRegex = new(@"<[^>]*>", RegexOptions.Compiled);
 
     public SearchService(
         IPageRepository pageRepository,
-        ILogger<SearchService> logger)
+        ILogger<SearchService> logger,
+        ICacheService cache,
+        ICacheInvalidationService cacheInvalidation)
+        : base(logger, cache, cacheInvalidation)
     {
         _pageRepository = pageRepository;
-        _logger = logger;
     }
 
     public async Task<SearchResultsDto> SearchAsync(string searchTerm, int pageNumber = 1, int pageSize = 20, CancellationToken cancellationToken = default)
@@ -41,7 +42,7 @@ public class SearchService : ISearchService
             };
         }
 
-        _logger.LogInformation("Searching for: {SearchTerm}", searchTerm);
+        LogInfo("Searching for: {SearchTerm}", searchTerm);
 
         // Search in pages
         var pages = await _pageRepository.SearchAsync(searchTerm, cancellationToken);
@@ -104,7 +105,7 @@ public class SearchService : ISearchService
             };
         }
 
-        _logger.LogInformation("Searching by tag: {Tag}", tag);
+        LogInfo("Searching by tag: {Tag}", tag);
 
         var pages = await _pageRepository.GetByTagAsync(tag, cancellationToken);
         
@@ -152,7 +153,7 @@ public class SearchService : ISearchService
 
     public async Task<SearchResultsDto> SearchByCategoryAsync(int categoryId, int pageNumber = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Searching by category: {CategoryId}", categoryId);
+        LogInfo("Searching by category: {CategoryId}", categoryId);
 
         var pages = await _pageRepository.GetByCategoryAsync(categoryId, cancellationToken);
         
@@ -213,7 +214,7 @@ public class SearchService : ISearchService
             };
         }
 
-        _logger.LogInformation("Searching by author: {Author}", author);
+        LogInfo("Searching by author: {Author}", author);
 
         var pages = await _pageRepository.GetByAuthorAsync(author, cancellationToken);
         
@@ -398,7 +399,7 @@ public class SearchService : ISearchService
             return Enumerable.Empty<string>();
         }
 
-        _logger.LogDebug("Getting search suggestions for: {PartialTerm}", partialTerm);
+        LogDebug("Getting search suggestions for: {PartialTerm}", partialTerm);
 
         // Get pages that match the partial term
         var pages = await _pageRepository.SearchAsync(partialTerm, cancellationToken);
@@ -521,35 +522,35 @@ public class SearchService : ISearchService
     {
         // In a database-based search, indexing is automatic
         // This method is a no-op but kept for interface compatibility
-        _logger.LogDebug("IndexPageAsync called for page {PageId} (no-op for database search)", pageId);
+        LogDebug("IndexPageAsync called for page {PageId} (no-op for database search)", pageId);
         await Task.CompletedTask;
     }
 
     public async Task IndexPagesAsync(IEnumerable<int> pageIds, CancellationToken cancellationToken = default)
     {
         // In a database-based search, indexing is automatic
-        _logger.LogDebug("IndexPagesAsync called for {Count} pages (no-op for database search)", pageIds.Count());
+        LogDebug("IndexPagesAsync called for {Count} pages (no-op for database search)", pageIds.Count());
         await Task.CompletedTask;
     }
 
     public async Task RebuildIndexAsync(CancellationToken cancellationToken = default)
     {
         // In a database-based search, there's no separate index to rebuild
-        _logger.LogInformation("RebuildIndexAsync called (no-op for database search)");
+        LogInfo("RebuildIndexAsync called (no-op for database search)");
         await Task.CompletedTask;
     }
 
     public async Task RemoveFromIndexAsync(int pageId, CancellationToken cancellationToken = default)
     {
         // In a database-based search, removal is automatic when page is deleted
-        _logger.LogDebug("RemoveFromIndexAsync called for page {PageId} (no-op for database search)", pageId);
+        LogDebug("RemoveFromIndexAsync called for page {PageId} (no-op for database search)", pageId);
         await Task.CompletedTask;
     }
 
     public async Task OptimizeIndexAsync(CancellationToken cancellationToken = default)
     {
         // In a database-based search, optimization is handled by the database
-        _logger.LogDebug("OptimizeIndexAsync called (no-op for database search)");
+        LogDebug("OptimizeIndexAsync called (no-op for database search)");
         await Task.CompletedTask;
     }
 
@@ -570,7 +571,7 @@ public class SearchService : ISearchService
     public async Task ClearIndexAsync(CancellationToken cancellationToken = default)
     {
         // In a database-based search, there's no separate index to clear
-        _logger.LogWarning("ClearIndexAsync called (no-op for database search)");
+        LogWarning("ClearIndexAsync called (no-op for database search)");
         await Task.CompletedTask;
     }
 
@@ -629,7 +630,7 @@ public class SearchService : ISearchService
     {
         // For database-based search, fuzzy search is approximated with regular search
         // A full implementation would use Levenshtein distance or similar algorithms
-        _logger.LogDebug("FuzzySearchAsync called with query '{Query}' (using regular search)", query);
+        LogDebug("FuzzySearchAsync called with query '{Query}' (using regular search)", query);
         
         return await SearchAsync(query, pageNum, pageSize, cancellationToken);
     }

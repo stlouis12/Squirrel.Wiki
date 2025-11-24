@@ -509,8 +509,7 @@ public class TagService : BaseService, ITagService
     /// </summary>
     private async Task InvalidateAllTagCachesAsync(CancellationToken cancellationToken)
     {
-        LogInfo("Invalidating all tag caches");
-        await Cache.RemoveByPatternAsync("tags:*", cancellationToken);
+        await CacheInvalidation.InvalidateTagsAsync(cancellationToken);
     }
 
     /// <summary>
@@ -528,10 +527,8 @@ public class TagService : BaseService, ITagService
     /// </summary>
     public async Task InvalidateTagCountCachesAsync(CancellationToken cancellationToken = default)
     {
-        LogInfo("Invalidating tag count caches");
-        await Cache.RemoveAsync(AllWithCountsKey, cancellationToken);
-        await Cache.RemoveByPatternAsync($"{PopularKeyPrefix}*", cancellationToken);
-        await Cache.RemoveByPatternAsync($"{CloudKeyPrefix}*", cancellationToken);
+        // Use centralized cache invalidation service
+        await CacheInvalidation.InvalidateTagsAsync(cancellationToken);
     }
 
     /// <summary>

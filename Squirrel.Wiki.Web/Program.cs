@@ -221,15 +221,8 @@ builder.Services.AddScoped<ICacheService, CacheService>();
 // Register cache invalidation service
 builder.Services.AddScoped<ICacheInvalidationService, CacheInvalidationService>();
 
-// Register CategoryTreeBuilder with caching decorator
-builder.Services.AddScoped<CategoryTreeBuilder>(); // Register concrete implementation
-builder.Services.AddScoped<ICategoryTreeBuilder>(sp =>
-{
-    var innerBuilder = sp.GetRequiredService<CategoryTreeBuilder>();
-    var cacheService = sp.GetRequiredService<ICacheService>();
-    var logger = sp.GetRequiredService<ILogger<CachedCategoryTreeBuilder>>();
-    return new CachedCategoryTreeBuilder(innerBuilder, cacheService, logger);
-});
+// Register CategoryTreeBuilder (now with integrated caching via BaseService)
+builder.Services.AddScoped<ICategoryTreeBuilder, CategoryTreeBuilder>();
 
 // Register TagService (now with integrated caching)
 builder.Services.AddScoped<ITagService, TagService>();
@@ -267,12 +260,14 @@ builder.Services.AddScoped<IPluginService>(sp =>
     var context = sp.GetRequiredService<SquirrelDbContext>();
     var pluginLoader = sp.GetRequiredService<Squirrel.Wiki.Plugins.IPluginLoader>();
     var logger = sp.GetRequiredService<ILogger<PluginService>>();
+    var cache = sp.GetRequiredService<ICacheService>();
+    var cacheInvalidation = sp.GetRequiredService<ICacheInvalidationService>();
     var encryptionService = sp.GetRequiredService<ISecretEncryptionService>();
     var auditService = sp.GetRequiredService<IPluginAuditService>();
     var userContext = sp.GetRequiredService<IUserContext>();
     var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
     var envProvider = sp.GetRequiredService<EnvironmentVariableProvider>();
-    return new PluginService(context, pluginLoader, logger, encryptionService, auditService, userContext, httpContextAccessor, envProvider, pluginsPath);
+    return new PluginService(context, pluginLoader, logger, cache, cacheInvalidation, encryptionService, auditService, userContext, httpContextAccessor, envProvider, pluginsPath);
 });
 
 // Add health checks

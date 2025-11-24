@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Distributed;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Web.Models.Admin;
@@ -17,12 +16,12 @@ namespace Squirrel.Wiki.Web.Controllers;
 public class AdminController : BaseController
 {
     private readonly SquirrelDbContext _dbContext;
-    private readonly IDistributedCache _cache;
+    private readonly ICacheService _cache;
     private readonly ISearchService _searchService;
 
     public AdminController(
         SquirrelDbContext dbContext,
-        IDistributedCache cache,
+        ICacheService cache,
         ISearchService searchService,
         ILogger<AdminController> logger,
         INotificationService notifications)
@@ -230,11 +229,8 @@ public class AdminController : BaseController
         try
         {
             var testKey = $"health_check_{Guid.NewGuid()}";
-            await _cache.SetStringAsync(testKey, "test", new DistributedCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(10)
-            });
-            var value = await _cache.GetStringAsync(testKey);
+            await _cache.SetAsync(testKey, "test", TimeSpan.FromSeconds(10));
+            var value = await _cache.GetAsync<string>(testKey);
             await _cache.RemoveAsync(testKey);
 
             health.Cache = new HealthStatus

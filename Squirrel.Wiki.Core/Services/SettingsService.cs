@@ -12,28 +12,26 @@ namespace Squirrel.Wiki.Core.Services;
 /// <summary>
 /// Service for managing application settings stored in the database
 /// </summary>
-public class SettingsService : ISettingsService
+public class SettingsService : BaseService, ISettingsService
 {
     private readonly SquirrelDbContext _dbContext;
-    private readonly IDistributedCache _cache;
     private readonly IUserContext _userContext;
     private readonly EnvironmentVariableProvider _envProvider;
-    private readonly ILogger<SettingsService> _logger;
     private const string CacheKeyPrefix = "settings:";
     private static readonly TimeSpan CacheExpiration = TimeSpan.FromHours(24);
 
     public SettingsService(
         SquirrelDbContext dbContext,
-        IDistributedCache cache,
         IUserContext userContext,
         EnvironmentVariableProvider envProvider,
-        ILogger<SettingsService> logger)
+        ILogger<SettingsService> logger,
+        ICacheService cache,
+        ICacheInvalidationService cacheInvalidation)
+        : base(logger, cache, cacheInvalidation)
     {
         _dbContext = dbContext;
-        _cache = cache;
         _userContext = userContext;
         _envProvider = envProvider;
-        _logger = logger;
     }
 
     /// <inheritdoc/>
@@ -42,26 +40,20 @@ public class SettingsService : ISettingsService
         if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentException("Setting key cannot be null or empty", nameof(key));
 
-        // Try cache first
+        // Try cache first (cache as string since T might be a value type)
         var cacheKey = GetCacheKey(key);
-        var cachedValue = await _cache.GetStringAsync(cacheKey, ct);
+        var cachedJson = await Cache.GetAsync<string>(cacheKey, ct);
 
-        if (cachedValue != null)
+        if (cachedJson != null)
         {
-            // Check if this is a cached null result
-            if (cachedValue == "null")
-            {
-                _logger.LogDebug("Cached null result for setting {Key}", key);
-                return default;
-            }
-            
+            LogDebug("Cache hit for setting {Key}", key);
             try
             {
-                return JsonSerializer.Deserialize<T>(cachedValue);
+                return JsonSerializer.Deserialize<T>(cachedJson);
             }
-            catch (JsonException ex)
+            catch (JsonException)
             {
-                _logger.LogWarning(ex, "Failed to deserialize cached setting {Key}", key);
+                LogWarning("Failed to deserialize cached setting {Key}", key);
                 // Continue to database lookup
             }
         }
@@ -72,18 +64,7 @@ public class SettingsService : ISettingsService
 
         if (setting == null)
         {
-            _logger.LogDebug("Setting {Key} not found", key);
-            
-            // Cache the null result to avoid repeated DB queries
-            await _cache.SetStringAsync(
-                cacheKey,
-                "null",
-                new DistributedCacheEntryOptions
-                {
-                    AbsoluteExpirationRelativeToNow = CacheExpiration
-                },
-                ct);
-            
+            LogDebug("Setting {Key} not found", key);
             return default;
         }
 
@@ -101,22 +82,14 @@ public class SettingsService : ISettingsService
                 value = ConvertPlainValue<T>(setting.Value);
             }
 
-            // Cache the result (store as JSON for consistency)
-            var jsonValue = JsonSerializer.Serialize(value);
-            await _cache.SetStringAsync(
-                cacheKey,
-                jsonValue,
-                new DistributedCacheEntryOptions
-                {
-                    AbsoluteExpirationRelativeToNow = CacheExpiration
-                },
-                ct);
+            // Cache the result as JSON string
+            await Cache.SetAsync(cacheKey, setting.Value, CacheExpiration, ct);
 
             return value;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to deserialize setting {Key}", key);
+            LogError(ex, "Failed to deserialize setting {Key}", key);
             return default;
         }
     }
@@ -133,7 +106,7 @@ public class SettingsService : ISettingsService
 
         if (existingSetting?.IsFromEnvironment == true)
         {
-            _logger.LogWarning(
+            LogWarning(
                 "Attempted to modify environment-sourced setting {Key} by {User}. Operation blocked.",
                 key, _userContext.Username ?? "System");
             throw new InvalidOperationException(
@@ -158,7 +131,7 @@ public class SettingsService : ISettingsService
             };
 
             _dbContext.SiteConfigurations.Add(existingSetting);
-            _logger.LogInformation("Creating new setting {Key} by {User}", key, currentUser);
+            LogInfo("Creating new setting {Key} by {User}", key, currentUser);
         }
         else
         {
@@ -168,7 +141,7 @@ public class SettingsService : ISettingsService
             existingSetting.ModifiedOn = DateTime.UtcNow;
             existingSetting.ModifiedBy = currentUser;
 
-            _logger.LogInformation(
+            LogInfo(
                 "Updating setting {Key} by {User}. Old value: {OldValue}, New value: {NewValue}",
                 key, currentUser, oldValue, jsonValue);
         }
@@ -176,9 +149,9 @@ public class SettingsService : ISettingsService
         await _dbContext.SaveChangesAsync(ct);
 
         // Invalidate cache
-        await _cache.RemoveAsync(GetCacheKey(key), ct);
+        await Cache.RemoveAsync(GetCacheKey(key), ct);
 
-        _logger.LogDebug("Setting {Key} saved successfully", key);
+        LogDebug("Setting {Key} saved successfully", key);
     }
 
     /// <inheritdoc/>
@@ -188,7 +161,7 @@ public class SettingsService : ISettingsService
             .AsNoTracking()
             .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
 
-        _logger.LogDebug("Retrieved {Count} settings", settings.Count);
+        LogDebug("Retrieved {Count} settings", settings.Count);
 
         return settings;
     }
@@ -208,13 +181,13 @@ public class SettingsService : ISettingsService
             await _dbContext.SaveChangesAsync(ct);
 
             // Invalidate cache
-            await _cache.RemoveAsync(GetCacheKey(key), ct);
+            await Cache.RemoveAsync(GetCacheKey(key), ct);
 
-            _logger.LogInformation("Setting {Key} deleted by {User}", key, _userContext.Username ?? "System");
+            LogInfo("Setting {Key} deleted by {User}", key, _userContext.Username ?? "System");
         }
         else
         {
-            _logger.LogDebug("Setting {Key} not found for deletion", key);
+            LogDebug("Setting {Key} not found for deletion", key);
         }
     }
 
@@ -234,7 +207,7 @@ public class SettingsService : ISettingsService
     /// </summary>
     public async Task SyncEnvironmentVariablesAsync(CancellationToken ct = default)
     {
-        _logger.LogInformation("Starting environment variable synchronization...");
+        LogInfo("Starting environment variable synchronization...");
 
         var envSettings = _envProvider.GetAllEnvironmentSettings();
         var syncedCount = 0;
@@ -247,7 +220,7 @@ public class SettingsService : ISettingsService
                 // Invalid values are already logged by EnvironmentVariableProvider
                 if (!_envProvider.IsFromEnvironment(key))
                 {
-                    _logger.LogDebug(
+                    LogDebug(
                         "Skipping sync for setting '{Key}' - environment variable has invalid value",
                         key);
                     continue;
@@ -274,7 +247,7 @@ public class SettingsService : ISettingsService
                     };
 
                     _dbContext.SiteConfigurations.Add(setting);
-                    _logger.LogInformation(
+                    LogInfo(
                         "Created setting '{Key}' from environment variable '{EnvVar}'",
                         key, envVarName);
                 }
@@ -287,31 +260,31 @@ public class SettingsService : ISettingsService
                     setting.IsFromEnvironment = true;
                     setting.EnvironmentVariableName = envVarName;
 
-                    _logger.LogInformation(
+                    LogInfo(
                         "Updated setting '{Key}' from environment variable '{EnvVar}'",
                         key, envVarName);
                 }
 
                 // Invalidate cache for this setting
-                await _cache.RemoveAsync(GetCacheKey(key), ct);
+                await Cache.RemoveAsync(GetCacheKey(key), ct);
                 syncedCount++;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error syncing environment variable for setting '{Key}'", key);
+                LogError(ex, "Error syncing environment variable for setting '{Key}'", key);
             }
         }
 
         if (syncedCount > 0)
         {
             await _dbContext.SaveChangesAsync(ct);
-            _logger.LogInformation(
+            LogInfo(
                 "Environment variable synchronization complete. Synced {Count} settings.",
                 syncedCount);
         }
         else
         {
-            _logger.LogInformation("No environment variables to sync.");
+            LogInfo("No environment variables to sync.");
         }
     }
 

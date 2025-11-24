@@ -14,11 +14,10 @@ namespace Squirrel.Wiki.Core.Services;
 /// <summary>
 /// Service for managing authentication plugins
 /// </summary>
-public class PluginService : IPluginService
+public class PluginService : BaseService, IPluginService
 {
     private readonly SquirrelDbContext _context;
     private readonly IPluginLoader _pluginLoader;
-    private readonly ILogger<PluginService> _logger;
     private readonly ISecretEncryptionService _encryptionService;
     private readonly IPluginAuditService _auditService;
     private readonly IUserContext _userContext;
@@ -32,16 +31,18 @@ public class PluginService : IPluginService
         SquirrelDbContext context,
         IPluginLoader pluginLoader,
         ILogger<PluginService> logger,
+        ICacheService cache,
+        ICacheInvalidationService cacheInvalidation,
         ISecretEncryptionService encryptionService,
         IPluginAuditService auditService,
         IUserContext userContext,
         IHttpContextAccessor httpContextAccessor,
         EnvironmentVariableProvider envProvider,
         string pluginsPath)
+        : base(logger, cache, cacheInvalidation)
     {
         _context = context;
         _pluginLoader = pluginLoader;
-        _logger = logger;
         _encryptionService = encryptionService;
         _auditService = auditService;
         _userContext = userContext;
@@ -56,11 +57,11 @@ public class PluginService : IPluginService
     {
         if (_initialized)
         {
-            _logger.LogWarning("Plugin service already initialized");
+            LogWarning("Plugin service already initialized");
             return;
         }
 
-        _logger.LogInformation("Initializing plugin service");
+        LogInfo("Initializing plugin service");
 
         // Load all plugins from disk
         var loadedPlugins = await _pluginLoader.LoadPluginsAsync(_pluginsPath, cancellationToken);
@@ -73,7 +74,7 @@ public class PluginService : IPluginService
 
             if (existingPlugin == null)
             {
-                _logger.LogInformation("Registering new plugin: {PluginId}", plugin.Metadata.Id);
+                LogInfo("Registering new plugin: {PluginId}", plugin.Metadata.Id);
                 
                 var newPlugin = new AuthenticationPlugin
                 {
@@ -93,7 +94,7 @@ public class PluginService : IPluginService
             }
             else if (existingPlugin.Version != plugin.Metadata.Version)
             {
-                _logger.LogInformation(
+                LogInfo(
                     "Updating plugin version: {PluginId} from {OldVersion} to {NewVersion}",
                     plugin.Metadata.Id,
                     existingPlugin.Version,
@@ -107,7 +108,7 @@ public class PluginService : IPluginService
         await _context.SaveChangesAsync(cancellationToken);
 
         _initialized = true;
-        _logger.LogInformation("Plugin service initialized successfully");
+        LogInfo("Plugin service initialized successfully");
     }
 
     /// <inheritdoc/>
@@ -186,7 +187,7 @@ public class PluginService : IPluginService
         _context.AuthenticationPlugins.Add(plugin);
         await _context.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Registered plugin: {PluginId}", pluginId);
+        LogInfo("Registered plugin: {PluginId}", pluginId);
 
         // Audit log
         await LogAuditAsync(
@@ -221,7 +222,7 @@ public class PluginService : IPluginService
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Enabled plugin: {PluginId}", plugin.PluginId);
+        LogInfo("Enabled plugin: {PluginId}", plugin.PluginId);
 
         // Audit log
         await LogAuditAsync(
@@ -249,7 +250,7 @@ public class PluginService : IPluginService
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Disabled plugin: {PluginId}", plugin.PluginId);
+        LogInfo("Disabled plugin: {PluginId}", plugin.PluginId);
 
         // Audit log
         await LogAuditAsync(
@@ -306,7 +307,7 @@ public class PluginService : IPluginService
             if (isSecret && !string.IsNullOrEmpty(value))
             {
                 value = _encryptionService.EncryptIfNeeded(value);
-                _logger.LogDebug("Encrypted secret value for key: {Key}", kvp.Key);
+                LogDebug("Encrypted secret value for key: {Key}", kvp.Key);
             }
 
             var setting = new AuthenticationPluginSetting
@@ -329,7 +330,7 @@ public class PluginService : IPluginService
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Updated configuration for plugin: {PluginId}", plugin.PluginId);
+        LogInfo("Updated configuration for plugin: {PluginId}", plugin.PluginId);
 
         // Audit log
         await LogAuditAsync(
@@ -367,7 +368,7 @@ public class PluginService : IPluginService
                 
                 if (string.IsNullOrEmpty(value))
                 {
-                    _logger.LogWarning(
+                    LogWarning(
                         "Environment variable {EnvVar} not found for plugin {PluginId} setting {Key}",
                         setting.EnvironmentVariableName,
                         plugin.PluginId,
@@ -375,7 +376,7 @@ public class PluginService : IPluginService
                 }
                 else
                 {
-                    _logger.LogDebug(
+                    LogDebug(
                         "Loaded setting {Key} from environment variable {EnvVar}",
                         setting.Key,
                         setting.EnvironmentVariableName);
@@ -394,7 +395,7 @@ public class PluginService : IPluginService
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Failed to decrypt secret value for key: {Key}", setting.Key);
+                        LogError(ex, "Failed to decrypt secret value for key: {Key}", setting.Key);
                         // Return empty string if decryption fails
                         value = string.Empty;
                     }
@@ -424,7 +425,7 @@ public class PluginService : IPluginService
     /// <inheritdoc/>
     public async Task ReloadPluginAsync(string pluginId, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Reloading plugin: {PluginId}", pluginId);
+        LogInfo("Reloading plugin: {PluginId}", pluginId);
 
         var plugin = await _pluginLoader.ReloadPluginAsync(_pluginsPath, pluginId, cancellationToken);
 
@@ -442,7 +443,7 @@ public class PluginService : IPluginService
             await _context.SaveChangesAsync(cancellationToken);
         }
 
-        _logger.LogInformation("Plugin reloaded successfully: {PluginId}", pluginId);
+        LogInfo("Plugin reloaded successfully: {PluginId}", pluginId);
     }
 
     /// <inheritdoc/>
@@ -455,7 +456,7 @@ public class PluginService : IPluginService
         
         if (plugin == null)
         {
-            _logger.LogWarning("Plugin not loaded: {PluginId}", pluginId);
+            LogWarning("Plugin not loaded: {PluginId}", pluginId);
             return false;
         }
 
@@ -465,7 +466,7 @@ public class PluginService : IPluginService
         
         if (!validationResult.IsValid)
         {
-            _logger.LogWarning(
+            LogWarning(
                 "Configuration validation failed for plugin {PluginId}: {Errors}",
                 pluginId,
                 validationResult.GetErrorMessage());
@@ -497,7 +498,7 @@ public class PluginService : IPluginService
         _context.AuthenticationPlugins.Remove(plugin);
         await _context.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Deleted plugin: {PluginId}", pluginId);
+        LogInfo("Deleted plugin: {PluginId}", pluginId);
 
         // Audit log
         await LogAuditAsync(
@@ -553,7 +554,7 @@ public class PluginService : IPluginService
         catch (Exception ex)
         {
             // Don't fail the operation if audit logging fails
-            _logger.LogError(ex, "Failed to log audit entry for plugin {PluginId}", pluginId);
+            LogError(ex, "Failed to log audit entry for plugin {PluginId}", pluginId);
         }
     }
 }

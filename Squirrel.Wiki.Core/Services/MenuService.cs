@@ -10,16 +10,15 @@ namespace Squirrel.Wiki.Core.Services;
 /// <summary>
 /// Service implementation for menu management operations
 /// </summary>
-public class MenuService : IMenuService
+public class MenuService : BaseService, IMenuService
 {
     private readonly IMenuRepository _menuRepository;
     private readonly IPageRepository _pageRepository;
     private readonly ICategoryService _categoryService;
     private readonly IMarkdownService _markdownService;
-    private readonly ICacheService _cacheService;
     private readonly IUserContext _userContext;
     private readonly IUrlTokenResolver _urlTokenResolver;
-    private readonly ILogger<MenuService> _logger;
+    
     private const string CacheKeyPrefix = "menu:";
     private const string CacheKeyActive = "menu:active";
     private static readonly TimeSpan CacheExpiration = TimeSpan.FromMinutes(30);
@@ -44,33 +43,33 @@ public class MenuService : IMenuService
         IPageRepository pageRepository,
         ICategoryService categoryService,
         IMarkdownService markdownService,
-        ICacheService cacheService,
         IUserContext userContext,
         IUrlTokenResolver urlTokenResolver,
-        ILogger<MenuService> logger)
+        ILogger<MenuService> logger,
+        ICacheService cache,
+        ICacheInvalidationService cacheInvalidation)
+        : base(logger, cache, cacheInvalidation)
     {
         _menuRepository = menuRepository;
         _pageRepository = pageRepository;
         _categoryService = categoryService;
         _markdownService = markdownService;
-        _cacheService = cacheService;
         _userContext = userContext;
         _urlTokenResolver = urlTokenResolver;
-        _logger = logger;
     }
 
     public async Task<MenuDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"{CacheKeyPrefix}{id}";
-        var cached = await _cacheService.GetAsync<MenuDto>(cacheKey, cancellationToken);
+        var cached = await Cache.GetAsync<MenuDto>(cacheKey, cancellationToken);
         
         if (cached != null)
         {
-            _logger.LogDebug("Menu cache hit for key: {CacheKey}", cacheKey);
+            LogDebug("Menu cache hit for key: {CacheKey}", cacheKey);
             return cached;
         }
 
-        _logger.LogDebug("Menu cache miss for key: {CacheKey}", cacheKey);
+        LogDebug("Menu cache miss for key: {CacheKey}", cacheKey);
         var menu = await _menuRepository.GetByIdAsync(id, cancellationToken);
         if (menu == null)
         {
@@ -78,7 +77,7 @@ public class MenuService : IMenuService
         }
 
         var dto = MapToDto(menu);
-        await _cacheService.SetAsync(cacheKey, dto, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, dto, CacheExpiration, cancellationToken);
 
         return dto;
     }
@@ -86,15 +85,15 @@ public class MenuService : IMenuService
     public async Task<MenuDto?> GetByNameAsync(string name, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"{CacheKeyPrefix}name:{name}";
-        var cached = await _cacheService.GetAsync<MenuDto>(cacheKey, cancellationToken);
+        var cached = await Cache.GetAsync<MenuDto>(cacheKey, cancellationToken);
         
         if (cached != null)
         {
-            _logger.LogDebug("Menu cache hit for name: {MenuName}", name);
+            LogDebug("Menu cache hit for name: {MenuName}", name);
             return cached;
         }
 
-        _logger.LogDebug("Menu cache miss for name: {MenuName}", name);
+        LogDebug("Menu cache miss for name: {MenuName}", name);
         var menu = await _menuRepository.GetByNameAsync(name, cancellationToken);
         
         if (menu == null)
@@ -103,7 +102,7 @@ public class MenuService : IMenuService
         }
 
         var dto = MapToDto(menu);
-        await _cacheService.SetAsync(cacheKey, dto, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, dto, CacheExpiration, cancellationToken);
 
         return dto;
     }
@@ -111,15 +110,15 @@ public class MenuService : IMenuService
     public async Task<MenuDto?> GetActiveMenuByTypeAsync(MenuType menuType, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"{CacheKeyPrefix}type:{(int)menuType}";
-        var cached = await _cacheService.GetAsync<MenuDto>(cacheKey, cancellationToken);
+        var cached = await Cache.GetAsync<MenuDto>(cacheKey, cancellationToken);
         
         if (cached != null)
         {
-            _logger.LogDebug("Menu cache hit for type: {MenuType}", menuType);
+            LogDebug("Menu cache hit for type: {MenuType}", menuType);
             return cached;
         }
 
-        _logger.LogDebug("Menu cache miss for type: {MenuType}", menuType);
+        LogDebug("Menu cache miss for type: {MenuType}", menuType);
         var menu = await _menuRepository.GetActiveByTypeAsync(menuType, cancellationToken);
         
         if (menu == null)
@@ -128,7 +127,7 @@ public class MenuService : IMenuService
         }
 
         var dto = MapToDto(menu);
-        await _cacheService.SetAsync(cacheKey, dto, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(cacheKey, dto, CacheExpiration, cancellationToken);
 
         return dto;
     }
@@ -141,15 +140,15 @@ public class MenuService : IMenuService
 
     public async Task<IEnumerable<MenuDto>> GetActiveMenusAsync(CancellationToken cancellationToken = default)
     {
-        var cached = await _cacheService.GetAsync<List<MenuDto>>(CacheKeyActive, cancellationToken);
+        var cached = await Cache.GetAsync<List<MenuDto>>(CacheKeyActive, cancellationToken);
         
         if (cached != null)
         {
-            _logger.LogDebug("Active menus cache hit");
+            LogDebug("Active menus cache hit");
             return cached;
         }
 
-        _logger.LogDebug("Active menus cache miss");
+        LogDebug("Active menus cache miss");
         var menus = await _menuRepository.GetAllAsync(cancellationToken);
         var dtos = menus
             .Where(m => m.IsEnabled)
@@ -157,7 +156,7 @@ public class MenuService : IMenuService
             .OrderBy(m => m.DisplayOrder)
             .ToList();
         
-        await _cacheService.SetAsync(CacheKeyActive, dtos, CacheExpiration, cancellationToken);
+        await Cache.SetAsync(CacheKeyActive, dtos, CacheExpiration, cancellationToken);
 
         return dtos;
     }
@@ -175,7 +174,7 @@ public class MenuService : IMenuService
             {
                 // Automatically set the new menu to inactive instead of throwing an error
                 isEnabled = false;
-                _logger.LogInformation("Another menu of type '{MenuType}' is already active. Creating new menu '{MenuName}' as inactive.", 
+                LogInfo("Another menu of type '{MenuType}' is already active. Creating new menu '{MenuName}' as inactive.", 
                     menuType, createDto.Name);
             }
         }
@@ -196,7 +195,7 @@ public class MenuService : IMenuService
 
         await _menuRepository.AddAsync(menu, cancellationToken);
 
-        _logger.LogInformation("Created menu {MenuName} (Type: {MenuType}) with ID {MenuId}, Active: {IsEnabled}", 
+        LogInfo("Created menu {MenuName} (Type: {MenuType}) with ID {MenuId}, Active: {IsEnabled}", 
             menu.Name, menu.MenuType, menu.Id, menu.IsEnabled);
 
         await InvalidateCacheAsync(cancellationToken);
@@ -223,7 +222,7 @@ public class MenuService : IMenuService
             {
                 // Automatically set the menu to inactive instead of throwing an error
                 isEnabled = false;
-                _logger.LogInformation("Another menu of type '{MenuType}' is already active. Keeping menu '{MenuName}' inactive.", 
+                LogInfo("Another menu of type '{MenuType}' is already active. Keeping menu '{MenuName}' inactive.", 
                     menuType, updateDto.Name);
             }
         }
@@ -241,7 +240,7 @@ public class MenuService : IMenuService
 
         await _menuRepository.UpdateAsync(menu, cancellationToken);
 
-        _logger.LogInformation("Updated menu {MenuName} (Type: {MenuType}, ID: {MenuId}), Active: {IsEnabled}", 
+        LogInfo("Updated menu {MenuName} (Type: {MenuType}, ID: {MenuId}), Active: {IsEnabled}", 
             menu.Name, menu.MenuType, menu.Id, menu.IsEnabled);
 
         await InvalidateMenuCacheAsync(id, cancellationToken);
@@ -259,7 +258,7 @@ public class MenuService : IMenuService
 
         await _menuRepository.DeleteAsync(menu, cancellationToken);
 
-        _logger.LogInformation("Deleted menu {MenuName} (ID: {MenuId})", menu.Name, menu.Id);
+        LogInfo("Deleted menu {MenuName} (ID: {MenuId})", menu.Name, menu.Id);
 
         await InvalidateCacheAsync(cancellationToken);
     }
@@ -278,7 +277,7 @@ public class MenuService : IMenuService
             }
         }
 
-        _logger.LogInformation("Reordered {Count} menus", menuOrders.Count);
+        LogInfo("Reordered {Count} menus", menuOrders.Count);
 
         await InvalidateCacheAsync(cancellationToken);
     }
@@ -599,7 +598,7 @@ public class MenuService : IMenuService
                 otherMenu.ModifiedOn = DateTime.UtcNow;
                 otherMenu.ModifiedBy = _userContext.Username ?? "System";
                 await _menuRepository.UpdateAsync(otherMenu, cancellationToken);
-                _logger.LogInformation("Auto-deactivated menu {MenuName} (ID: {MenuId}) to activate {NewMenuName}", 
+                LogInfo("Auto-deactivated menu {MenuName} (ID: {MenuId}) to activate {NewMenuName}", 
                     otherMenu.Name, otherMenu.Id, menu.Name);
             }
         }
@@ -609,7 +608,7 @@ public class MenuService : IMenuService
         menu.ModifiedBy = _userContext.Username ?? "System";
         await _menuRepository.UpdateAsync(menu, cancellationToken);
 
-        _logger.LogInformation("Activated menu {MenuName} (Type: {MenuType}, ID: {MenuId})", menu.Name, menu.MenuType, menu.Id);
+        LogInfo("Activated menu {MenuName} (Type: {MenuType}, ID: {MenuId})", menu.Name, menu.MenuType, menu.Id);
 
         await InvalidateMenuCacheAsync(id, cancellationToken);
     }
@@ -627,7 +626,7 @@ public class MenuService : IMenuService
         menu.ModifiedBy = "System"; // TODO: Get from current user context
         await _menuRepository.UpdateAsync(menu, cancellationToken);
 
-        _logger.LogInformation("Deactivated menu {MenuName} (ID: {MenuId})", menu.Name, menu.Id);
+        LogInfo("Deactivated menu {MenuName} (ID: {MenuId})", menu.Name, menu.Id);
 
         await InvalidateMenuCacheAsync(id, cancellationToken);
     }
@@ -726,20 +725,12 @@ public class MenuService : IMenuService
 
     private async Task InvalidateCacheAsync(CancellationToken cancellationToken)
     {
-        _logger.LogDebug("Invalidating active menus cache");
-        await _cacheService.RemoveAsync(CacheKeyActive, cancellationToken);
-        
-        // Also invalidate all individual menu caches using pattern
-        await _cacheService.RemoveByPatternAsync($"{CacheKeyPrefix}*", cancellationToken);
+        await CacheInvalidation.InvalidateMenusAsync(cancellationToken);
     }
 
     private async Task InvalidateMenuCacheAsync(int menuId, CancellationToken cancellationToken)
     {
-        _logger.LogDebug("Invalidating menu cache for menu: {MenuId}", menuId);
-        
-        // Remove all menu caches using pattern-based removal
-        // This includes: menu:{id}, menu:type:{typeId}, menu:name:{name}, menu:active
-        await _cacheService.RemoveByPatternAsync($"{CacheKeyPrefix}*", cancellationToken);
+        await CacheInvalidation.InvalidateMenusAsync(cancellationToken);
     }
 
     public async Task<bool> HasActiveMenuOfTypeAsync(MenuType menuType, int? excludeMenuId = null, CancellationToken cancellationToken = default)
