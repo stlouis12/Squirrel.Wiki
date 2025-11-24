@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
+using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Web.Models;
 using Squirrel.Wiki.Web.Resources;
@@ -211,6 +212,56 @@ public abstract class BaseController : Controller
     }
 
     /// <summary>
+    /// Handle domain exceptions and return appropriate action result.
+    /// This method provides intelligent handling of SquirrelWikiException types.
+    /// </summary>
+    protected IActionResult HandleDomainException(SquirrelWikiException ex)
+    {
+        // Add user-friendly notification
+        NotifyError(ex.GetUserMessage());
+        
+        // Log if needed
+        if (ex.ShouldLog)
+        {
+            _logger.LogError(ex, "Domain exception: {ErrorCode}", ex.ErrorCode);
+        }
+        else
+        {
+            _logger.LogWarning("Expected exception: {ErrorCode} - {Message}", ex.ErrorCode, ex.Message);
+        }
+        
+        // Return appropriate result based on status code
+        return ex.StatusCode switch
+        {
+            404 => NotFound(),
+            400 => BadRequest(),
+            403 => Forbid(),
+            422 => UnprocessableEntity(),
+            _ => StatusCode(ex.StatusCode)
+        };
+    }
+
+    /// <summary>
+    /// Executes an async action with automatic domain exception handling.
+    /// SquirrelWikiException types are handled intelligently with proper status codes and user messages.
+    /// Other exceptions fall through to be handled by the global exception handler.
+    /// </summary>
+    /// <param name="action">The action to execute</param>
+    /// <returns>Result of the action or error response</returns>
+    protected async Task<IActionResult> ExecuteAsync(Func<Task<IActionResult>> action)
+    {
+        try
+        {
+            return await action();
+        }
+        catch (SquirrelWikiException ex)
+        {
+            return HandleDomainException(ex);
+        }
+        // Other exceptions will be caught by global exception handler
+    }
+
+    /// <summary>
     /// Executes an async action with automatic error handling.
     /// If an exception occurs, it will be logged and an error notification will be shown.
     /// </summary>
@@ -218,6 +269,7 @@ public abstract class BaseController : Controller
     /// <param name="errorMessage">User-friendly error message to display if an exception occurs</param>
     /// <param name="logContext">Additional context for logging (optional)</param>
     /// <returns>Result of the action or error redirect</returns>
+    [Obsolete("Use ExecuteAsync(Func<Task<IActionResult>>) instead for better exception handling")]
     protected async Task<IActionResult> ExecuteAsync(
         Func<Task<IActionResult>> action, 
         string errorMessage, 
@@ -239,6 +291,7 @@ public abstract class BaseController : Controller
     /// <param name="action">The action to execute</param>
     /// <param name="errorHandler">Custom error handler function</param>
     /// <returns>Result of the action or error handler</returns>
+    [Obsolete("Use ExecuteAsync(Func<Task<IActionResult>>) instead for better exception handling")]
     protected async Task<IActionResult> ExecuteAsync(
         Func<Task<IActionResult>> action,
         Func<Exception, IActionResult> errorHandler)

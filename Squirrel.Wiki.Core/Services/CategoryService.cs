@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Models;
 
 namespace Squirrel.Wiki.Core.Services;
@@ -183,7 +184,11 @@ public class CategoryService : BaseService, ICategoryService
             var parentName = parentId.HasValue ? 
                 (await _categoryRepository.GetByIdAsync(parentId.Value, cancellationToken))?.Name ?? "Unknown" : 
                 "root level";
-            throw new InvalidOperationException($"Category name '{createDto.Name}' already exists under {parentName}.");
+            throw new BusinessRuleException(
+                $"Category name '{createDto.Name}' already exists under {parentName}.",
+                "CATEGORY_NAME_EXISTS"
+            ).WithContext("CategoryName", createDto.Name)
+             .WithContext("ParentName", parentName);
         }
 
         // Validate parent exists and check depth limit if specified
@@ -192,7 +197,7 @@ public class CategoryService : BaseService, ICategoryService
             var parent = await _categoryRepository.GetByIdAsync(parentId.Value, cancellationToken);
             if (parent == null)
             {
-                throw new InvalidOperationException($"Parent category with ID {parentId.Value} not found.");
+                throw new EntityNotFoundException("Category", parentId.Value);
             }
 
             // Check depth limit - get parent's depth and ensure new category won't exceed max
@@ -201,7 +206,7 @@ public class CategoryService : BaseService, ICategoryService
             
             if (parentDepth >= MaxCategoryDepth - 1)
             {
-                throw new InvalidOperationException($"Cannot create category: maximum nesting depth of {MaxCategoryDepth} levels would be exceeded. Parent category is already at depth {parentDepth + 1}.");
+                throw BusinessRuleException.MaxDepthExceeded(MaxCategoryDepth, parentDepth + 1);
             }
         }
 
@@ -235,7 +240,7 @@ public class CategoryService : BaseService, ICategoryService
         var category = await _categoryRepository.GetByIdAsync(id, cancellationToken);
         if (category == null)
         {
-            throw new InvalidOperationException($"Category with ID {id} not found.");
+            throw new EntityNotFoundException("Category", id);
         }
 
         // Use ParentId (preferred) or fall back to ParentCategoryId (deprecated)
@@ -249,7 +254,11 @@ public class CategoryService : BaseService, ICategoryService
                 var parentName = parentId.HasValue ? 
                     (await _categoryRepository.GetByIdAsync(parentId.Value, cancellationToken))?.Name ?? "Unknown" : 
                     "root level";
-                throw new InvalidOperationException($"Category name '{updateDto.Name}' already exists under {parentName}.");
+                throw new BusinessRuleException(
+                    $"Category name '{updateDto.Name}' already exists under {parentName}.",
+                    "CATEGORY_NAME_EXISTS"
+                ).WithContext("CategoryName", updateDto.Name)
+                 .WithContext("ParentName", parentName);
             }
         }
 
@@ -258,7 +267,11 @@ public class CategoryService : BaseService, ICategoryService
         {
             if (!await ValidateMoveAsync(id, parentId, cancellationToken))
             {
-                throw new InvalidOperationException("Cannot move category: would create circular reference.");
+                throw new BusinessRuleException(
+                    "Cannot move category: would create circular reference.",
+                    "CIRCULAR_REFERENCE"
+                ).WithContext("CategoryId", id)
+                 .WithContext("NewParentId", parentId);
             }
 
             // Check depth limit when moving to a new parent
@@ -275,7 +288,7 @@ public class CategoryService : BaseService, ICategoryService
                 
                 if (totalDepthAfterMove > MaxCategoryDepth)
                 {
-                    throw new InvalidOperationException($"Cannot move category: would exceed maximum nesting depth of {MaxCategoryDepth} levels. This category has a subtree depth of {subtreeDepth + 1} levels, and the target parent is at depth {parentDepth + 1}.");
+                    throw BusinessRuleException.MaxDepthExceeded(MaxCategoryDepth, totalDepthAfterMove);
                 }
             }
         }
@@ -300,13 +313,17 @@ public class CategoryService : BaseService, ICategoryService
     {
         if (!await ValidateMoveAsync(categoryId, newParentId, cancellationToken))
         {
-            throw new InvalidOperationException("Cannot move category: would create circular reference.");
+            throw new BusinessRuleException(
+                "Cannot move category: would create circular reference.",
+                "CIRCULAR_REFERENCE"
+            ).WithContext("CategoryId", categoryId)
+             .WithContext("NewParentId", newParentId);
         }
 
         var category = await _categoryRepository.GetByIdAsync(categoryId, cancellationToken);
         if (category == null)
         {
-            throw new InvalidOperationException($"Category with ID {categoryId} not found.");
+            throw new EntityNotFoundException("Category", categoryId);
         }
 
         // Check depth limit when moving to a new parent
@@ -320,7 +337,7 @@ public class CategoryService : BaseService, ICategoryService
             
             if (totalDepthAfterMove > MaxCategoryDepth)
             {
-                throw new InvalidOperationException($"Cannot move category: would exceed maximum nesting depth of {MaxCategoryDepth} levels. This category has a subtree depth of {subtreeDepth + 1} levels, and the target parent is at depth {parentDepth + 1}.");
+                throw BusinessRuleException.MaxDepthExceeded(MaxCategoryDepth, totalDepthAfterMove);
             }
         }
 
@@ -340,14 +357,18 @@ public class CategoryService : BaseService, ICategoryService
         var category = await _categoryRepository.GetByIdAsync(id, cancellationToken);
         if (category == null)
         {
-            throw new InvalidOperationException($"Category with ID {id} not found.");
+            throw new EntityNotFoundException("Category", id);
         }
 
         var children = await _categoryRepository.GetChildrenAsync(id, cancellationToken);
         
         if (children.Any() && !deleteChildren)
         {
-            throw new InvalidOperationException($"Category has {children.Count()} child categories. Set deleteChildren=true to delete them.");
+            throw new BusinessRuleException(
+                $"Category has {children.Count()} child categories. Set deleteChildren=true to delete them.",
+                "CATEGORY_HAS_CHILDREN"
+            ).WithContext("CategoryId", id)
+             .WithContext("ChildCount", children.Count());
         }
 
         if (deleteChildren)
@@ -667,7 +688,7 @@ public class CategoryService : BaseService, ICategoryService
         var category = await _categoryRepository.GetByIdAsync(categoryId, cancellationToken);
         if (category == null)
         {
-            throw new InvalidOperationException($"Category with ID {categoryId} not found.");
+            throw new EntityNotFoundException("Category", categoryId);
         }
 
         category.DisplayOrder = newDisplayOrder;
@@ -684,7 +705,7 @@ public class CategoryService : BaseService, ICategoryService
         var category = await _categoryRepository.GetByIdAsync(id, cancellationToken);
         if (category == null)
         {
-            throw new InvalidOperationException($"Category with ID {id} not found.");
+            throw new EntityNotFoundException("Category", id);
         }
 
         // Get all pages in this category
@@ -706,13 +727,15 @@ public class CategoryService : BaseService, ICategoryService
             case CategoryDeleteAction.MoveToCategory:
                 if (!options.TargetCategoryId.HasValue)
                 {
-                    throw new InvalidOperationException("TargetCategoryId must be specified when using MoveToCategory action.");
+                    throw new ValidationException(new List<ValidationError> {
+                        new ValidationError("TargetCategoryId", "TargetCategoryId must be specified when using MoveToCategory action.")
+                    });
                 }
                 
                 var targetCategory = await _categoryRepository.GetByIdAsync(options.TargetCategoryId.Value, cancellationToken);
                 if (targetCategory == null)
                 {
-                    throw new InvalidOperationException($"Target category with ID {options.TargetCategoryId.Value} not found.");
+                    throw new EntityNotFoundException("Category", options.TargetCategoryId.Value);
                 }
                 
                 foreach (var page in pages)
@@ -739,7 +762,11 @@ public class CategoryService : BaseService, ICategoryService
         var children = await _categoryRepository.GetChildrenAsync(id, cancellationToken);
         if (children.Any())
         {
-            throw new InvalidOperationException($"Category has {children.Count()} subcategories. Delete or move them first.");
+            throw new BusinessRuleException(
+                $"Category has {children.Count()} subcategories. Delete or move them first.",
+                "CATEGORY_HAS_CHILDREN"
+            ).WithContext("CategoryId", id)
+             .WithContext("ChildCount", children.Count());
         }
 
         // Delete the category

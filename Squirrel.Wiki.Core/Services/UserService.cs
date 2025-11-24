@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Authentication;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Models;
 
 namespace Squirrel.Wiki.Core.Services;
@@ -77,14 +78,14 @@ public class UserService : BaseService, IUserService
         var existingByUsername = await _userRepository.GetByUsernameAsync(createDto.Username, cancellationToken);
         if (existingByUsername != null)
         {
-            throw new InvalidOperationException($"Username '{createDto.Username}' is already taken.");
+            throw BusinessRuleException.UsernameAlreadyExists(createDto.Username);
         }
 
         // Validate email availability
         var existingByEmail = await _userRepository.GetByEmailAsync(createDto.Email, cancellationToken);
         if (existingByEmail != null)
         {
-            throw new InvalidOperationException($"Email '{createDto.Email}' is already registered.");
+            throw BusinessRuleException.EmailAlreadyExists(createDto.Email);
         }
 
         var user = new User
@@ -111,7 +112,7 @@ public class UserService : BaseService, IUserService
         var user = await _userRepository.GetByIdAsync(id, cancellationToken);
         if (user == null)
         {
-            throw new InvalidOperationException($"User with ID {id} not found.");
+            throw new EntityNotFoundException("User", id);
         }
 
         // Validate email availability if changed
@@ -120,7 +121,7 @@ public class UserService : BaseService, IUserService
             var existingByEmail = await _userRepository.GetByEmailAsync(updateDto.Email, cancellationToken);
             if (existingByEmail != null && existingByEmail.Id != id)
             {
-                throw new InvalidOperationException($"Email '{updateDto.Email}' is already registered.");
+                throw BusinessRuleException.EmailAlreadyExists(updateDto.Email);
             }
         }
 
@@ -143,7 +144,7 @@ public class UserService : BaseService, IUserService
         var user = await _userRepository.GetByIdAsync(id, cancellationToken);
         if (user == null)
         {
-            throw new InvalidOperationException($"User with ID {id} not found.");
+            throw new EntityNotFoundException("User", id);
         }
 
         user.IsAdmin = true;
@@ -157,7 +158,7 @@ public class UserService : BaseService, IUserService
         var user = await _userRepository.GetByIdAsync(id, cancellationToken);
         if (user == null)
         {
-            throw new InvalidOperationException($"User with ID {id} not found.");
+            throw new EntityNotFoundException("User", id);
         }
 
         user.IsAdmin = false;
@@ -171,7 +172,7 @@ public class UserService : BaseService, IUserService
         var user = await _userRepository.GetByIdAsync(id, cancellationToken);
         if (user == null)
         {
-            throw new InvalidOperationException($"User with ID {id} not found.");
+            throw new EntityNotFoundException("User", id);
         }
 
         user.IsEditor = true;
@@ -185,7 +186,7 @@ public class UserService : BaseService, IUserService
         var user = await _userRepository.GetByIdAsync(id, cancellationToken);
         if (user == null)
         {
-            throw new InvalidOperationException($"User with ID {id} not found.");
+            throw new EntityNotFoundException("User", id);
         }
 
         user.IsEditor = false;
@@ -233,7 +234,7 @@ public class UserService : BaseService, IUserService
         var user = await _userRepository.GetByIdAsync(id, cancellationToken);
         if (user == null)
         {
-            throw new InvalidOperationException($"User with ID {id} not found.");
+            throw new EntityNotFoundException("User", id);
         }
 
         user.LastLoginOn = DateTime.UtcNow;
@@ -245,7 +246,7 @@ public class UserService : BaseService, IUserService
         var user = await _userRepository.GetByIdAsync(id, cancellationToken);
         if (user == null)
         {
-            throw new InvalidOperationException($"User with ID {id} not found.");
+            throw new EntityNotFoundException("User", id);
         }
 
         // Get pages created by user
@@ -336,7 +337,11 @@ public class UserService : BaseService, IUserService
                 
                 LogWarning("Account locked for user {Username} due to {Attempts} failed login attempts. Locked until {LockedUntil}", 
                     user.Username, user.FailedLoginAttempts, user.LockedUntil);
-                throw new InvalidOperationException($"Account has been locked due to multiple failed login attempts. Please try again after {user.LockedUntil:yyyy-MM-dd HH:mm}.");
+                throw new BusinessRuleException(
+                    $"Account has been locked due to multiple failed login attempts. Please try again after {user.LockedUntil:yyyy-MM-dd HH:mm}.",
+                    "ACCOUNT_LOCKED"
+                ).WithContext("Username", user.Username)
+                 .WithContext("LockedUntil", user.LockedUntil);
             }
             
             await _userRepository.UpdateAsync(user, cancellationToken);
@@ -360,21 +365,22 @@ public class UserService : BaseService, IUserService
         var passwordValidation = await ValidatePasswordAsync(password);
         if (!passwordValidation.IsValid)
         {
-            throw new InvalidOperationException($"Password validation failed: {string.Join(", ", passwordValidation.Errors)}");
+            var errors = passwordValidation.Errors.Select(e => new ValidationError("Password", e)).ToList();
+            throw new ValidationException(errors);
         }
 
         // Validate username availability
         var existingByUsername = await _userRepository.GetByUsernameAsync(username, cancellationToken);
         if (existingByUsername != null)
         {
-            throw new InvalidOperationException($"Username '{username}' is already taken.");
+            throw BusinessRuleException.UsernameAlreadyExists(username);
         }
 
         // Validate email availability
         var existingByEmail = await _userRepository.GetByEmailAsync(email, cancellationToken);
         if (existingByEmail != null)
         {
-            throw new InvalidOperationException($"Email '{email}' is already registered.");
+            throw BusinessRuleException.EmailAlreadyExists(email);
         }
 
         // Create user with hashed password
@@ -407,19 +413,23 @@ public class UserService : BaseService, IUserService
         var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
         if (user == null)
         {
-            throw new InvalidOperationException($"User with ID {userId} not found.");
+            throw new EntityNotFoundException("User", userId);
         }
 
         if (user.Provider != AuthenticationProvider.Local)
         {
-            throw new InvalidOperationException("Cannot set password for non-local authentication users.");
+            throw new BusinessRuleException(
+                "Cannot set password for non-local authentication users.",
+                "INVALID_PROVIDER"
+            ).WithContext("Provider", user.Provider.ToString());
         }
 
         // Validate password
         var passwordValidation = await ValidatePasswordAsync(newPassword);
         if (!passwordValidation.IsValid)
         {
-            throw new InvalidOperationException($"Password validation failed: {string.Join(", ", passwordValidation.Errors)}");
+            var errors = passwordValidation.Errors.Select(e => new ValidationError("Password", e)).ToList();
+            throw new ValidationException(errors);
         }
 
         user.PasswordHash = HashPassword(newPassword);
@@ -550,7 +560,7 @@ public class UserService : BaseService, IUserService
         var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
         if (user == null)
         {
-            throw new InvalidOperationException($"User with ID {userId} not found.");
+            throw new EntityNotFoundException("User", userId);
         }
 
         user.IsLocked = true;
@@ -567,7 +577,7 @@ public class UserService : BaseService, IUserService
         var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
         if (user == null)
         {
-            throw new InvalidOperationException($"User with ID {userId} not found.");
+            throw new EntityNotFoundException("User", userId);
         }
 
         user.IsLocked = false;
@@ -584,7 +594,7 @@ public class UserService : BaseService, IUserService
         var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
         if (user == null)
         {
-            throw new InvalidOperationException($"User with ID {userId} not found.");
+            throw new EntityNotFoundException("User", userId);
         }
 
         user.IsActive = true;
@@ -599,7 +609,7 @@ public class UserService : BaseService, IUserService
         var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
         if (user == null)
         {
-            throw new InvalidOperationException($"User with ID {userId} not found.");
+            throw new EntityNotFoundException("User", userId);
         }
 
         user.IsActive = false;

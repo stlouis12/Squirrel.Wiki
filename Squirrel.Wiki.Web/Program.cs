@@ -9,6 +9,7 @@ using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Web.Middleware;
 using Squirrel.Wiki.Web.Resources;
 using System.Globalization;
 
@@ -373,6 +374,9 @@ else
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+// Add global exception handler (before routing)
+app.UseGlobalExceptionHandler();
 
 // Add response caching middleware (required for VaryByQueryKeys)
 app.UseResponseCaching();

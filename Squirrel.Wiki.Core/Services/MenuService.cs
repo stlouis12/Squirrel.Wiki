@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
 
@@ -207,7 +208,7 @@ public class MenuService : BaseService, IMenuService
         var menu = await _menuRepository.GetByIdAsync(id, cancellationToken);
         if (menu == null)
         {
-            throw new InvalidOperationException($"Menu with ID {id} not found.");
+            throw new EntityNotFoundException("Menu", id);
         }
 
         var menuType = (MenuType)updateDto.MenuType;
@@ -252,7 +253,7 @@ public class MenuService : BaseService, IMenuService
         var menu = await _menuRepository.GetByIdAsync(id, cancellationToken);
         if (menu == null)
         {
-            throw new InvalidOperationException($"Menu with ID {id} not found.");
+            throw new EntityNotFoundException("Menu", id);
         }
 
         await _menuRepository.DeleteAsync(menu, cancellationToken);
@@ -582,7 +583,7 @@ public class MenuService : BaseService, IMenuService
         var menu = await _menuRepository.GetByIdAsync(id, cancellationToken);
         if (menu == null)
         {
-            throw new InvalidOperationException($"Menu with ID {id} not found.");
+            throw new EntityNotFoundException("Menu", id);
         }
 
         // Check if another menu of same type is already active
@@ -617,7 +618,7 @@ public class MenuService : BaseService, IMenuService
         var menu = await _menuRepository.GetByIdAsync(id, cancellationToken);
         if (menu == null)
         {
-            throw new InvalidOperationException($"Menu with ID {id} not found.");
+            throw new EntityNotFoundException("Menu", id);
         }
 
         menu.IsEnabled = false;

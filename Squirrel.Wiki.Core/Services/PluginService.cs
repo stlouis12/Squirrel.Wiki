@@ -6,6 +6,7 @@ using Squirrel.Wiki.Core.Configuration;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Plugins;
 
@@ -167,7 +168,10 @@ public class PluginService : BaseService, IPluginService
 
         if (existingPlugin != null)
         {
-            throw new InvalidOperationException($"Plugin with ID '{pluginId}' already exists");
+            throw new BusinessRuleException(
+                $"Plugin with ID '{pluginId}' already exists.",
+                "PLUGIN_ALREADY_EXISTS"
+            ).WithContext("PluginId", pluginId);
         }
 
         var plugin = new AuthenticationPlugin
@@ -209,12 +213,16 @@ public class PluginService : BaseService, IPluginService
         
         if (plugin == null)
         {
-            throw new InvalidOperationException($"Plugin with ID '{id}' not found");
+            throw new EntityNotFoundException("Plugin", id);
         }
 
         if (!plugin.IsConfigured)
         {
-            throw new InvalidOperationException($"Plugin '{plugin.Name}' must be configured before enabling");
+            throw new BusinessRuleException(
+                $"Plugin '{plugin.Name}' must be configured before enabling.",
+                "PLUGIN_NOT_CONFIGURED"
+            ).WithContext("PluginId", plugin.PluginId)
+             .WithContext("PluginName", plugin.Name);
         }
 
         plugin.IsEnabled = true;
@@ -242,7 +250,7 @@ public class PluginService : BaseService, IPluginService
         
         if (plugin == null)
         {
-            throw new InvalidOperationException($"Plugin with ID '{id}' not found");
+            throw new EntityNotFoundException("Plugin", id);
         }
 
         plugin.IsEnabled = false;
@@ -273,14 +281,18 @@ public class PluginService : BaseService, IPluginService
         
         if (plugin == null)
         {
-            throw new InvalidOperationException($"Plugin with ID '{id}' not found");
+            throw new EntityNotFoundException("Plugin", id);
         }
 
         // Validate configuration
         var isValid = await ValidatePluginConfigurationAsync(plugin.PluginId, configuration, cancellationToken);
         if (!isValid)
         {
-            throw new InvalidOperationException($"Invalid configuration for plugin '{plugin.Name}'");
+            throw new ConfigurationException(
+                $"Invalid configuration for plugin '{plugin.Name}'.",
+                "INVALID_PLUGIN_CONFIGURATION"
+            ).WithContext("PluginId", plugin.PluginId)
+             .WithContext("PluginName", plugin.Name);
         }
 
         // Get loaded plugin to check which fields are secrets
@@ -352,7 +364,7 @@ public class PluginService : BaseService, IPluginService
         
         if (plugin == null)
         {
-            throw new InvalidOperationException($"Plugin with ID '{id}' not found");
+            throw new EntityNotFoundException("Plugin", id);
         }
 
         var configuration = new Dictionary<string, string>();
@@ -431,7 +443,10 @@ public class PluginService : BaseService, IPluginService
 
         if (plugin == null)
         {
-            throw new InvalidOperationException($"Failed to reload plugin '{pluginId}'");
+            throw new ConfigurationException(
+                $"Failed to reload plugin '{pluginId}'.",
+                "PLUGIN_RELOAD_FAILED"
+            ).WithContext("PluginId", pluginId);
         }
 
         // Update version in database if changed
@@ -484,12 +499,16 @@ public class PluginService : BaseService, IPluginService
         
         if (plugin == null)
         {
-            throw new InvalidOperationException($"Plugin with ID '{id}' not found");
+            throw new EntityNotFoundException("Plugin", id);
         }
 
         if (plugin.IsCorePlugin)
         {
-            throw new InvalidOperationException($"Cannot delete core plugin '{plugin.Name}'");
+            throw new BusinessRuleException(
+                $"Cannot delete core plugin '{plugin.Name}'.",
+                "CANNOT_DELETE_CORE_PLUGIN"
+            ).WithContext("PluginId", plugin.PluginId)
+             .WithContext("PluginName", plugin.Name);
         }
 
         var pluginId = plugin.PluginId;

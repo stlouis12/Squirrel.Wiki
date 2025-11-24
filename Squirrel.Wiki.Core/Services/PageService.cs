@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Models;
 using System.Text.RegularExpressions;
 
@@ -58,7 +59,7 @@ public class PageService : BaseService, IPageService
         LogDebug("Page cache miss for key: {CacheKey}", cacheKey);
         var page = await _pageRepository.GetByIdAsync(id, cancellationToken);
         if (page == null)
-            throw new KeyNotFoundException($"Page with ID {id} not found");
+            throw new EntityNotFoundException("Page", id);
 
         var content = await _pageRepository.GetLatestContentAsync(id, cancellationToken);
         var pageDto = await MapToPageDtoAsync(page, content, cancellationToken);
@@ -256,7 +257,7 @@ public class PageService : BaseService, IPageService
 
         var page = await _pageRepository.GetByIdAsync(id, cancellationToken);
         if (page == null)
-            throw new KeyNotFoundException($"Page with ID {id} not found");
+            throw new EntityNotFoundException("Page", id);
 
         var oldTitle = page.Title;
         var oldSlug = page.Slug;
@@ -377,7 +378,7 @@ public class PageService : BaseService, IPageService
     {
         var content = await _pageRepository.GetLatestContentAsync(pageId, cancellationToken);
         if (content == null)
-            throw new KeyNotFoundException($"No content found for page {pageId}");
+            throw new EntityNotFoundException("PageContent", pageId);
 
         return MapToPageContentDto(content);
     }
@@ -400,11 +401,11 @@ public class PageService : BaseService, IPageService
 
         var oldContent = await _pageRepository.GetContentByVersionAsync(pageId, version, cancellationToken);
         if (oldContent == null)
-            throw new KeyNotFoundException($"Version {version} not found for page {pageId}");
+            throw new EntityNotFoundException("PageContent", $"Page {pageId}, Version {version}");
 
         var page = await _pageRepository.GetByIdAsync(pageId, cancellationToken);
         if (page == null)
-            throw new KeyNotFoundException($"Page with ID {pageId} not found");
+            throw new EntityNotFoundException("Page", pageId);
 
         // Get current max version
         var allVersions = await _pageRepository.GetAllContentVersionsAsync(pageId, cancellationToken);
@@ -444,7 +445,7 @@ public class PageService : BaseService, IPageService
     {
         var content = await _pageRepository.GetLatestContentAsync(pageId, cancellationToken);
         if (content == null)
-            throw new KeyNotFoundException($"No content found for page {pageId}");
+            throw new EntityNotFoundException("PageContent", pageId);
 
         return await RenderContentAsync(content.Text, cancellationToken);
     }

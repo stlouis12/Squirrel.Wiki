@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Squirrel.Wiki.Core.Database.Entities;
+using Squirrel.Wiki.Core.Exceptions;
 
 namespace Squirrel.Wiki.Core.Database.Repositories;
 
@@ -195,7 +196,7 @@ public class PageRepository : Repository<Page, int>, IPageRepository
 
         if (page == null)
         {
-            throw new InvalidOperationException($"Page with ID {pageId} not found.");
+            throw new EntityNotFoundException("Page", pageId);
         }
 
         // Remove existing tags

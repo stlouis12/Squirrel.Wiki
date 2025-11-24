@@ -2,6 +2,7 @@ using System;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Squirrel.Wiki.Core.Exceptions;
 
 namespace Squirrel.Wiki.Core.Services;
 
@@ -70,7 +71,12 @@ public class SlugGenerator : ISlugGenerator
             // Safety check to prevent infinite loops
             if (counter > 1000)
             {
-                throw new InvalidOperationException($"Unable to generate unique slug for text: {text}");
+                throw new BusinessRuleException(
+                    $"Unable to generate unique slug after 1000 attempts. The base slug '{baseSlug}' may be too common.",
+                    "SLUG_GENERATION_FAILED"
+                ).WithContext("BaseSlug", baseSlug)
+                 .WithContext("OriginalText", text)
+                 .WithContext("Attempts", counter);
             }
         }
 

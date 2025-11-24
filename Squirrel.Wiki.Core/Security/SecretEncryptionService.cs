@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Logging;
+using Squirrel.Wiki.Core.Exceptions;
 
 namespace Squirrel.Wiki.Core.Security;
 
@@ -37,7 +38,11 @@ public class SecretEncryptionService : ISecretEncryptionService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to encrypt value");
-            throw new InvalidOperationException("Failed to encrypt value", ex);
+            throw new ConfigurationException(
+                "Failed to encrypt value. The data protection system may not be properly configured.",
+                "ENCRYPTION_FAILED",
+                ex
+            );
         }
     }
 
@@ -51,7 +56,10 @@ public class SecretEncryptionService : ISecretEncryptionService
 
         if (!IsEncrypted(cipherText))
         {
-            throw new InvalidOperationException("Value is not encrypted");
+            throw new ConfigurationException(
+                "Cannot decrypt value because it is not encrypted.",
+                "VALUE_NOT_ENCRYPTED"
+            ).WithContext("Value", cipherText?.Substring(0, Math.Min(20, cipherText?.Length ?? 0)) + "...");
         }
 
         try
@@ -62,7 +70,11 @@ public class SecretEncryptionService : ISecretEncryptionService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to decrypt value");
-            throw new InvalidOperationException("Failed to decrypt value. The encryption key may have changed.", ex);
+            throw new ConfigurationException(
+                "Failed to decrypt value. The encryption key may have changed or the data protection system configuration is different.",
+                "DECRYPTION_FAILED",
+                ex
+            );
         }
     }
 

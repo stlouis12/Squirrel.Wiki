@@ -5,20 +5,40 @@ namespace Squirrel.Wiki.Core.Exceptions;
 /// </summary>
 public class EntityNotFoundException : SquirrelWikiException
 {
-    public string EntityName { get; }
+    public string EntityType { get; }
     public object EntityId { get; }
-
-    public EntityNotFoundException(string entityName, object id)
-        : base($"{entityName} with ID {id} not found")
+    
+    public EntityNotFoundException(string entityType, object entityId)
+        : base(
+            $"{entityType} with ID '{entityId}' was not found",
+            "ENTITY_NOT_FOUND",
+            statusCode: 404,
+            shouldLog: false) // Not found is expected, don't log as error
     {
-        EntityName = entityName;
-        EntityId = id;
+        EntityType = entityType;
+        EntityId = entityId;
+        
+        Context["EntityType"] = entityType;
+        Context["EntityId"] = entityId;
     }
-
-    public EntityNotFoundException(string entityName, object id, Exception innerException)
-        : base($"{entityName} with ID {id} not found", innerException)
+    
+    public EntityNotFoundException(string entityType, object entityId, string additionalInfo)
+        : base(
+            $"{entityType} with ID '{entityId}' was not found. {additionalInfo}",
+            "ENTITY_NOT_FOUND",
+            statusCode: 404,
+            shouldLog: false)
     {
-        EntityName = entityName;
-        EntityId = id;
+        EntityType = entityType;
+        EntityId = entityId;
+        
+        Context["EntityType"] = entityType;
+        Context["EntityId"] = entityId;
+        Context["AdditionalInfo"] = additionalInfo;
+    }
+    
+    public override string GetUserMessage()
+    {
+        return $"The requested {EntityType.ToLower()} could not be found.";
     }
 }

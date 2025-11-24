@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Models;
 
 namespace Squirrel.Wiki.Core.Services;
@@ -242,7 +243,10 @@ public class TagService : BaseService, ITagService
         var existing = await _tagRepository.GetByNameAsync(name, cancellationToken);
         if (existing != null)
         {
-            throw new InvalidOperationException($"Tag '{name}' already exists.");
+            throw new BusinessRuleException(
+                $"Tag '{name}' already exists.",
+                "TAG_ALREADY_EXISTS"
+            ).WithContext("TagName", name);
         }
 
         var tag = new Tag
@@ -278,14 +282,18 @@ public class TagService : BaseService, ITagService
         var tag = await _tagRepository.GetByIdAsync(id, cancellationToken);
         if (tag == null)
         {
-            throw new InvalidOperationException($"Tag with ID {id} not found.");
+            throw new EntityNotFoundException("Tag", id);
         }
 
         // Check if new name is already taken by another tag
         var existing = await _tagRepository.GetByNameAsync(newName, cancellationToken);
         if (existing != null && existing.Id != id)
         {
-            throw new InvalidOperationException($"Tag name '{newName}' is already taken.");
+            throw new BusinessRuleException(
+                $"Tag name '{newName}' is already taken.",
+                "TAG_NAME_TAKEN"
+            ).WithContext("TagName", newName)
+             .WithContext("ExistingTagId", existing.Id);
         }
 
         var oldName = tag.Name;
@@ -310,19 +318,22 @@ public class TagService : BaseService, ITagService
     {
         if (sourceTagId == targetTagId)
         {
-            throw new InvalidOperationException("Cannot merge a tag with itself.");
+            throw new BusinessRuleException(
+                "Cannot merge a tag with itself.",
+                "CANNOT_MERGE_SAME_TAG"
+            ).WithContext("TagId", sourceTagId);
         }
 
         var sourceTag = await _tagRepository.GetByIdAsync(sourceTagId, cancellationToken);
         if (sourceTag == null)
         {
-            throw new InvalidOperationException($"Source tag with ID {sourceTagId} not found.");
+            throw new EntityNotFoundException("Tag", sourceTagId);
         }
 
         var targetTag = await _tagRepository.GetByIdAsync(targetTagId, cancellationToken);
         if (targetTag == null)
         {
-            throw new InvalidOperationException($"Target tag with ID {targetTagId} not found.");
+            throw new EntityNotFoundException("Tag", targetTagId);
         }
 
         // Get all pages with the source tag
@@ -359,7 +370,7 @@ public class TagService : BaseService, ITagService
         var tag = await _tagRepository.GetByIdAsync(id, cancellationToken);
         if (tag == null)
         {
-            throw new InvalidOperationException($"Tag with ID {id} not found.");
+            throw new EntityNotFoundException("Tag", id);
         }
 
         var tagName = tag.Name;

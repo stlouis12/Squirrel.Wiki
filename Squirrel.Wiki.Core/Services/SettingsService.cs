@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Core.Configuration;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Database.Entities;
+using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Security;
 
 namespace Squirrel.Wiki.Core.Services;
@@ -109,9 +110,12 @@ public class SettingsService : BaseService, ISettingsService
             LogWarning(
                 "Attempted to modify environment-sourced setting {Key} by {User}. Operation blocked.",
                 key, _userContext.Username ?? "System");
-            throw new InvalidOperationException(
+            throw new ConfigurationException(
                 $"Cannot modify setting '{key}' because it is configured via environment variable '{existingSetting.EnvironmentVariableName}'. " +
-                "To change this setting, update the environment variable and restart the application.");
+                "To change this setting, update the environment variable and restart the application.",
+                "SETTING_FROM_ENVIRONMENT"
+            ).WithContext("SettingKey", key)
+             .WithContext("EnvironmentVariable", existingSetting.EnvironmentVariableName ?? "unknown");
         }
 
         var jsonValue = JsonSerializer.Serialize(value);
