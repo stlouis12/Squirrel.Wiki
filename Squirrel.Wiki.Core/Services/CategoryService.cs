@@ -786,4 +786,9 @@ public class CategoryService : BaseService, ICategoryService
         // Use the centralized cache invalidation service which handles all category-related caches
         await CacheInvalidation.InvalidateCategoryAsync(0, cancellationToken);
     }
+
+    public int GetMaxCategoryDepth()
+    {
+        return MaxCategoryDepth;
+    }
 }

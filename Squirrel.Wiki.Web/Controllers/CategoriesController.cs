@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models.Admin;
 using Squirrel.Wiki.Web.Services;
 
@@ -28,7 +29,7 @@ public class CategoriesController : BaseController
         ITimezoneService timezoneService,
         ILogger<CategoriesController> logger,
         INotificationService notifications)
-        : base(logger, notifications, timezoneService)
+        : base(logger, notifications, timezoneService, null)
     {
         _categoryService = categoryService;
         _treeBuilder = treeBuilder;
@@ -49,7 +50,8 @@ public class CategoriesController : BaseController
 
             var model = new CategoryViewModel
             {
-                Categories = tree
+                Categories = tree,
+                MaxCategoryDepth = _categoryService.GetMaxCategoryDepth()
             };
 
             PopulateBaseViewModel(model);
@@ -120,7 +122,7 @@ public class CategoriesController : BaseController
     }
 
     /// <summary>
-    /// Create or update a category
+    /// Create or update a category - Refactored with Result Pattern
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -128,147 +130,33 @@ public class CategoriesController : BaseController
     {
         if (!ValidateModelState())
         {
-            model.AvailableParents = await GetAvailableParentsAsync(model.Id == 0 ? null : model.Id);
+            await ReloadFormDataAsync(model);
             return View("Edit", model);
         }
 
-        return await ExecuteAsync(async () =>
+        // Execute save operation with Result Pattern
+        var result = model.IsNew 
+            ? await CreateCategoryWithResult(model)
+            : await UpdateCategoryWithResult(model);
+
+        // Handle success/failure
+        if (result.IsSuccess)
         {
-            var username = _userContext.Username ?? "System";
-
-            if (model.IsNew)
-            {
-                // Create new category
-                var createDto = new CategoryCreateDto
-                {
-                    Name = model.Name,
-                    Description = model.Description,
-                    ParentId = model.ParentId,
-                    CreatedBy = username
-                };
-
-                var created = await _categoryService.CreateAsync(createDto);
-                
-                _logger.LogInformation("Created category '{CategoryName}' (ID: {CategoryId}) by {User}", 
-                    created.Name, created.Id, username);
-                
-                NotifyLocalizedSuccess("Notification_CategoryCreated", created.Name);
-            }
-            else
-            {
-                // Update existing category
-                var updateDto = new CategoryUpdateDto
-                {
-                    Name = model.Name,
-                    Description = model.Description,
-                    ParentId = model.ParentId,
-                    ModifiedBy = username
-                };
-
-                var updated = await _categoryService.UpdateAsync(model.Id, updateDto);
-                
-                _logger.LogInformation("Updated category '{CategoryName}' (ID: {CategoryId}) by {User}", 
-                    updated.Name, updated.Id, username);
-                
-                NotifyLocalizedSuccess("Notification_CategoryUpdated", updated.Name);
-            }
-
+            var action = model.IsNew ? "Created" : "Updated";
+            var notificationKey = model.IsNew ? "Notification_CategoryCreated" : "Notification_CategoryUpdated";
+            
+            _logger.LogInformation("{Action} category '{CategoryName}' (ID: {CategoryId}) by {User}", 
+                action, result.Value!.Name, result.Value.Id, _userContext.Username ?? "System");
+            
+            NotifyLocalizedSuccess(notificationKey, result.Value.Name);
             return RedirectToAction(nameof(Index));
-        },
-        ex =>
+        }
+        else
         {
-            if (ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "Validation error saving category");
-                ModelState.AddModelError("", ex.Message);
-            }
-            else
-            {
-                _logger.LogError(ex, "Error saving category");
-                ModelState.AddModelError("", $"Error saving category: {ex.Message}");
-            }
-            model.AvailableParents = GetAvailableParentsAsync(model.Id == 0 ? null : model.Id).Result;
+            ModelState.AddModelError("", result.Error!);
+            await ReloadFormDataAsync(model);
             return View("Edit", model);
-        });
-    }
-
-    /// <summary>
-    /// Show category details
-    /// </summary>
-    [HttpGet]
-    public async Task<IActionResult> Details(int id)
-    {
-        return await ExecuteAsync(async () =>
-        {
-            var category = await _categoryService.GetByIdAsync(id);
-            if (!ValidateEntityExists(category, "Category"))
-                return RedirectToAction(nameof(Index));
-
-            // Get subcategories
-            var allCategories = await _categoryService.GetAllAsync();
-            var subcategories = allCategories
-                .Where(c => c.ParentId == id)
-                .OrderBy(c => c.DisplayOrder)
-                .ThenBy(c => c.Name);
-
-            // Get pages in this category
-            var pages = await _pageService.GetByCategoryAsync(id);
-
-            // Build breadcrumbs
-            var breadcrumbs = new List<string>();
-            var current = category;
-            while (current != null)
-            {
-                breadcrumbs.Insert(0, current.Name);
-                if (current.ParentId.HasValue)
-                {
-                    current = await _categoryService.GetByIdAsync(current.ParentId.Value);
-                }
-                else
-                {
-                    break;
-                }
-            }
-
-            var model = new CategoryDetailsViewModel
-            {
-                Id = category.Id,
-                Name = category.Name,
-                Slug = category.Slug,
-                Description = category.Description,
-                FullPath = category.FullPath,
-                ParentId = category.ParentId,
-                Level = category.Level,
-                PageCount = category.PageCount,
-                DirectPageCount = pages.Count(),
-                SubcategoryCount = subcategories.Count(),
-                CreatedOn = category.CreatedOn,
-                CreatedBy = category.CreatedBy,
-                ModifiedOn = category.ModifiedOn,
-                ModifiedBy = category.ModifiedBy,
-                Breadcrumbs = breadcrumbs,
-                Subcategories = await BuildCategoryTreeAsync(subcategories),
-                Pages = pages.Select(p => new CategoryPageItem
-                {
-                    Id = p.Id,
-                    Title = p.Title,
-                    Slug = p.Slug,
-                    ModifiedOn = p.ModifiedOn,
-                    ModifiedBy = p.ModifiedBy
-                }).ToList()
-            };
-
-            if (category.ParentId.HasValue)
-            {
-                var parent = await _categoryService.GetByIdAsync(category.ParentId.Value);
-                model.ParentName = parent?.Name;
-            }
-
-            PopulateBaseViewModel(model);
-            return View(model);
-        },
-        "Error loading category.",
-        $"Error loading category details for ID {id}");
+        }
     }
 
     /// <summary>
@@ -375,6 +263,85 @@ public class CategoriesController : BaseController
         }
     }
 
+    #region Helper Methods - Result Pattern
+
+    /// <summary>
+    /// Creates a new category with Result Pattern
+    /// Encapsulates category creation logic with validation
+    /// </summary>
+    private async Task<Result<CategoryDto>> CreateCategoryWithResult(EditCategoryViewModel model)
+    {
+        try
+        {
+            var username = _userContext.Username ?? "System";
+            
+            var createDto = new CategoryCreateDto
+            {
+                Name = model.Name,
+                Description = model.Description,
+                ParentId = model.ParentId,
+                CreatedBy = username
+            };
+
+            var created = await _categoryService.CreateAsync(createDto);
+            return Result<CategoryDto>.Success(created);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Validation error creating category");
+            return Result<CategoryDto>.Failure(ex.Message, "CATEGORY_VALIDATION_ERROR");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating category");
+            return Result<CategoryDto>.Failure($"Error saving category: {ex.Message}", "CATEGORY_CREATE_ERROR");
+        }
+    }
+
+    /// <summary>
+    /// Updates an existing category with Result Pattern
+    /// Encapsulates category update logic with validation
+    /// </summary>
+    private async Task<Result<CategoryDto>> UpdateCategoryWithResult(EditCategoryViewModel model)
+    {
+        try
+        {
+            var username = _userContext.Username ?? "System";
+            
+            var updateDto = new CategoryUpdateDto
+            {
+                Name = model.Name,
+                Description = model.Description,
+                ParentId = model.ParentId,
+                ModifiedBy = username
+            };
+
+            var updated = await _categoryService.UpdateAsync(model.Id, updateDto);
+            return Result<CategoryDto>.Success(updated);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Validation error updating category");
+            return Result<CategoryDto>.Failure(ex.Message, "CATEGORY_VALIDATION_ERROR");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating category");
+            return Result<CategoryDto>.Failure($"Error saving category: {ex.Message}", "CATEGORY_UPDATE_ERROR");
+        }
+    }
+
+    /// <summary>
+    /// Reloads form data for the category edit view
+    /// Centralizes form data reloading to eliminate duplication
+    /// </summary>
+    private async Task ReloadFormDataAsync(EditCategoryViewModel model)
+    {
+        model.AvailableParents = await GetAvailableParentsAsync(model.Id == 0 ? null : model.Id);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     /// <summary>
@@ -387,10 +354,12 @@ public class CategoriesController : BaseController
 
     /// <summary>
     /// Get available parent categories (excluding self and descendants) using the tree builder service
+    /// Also excludes categories at maximum depth to prevent exceeding depth limit
     /// </summary>
     private async Task<List<CategorySelectItem>> GetAvailableParentsAsync(int? excludeId)
     {
         var allCategories = await _categoryService.GetAllAsync();
+        var maxDepth = _categoryService.GetMaxCategoryDepth();
         var items = new List<CategorySelectItem>();
 
         // Add "None" option for root level
@@ -409,6 +378,17 @@ public class CategoriesController : BaseController
         {
             excludedIds.Add(excludeId.Value);
             await AddDescendantsAsync(excludeId.Value, excludedIds, allCategories);
+        }
+
+        // Also exclude categories at maximum depth (they can't have children)
+        var categoriesAtMaxDepth = allCategories
+            .Where(c => c.Level >= maxDepth - 1)
+            .Select(c => c.Id)
+            .ToHashSet();
+        
+        foreach (var id in categoriesAtMaxDepth)
+        {
+            excludedIds.Add(id);
         }
 
         // Build tree and flatten using the tree builder service

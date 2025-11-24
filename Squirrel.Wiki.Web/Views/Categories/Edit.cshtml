@@ -65,7 +65,7 @@
                                         <option value="" 
                                                 data-level="@parent.Level"
                                                 data-path="@parent.FullPath">
-                                            @parent.Name
+                                            @parent.DisplayName
                                         </option>
                                     }
                                     else
@@ -74,7 +74,7 @@
                                                 disabled="@parent.IsDisabled"
                                                 data-level="@parent.Level"
                                                 data-path="@parent.FullPath">
-                                            @parent.Name
+                                            @parent.DisplayName
                                         </option>
                                     }
                                 }
@@ -82,6 +82,8 @@
                             <span asp-validation-for="ParentId" class="text-danger"></span>
                             <div class="form-text">
                                 <i class="bi bi-info-circle"></i> @Localizer["SelectParentToCreateSubcategory"]
+                                <br />
+                                <i class="bi bi-exclamation-triangle text-warning"></i> <small>Categories at maximum nesting depth are disabled and cannot have children.</small>
                             </div>
                         </div>
 

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Localization;
 using Squirrel.Wiki.Contracts.Authentication;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models.Admin;
 using Squirrel.Wiki.Web.Resources;
 using Squirrel.Wiki.Web.Services;
@@ -141,7 +142,7 @@ public class UsersController : BaseController
     }
 
     /// <summary>
-    /// Create new user
+    /// Create new user - Refactored with Result Pattern
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -150,49 +151,28 @@ public class UsersController : BaseController
         if (!ValidateModelState())
             return View(model);
 
-        return await ExecuteAsync(async () =>
+        // Validate password confirmation early
+        if (model.Password != model.ConfirmPassword)
         {
-            // Validate password confirmation
-            if (model.Password != model.ConfirmPassword)
-            {
-                ModelState.AddModelError(nameof(model.ConfirmPassword), "Passwords do not match.");
-                return View(model);
-            }
+            ModelState.AddModelError(nameof(model.ConfirmPassword), "Passwords do not match.");
+            return View(model);
+        }
 
-            // Create user
-            // If no roles are selected, user will be a Viewer (read-only)
-            var user = await _userService.CreateLocalUserAsync(
-                username: model.Username,
-                email: model.Email,
-                password: model.Password!,
-                displayName: model.DisplayName,
-                isAdmin: model.Roles?.Contains("Admin") ?? false,
-                isEditor: (model.Roles?.Contains("Editor") ?? false) || (model.Roles?.Contains("Admin") ?? false)
-            );
+        // Execute user creation with Result Pattern
+        var result = await CreateUserWithResult(model);
 
-            // Set additional properties
-            if (!model.IsActive)
-            {
-                await _userService.DeactivateAccountAsync(user.Id);
-            }
-
+        // Handle success/failure
+        if (result.IsSuccess)
+        {
             _logger.LogInformation("User {Username} created by {AdminUser}", model.Username, User.Identity?.Name);
             NotifyLocalizedSuccess("Notification_UserCreated", model.Username);
-            return RedirectToAction(nameof(Details), new { id = user.Id });
-        },
-        ex =>
+            return RedirectToAction(nameof(Details), new { id = result.Value!.Id });
+        }
+        else
         {
-            if (ex is InvalidOperationException)
-            {
-                ModelState.AddModelError("", ex.Message);
-            }
-            else
-            {
-                _logger.LogError(ex, "Error creating user {Username}", model.Username);
-                ModelState.AddModelError("", "An error occurred while creating the user. Please try again.");
-            }
+            ModelState.AddModelError("", result.Error!);
             return View(model);
-        });
+        }
     }
 
     /// <summary>
@@ -227,7 +207,7 @@ public class UsersController : BaseController
     }
 
     /// <summary>
-    /// Update user
+    /// Update user - Refactored with Result Pattern
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -236,68 +216,28 @@ public class UsersController : BaseController
         if (!ValidateModelState())
             return View(model);
 
-        return await ExecuteAsync(async () =>
+        // Validate password confirmation early if password is being changed
+        if (!string.IsNullOrWhiteSpace(model.Password) && model.Password != model.ConfirmPassword)
         {
-            var user = await _userService.GetByIdAsync(model.Id);
-            if (!ValidateEntityExists(user, "User"))
-                return RedirectToAction(nameof(Index));
-
-            // Update user via DTO
-            // If no roles are selected, user will be a Viewer (read-only)
-            var updateDto = new UserUpdateDto
-            {
-                Email = model.Email,
-                DisplayName = model.DisplayName,
-                FirstName = model.FirstName,
-                LastName = model.LastName,
-                IsAdmin = model.Roles?.Contains("Admin") ?? false,
-                IsEditor = (model.Roles?.Contains("Editor") ?? false) || (model.Roles?.Contains("Admin") ?? false)
-            };
-
-            await _userService.UpdateAsync(user.Id, updateDto);
-
-            // Update active status if changed
-            if (model.IsActive != user.IsActive)
-            {
-                if (model.IsActive)
-                {
-                    await _userService.ActivateAccountAsync(user.Id);
-                }
-                else
-                {
-                    await _userService.DeactivateAccountAsync(user.Id);
-                }
-            }
-
-            // Update password if provided
-            if (!string.IsNullOrWhiteSpace(model.Password))
-            {
-                if (model.Password != model.ConfirmPassword)
-                {
-                    ModelState.AddModelError(nameof(model.ConfirmPassword), "Passwords do not match.");
-                    return View(model);
-                }
-
-                await _userService.SetPasswordAsync(user.Id, model.Password);
-            }
-
-            _logger.LogInformation("User {Username} updated by {AdminUser}", user.Username, User.Identity?.Name);
-            NotifyLocalizedSuccess("Notification_UserUpdated", user.Username);
-            return RedirectToAction(nameof(Details), new { id = user.Id });
-        },
-        ex =>
-        {
-            if (ex is InvalidOperationException)
-            {
-                ModelState.AddModelError("", ex.Message);
-            }
-            else
-            {
-                _logger.LogError(ex, "Error updating user {UserId}", model.Id);
-                ModelState.AddModelError("", "An error occurred while updating the user. Please try again.");
-            }
+            ModelState.AddModelError(nameof(model.ConfirmPassword), "Passwords do not match.");
             return View(model);
-        });
+        }
+
+        // Execute user update with Result Pattern
+        var result = await UpdateUserWithResult(model);
+
+        // Handle success/failure
+        if (result.IsSuccess)
+        {
+            _logger.LogInformation("User {Username} updated by {AdminUser}", result.Value!.Username, User.Identity?.Name);
+            NotifyLocalizedSuccess("Notification_UserUpdated", result.Value.Username);
+            return RedirectToAction(nameof(Details), new { id = result.Value.Id });
+        }
+        else
+        {
+            ModelState.AddModelError("", result.Error!);
+            return View(model);
+        }
     }
 
     /// <summary>
@@ -438,7 +378,7 @@ public class UsersController : BaseController
     }
 
     /// <summary>
-    /// Reset user password
+    /// Reset user password - Refactored with Result Pattern
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -447,36 +387,161 @@ public class UsersController : BaseController
         if (!ValidateModelState())
             return View(model);
 
-        return await ExecuteAsync(async () =>
+        // Validate password confirmation early
+        if (model.NewPassword != model.ConfirmPassword)
+        {
+            ModelState.AddModelError(nameof(model.ConfirmPassword), "Passwords do not match.");
+            return View(model);
+        }
+
+        // Execute password reset with Result Pattern
+        var result = await ResetPasswordWithResult(model);
+
+        // Handle success/failure
+        if (result.IsSuccess)
+        {
+            _logger.LogInformation("Password reset for user {Username} by {AdminUser}", result.Value!, User.Identity?.Name);
+            NotifyLocalizedSuccess("Notification_PasswordReset", result.Value);
+            return RedirectToAction(nameof(Details), new { id = model.UserId });
+        }
+        else
+        {
+            ModelState.AddModelError("", result.Error!);
+            return View(model);
+        }
+    }
+
+    #region Helper Methods - Result Pattern
+
+    /// <summary>
+    /// Creates a new user with Result Pattern
+    /// Encapsulates user creation logic including role assignment and activation
+    /// </summary>
+    private async Task<Result<UserDto>> CreateUserWithResult(UserEditViewModel model)
+    {
+        try
+        {
+            // Create user with roles
+            var user = await _userService.CreateLocalUserAsync(
+                username: model.Username,
+                email: model.Email,
+                password: model.Password!,
+                displayName: model.DisplayName,
+                isAdmin: model.Roles?.Contains("Admin") ?? false,
+                isEditor: (model.Roles?.Contains("Editor") ?? false) || (model.Roles?.Contains("Admin") ?? false)
+            );
+
+            // Set additional properties
+            if (!model.IsActive)
+            {
+                await _userService.DeactivateAccountAsync(user.Id);
+            }
+
+            return Result<UserDto>.Success(user);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Validation error creating user {Username}", model.Username);
+            return Result<UserDto>.Failure(ex.Message, "USER_VALIDATION_ERROR");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating user {Username}", model.Username);
+            return Result<UserDto>.Failure("An error occurred while creating the user. Please try again.", "USER_CREATE_ERROR");
+        }
+    }
+
+    /// <summary>
+    /// Updates an existing user with Result Pattern
+    /// Encapsulates user update logic including role changes, activation status, and password updates
+    /// </summary>
+    private async Task<Result<UserDto>> UpdateUserWithResult(UserEditViewModel model)
+    {
+        try
+        {
+            var user = await _userService.GetByIdAsync(model.Id);
+            if (user == null)
+            {
+                return Result<UserDto>.Failure("User not found.", "USER_NOT_FOUND");
+            }
+
+            // Update user via DTO
+            var updateDto = new UserUpdateDto
+            {
+                Email = model.Email,
+                DisplayName = model.DisplayName,
+                FirstName = model.FirstName,
+                LastName = model.LastName,
+                IsAdmin = model.Roles?.Contains("Admin") ?? false,
+                IsEditor = (model.Roles?.Contains("Editor") ?? false) || (model.Roles?.Contains("Admin") ?? false)
+            };
+
+            await _userService.UpdateAsync(user.Id, updateDto);
+
+            // Update active status if changed
+            if (model.IsActive != user.IsActive)
+            {
+                if (model.IsActive)
+                {
+                    await _userService.ActivateAccountAsync(user.Id);
+                }
+                else
+                {
+                    await _userService.DeactivateAccountAsync(user.Id);
+                }
+            }
+
+            // Update password if provided
+            if (!string.IsNullOrWhiteSpace(model.Password))
+            {
+                await _userService.SetPasswordAsync(user.Id, model.Password);
+            }
+
+            // Get updated user
+            var updatedUser = await _userService.GetByIdAsync(user.Id);
+            return Result<UserDto>.Success(updatedUser!);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Validation error updating user {UserId}", model.Id);
+            return Result<UserDto>.Failure(ex.Message, "USER_VALIDATION_ERROR");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating user {UserId}", model.Id);
+            return Result<UserDto>.Failure("An error occurred while updating the user. Please try again.", "USER_UPDATE_ERROR");
+        }
+    }
+
+    /// <summary>
+    /// Resets a user's password with Result Pattern
+    /// Encapsulates password reset logic with validation
+    /// </summary>
+    private async Task<Result<string>> ResetPasswordWithResult(ResetPasswordViewModel model)
+    {
+        try
         {
             var user = await _userService.GetByIdAsync(model.UserId);
-            if (!ValidateEntityExists(user, "User"))
-                return RedirectToAction(nameof(Index));
-
-            if (model.NewPassword != model.ConfirmPassword)
+            if (user == null)
             {
-                ModelState.AddModelError(nameof(model.ConfirmPassword), "Passwords do not match.");
-                return View(model);
+                return Result<string>.Failure("User not found.", "USER_NOT_FOUND");
             }
 
             await _userService.SetPasswordAsync(model.UserId, model.NewPassword);
 
-            _logger.LogInformation("Password reset for user {Username} by {AdminUser}", user.Username, User.Identity?.Name);
-            NotifyLocalizedSuccess("Notification_PasswordReset", user.Username);
-            return RedirectToAction(nameof(Details), new { id = model.UserId });
-        },
-        ex =>
+            return Result<string>.Success(user.Username);
+        }
+        catch (InvalidOperationException ex)
         {
-            if (ex is InvalidOperationException)
-            {
-                ModelState.AddModelError("", ex.Message);
-            }
-            else
-            {
-                _logger.LogError(ex, "Error resetting password for user {UserId}", model.UserId);
-                ModelState.AddModelError("", "An error occurred while resetting the password. Please try again.");
-            }
-            return View(model);
-        });
+            _logger.LogWarning(ex, "Validation error resetting password for user {UserId}", model.UserId);
+            return Result<string>.Failure(ex.Message, "PASSWORD_VALIDATION_ERROR");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resetting password for user {UserId}", model.UserId);
+            return Result<string>.Failure("An error occurred while resetting the password. Please try again.", "PASSWORD_RESET_ERROR");
+        }
     }
+
+    #endregion
 }

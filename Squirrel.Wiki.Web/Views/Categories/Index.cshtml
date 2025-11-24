@@ -24,7 +24,10 @@
                 <div class="category-tree">
                     @foreach (var category in Model.Categories)
                     {
-                        @await Html.PartialAsync("_CategoryTreeNode", category, new ViewDataDictionary(ViewData) { { "TimezoneService", Model.TimezoneService } })
+                        var viewData = new ViewDataDictionary(ViewData);
+                        viewData["TimezoneService"] = Model.TimezoneService;
+                        viewData["MaxCategoryDepth"] = Model.MaxCategoryDepth;
+                        @await Html.PartialAsync("_CategoryTreeNode", category, viewData)
                     }
                 </div>
             </div>

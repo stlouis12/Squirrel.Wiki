@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
-using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
-using Squirrel.Wiki.Core.Database.Repositories;
-using Squirrel.Wiki.Web.Models;
+using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Filters;
+using Squirrel.Wiki.Web.Models;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -40,10 +41,11 @@ public class WikiController : Controller
     }
 
     /// <summary>
-    /// Displays a wiki page by ID and optional slug
+    /// Displays a wiki page by ID and optional slug - Refactored with Result Pattern
     /// </summary>
     /// <param name="id">The page ID</param>
     /// <param name="slug">The page slug (optional, for SEO-friendly URLs)</param>
+    /// <param name="isHomePage">Whether this is being displayed as the home page</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The page view</returns>
     [HttpGet("/wiki/{id:int}/{slug?}")]
@@ -55,6 +57,96 @@ public class WikiController : Controller
             return RedirectToAction("Index", "Home");
         }
 
+        var result = await LoadPageWithResult(id, slug, isHomePage, cancellationToken);
+
+        return result.Match<IActionResult>(
+            onSuccess: viewModel =>
+            {
+                // Redirect to correct slug if provided slug doesn't match
+                if (!string.IsNullOrEmpty(slug) && !string.Equals(slug, viewModel.Slug, StringComparison.OrdinalIgnoreCase))
+                {
+                    return RedirectToAction(nameof(Index), new { id = viewModel.Id, slug = viewModel.Slug });
+                }
+
+                return View(viewModel);
+            },
+            onFailure: (error, code) =>
+            {
+                _logger.LogError("Failed to load page {PageId}: {Error} (Code: {Code})", id, error, code);
+
+                return code switch
+                {
+                    "PAGE_NOT_FOUND" => NotFound($"The page with ID {id} could not be found"),
+                    "PAGE_NO_CONTENT" => NotFound($"No content found for page {id}"),
+                    "PAGE_UNAUTHORIZED" => !_authorizationService.IsAuthenticated()
+                        ? RedirectToAction("Login", "Account", new { returnUrl = Request.Path })
+                        : StatusCode(403, "You do not have permission to view this page"),
+                    _ => StatusCode(500, "An error occurred while loading the page")
+                };
+            }
+        );
+    }
+
+    /// <summary>
+    /// Displays the page toolbar (for AJAX loading) - Refactored with Result Pattern
+    /// </summary>
+    /// <param name="id">The page ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Partial view with page toolbar</returns>
+    [HttpGet]
+    public async Task<IActionResult> PageToolbar(int id, CancellationToken cancellationToken)
+    {
+        if (id < 1)
+        {
+            return Content(string.Empty);
+        }
+
+        var result = await LoadPageToolbarWithResult(id, cancellationToken);
+
+        return result.Match<IActionResult>(
+            onSuccess: viewModel => PartialView("_PageToolbar", viewModel),
+            onFailure: (error, code) =>
+            {
+                _logger.LogWarning("Failed to load page toolbar for {PageId}: {Error}", id, error);
+                return Content(string.Empty);
+            }
+        );
+    }
+
+    /// <summary>
+    /// 404 Not Found page
+    /// </summary>
+    [HttpGet("/wiki/notfound")]
+    [DynamicResponseCache(OverrideDuration = 3600)]
+    public new IActionResult NotFound()
+    {
+        Response.StatusCode = 404;
+        return View("404");
+    }
+
+    /// <summary>
+    /// 500 Server Error page
+    /// </summary>
+    [HttpGet("/wiki/error")]
+    [DynamicResponseCache(NoStore = true)]
+    public IActionResult ServerError()
+    {
+        Response.StatusCode = 500;
+        return View("500");
+    }
+
+    #region Helper Methods - Result Pattern
+
+    /// <summary>
+    /// Loads a wiki page with Result Pattern
+    /// Encapsulates all page loading logic including authorization and content rendering
+    /// </summary>
+    private async Task<Result<PageViewModel>> LoadPageWithResult(
+        int id, 
+        string? slug, 
+        bool isHomePage, 
+        CancellationToken cancellationToken)
+    {
         try
         {
             var pageDto = await _pageService.GetByIdAsync(id, cancellationToken);
@@ -62,24 +154,25 @@ public class WikiController : Controller
             if (pageDto == null)
             {
                 _logger.LogWarning("Page with ID {PageId} not found", id);
-                return NotFound($"The page with ID {id} could not be found");
+                return Result<PageViewModel>.Failure(
+                    $"The page with ID {id} could not be found",
+                    "PAGE_NOT_FOUND"
+                ).WithContext("PageId", id);
             }
 
             // Check authorization to view this page
             var pageEntity = await _pageRepository.GetByIdAsync(id, cancellationToken);
             if (pageEntity == null || !await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
             {
-                _logger.LogWarning("User {User} denied access to page {PageId}", 
-                    User.Identity?.Name ?? "Anonymous", id);
+                var user = User.Identity?.Name ?? "Anonymous";
+                _logger.LogWarning("User {User} denied access to page {PageId}", user, id);
                 
-                if (!_authorizationService.IsAuthenticated())
-                {
-                    // Redirect to login if not authenticated
-                    return RedirectToAction("Login", "Account", new { returnUrl = Request.Path });
-                }
-                
-                // Return 403 Forbidden if authenticated but not authorized
-                return StatusCode(403, "You do not have permission to view this page");
+                return Result<PageViewModel>.Failure(
+                    "You do not have permission to view this page",
+                    "PAGE_UNAUTHORIZED"
+                ).WithContext("PageId", id)
+                 .WithContext("User", user)
+                 .WithContext("IsAuthenticated", _authorizationService.IsAuthenticated());
             }
 
             // Get the latest content
@@ -88,7 +181,10 @@ public class WikiController : Controller
             if (contentDto == null)
             {
                 _logger.LogWarning("No content found for page {PageId}", id);
-                return NotFound($"No content found for page {id}");
+                return Result<PageViewModel>.Failure(
+                    $"No content found for page {id}",
+                    "PAGE_NO_CONTENT"
+                ).WithContext("PageId", id);
             }
 
             // Convert markdown to HTML
@@ -97,9 +193,9 @@ public class WikiController : Controller
             // Convert internal slug-only links to full /wiki/{id}/{slug} URLs
             htmlContent = await _markdownService.ConvertInternalLinksAsync(
                 htmlContent,
-                async (slug) =>
+                async (linkSlug) =>
                 {
-                    var page = await _pageService.GetBySlugAsync(slug, cancellationToken);
+                    var page = await _pageService.GetBySlugAsync(linkSlug, cancellationToken);
                     return page != null ? (page.Id, page.Slug) : (null, null);
                 },
                 cancellationToken);
@@ -124,7 +220,8 @@ public class WikiController : Controller
                 ModifiedOn = pageDto.ModifiedOn,
                 CanEdit = await _authorizationService.CanEditPageAsync(pageDto, username, userRole),
                 CanDelete = await _authorizationService.CanDeletePageAsync(pageDto, userRole),
-                IsHomePage = isHomePage
+                IsHomePage = isHomePage,
+                TimezoneService = _timezoneService
             };
 
             // Get tags
@@ -170,45 +267,34 @@ public class WikiController : Controller
                 }
             }
 
-            // Redirect to correct slug if provided slug doesn't match
-            if (!string.IsNullOrEmpty(slug) && !string.Equals(slug, pageDto.Slug, StringComparison.OrdinalIgnoreCase))
-            {
-                return RedirectToAction(nameof(Index), new { id = pageDto.Id, slug = pageDto.Slug });
-            }
-
-            // Populate timezone service for view
-            viewModel.TimezoneService = _timezoneService;
-
-            return View(viewModel);
+            return Result<PageViewModel>.Success(viewModel);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error displaying page {PageId}", id);
-            return StatusCode(500, "An error occurred while loading the page");
+            _logger.LogError(ex, "Error loading page {PageId}", id);
+            return Result<PageViewModel>.Failure(
+                "An error occurred while loading the page",
+                "PAGE_LOAD_ERROR"
+            ).WithContext("PageId", id);
         }
     }
 
     /// <summary>
-    /// Displays the page toolbar (for AJAX loading)
+    /// Loads page toolbar with Result Pattern
+    /// Used for AJAX loading of page toolbar
     /// </summary>
-    /// <param name="id">The page ID</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Partial view with page toolbar</returns>
-    [HttpGet]
-    public async Task<IActionResult> PageToolbar(int id, CancellationToken cancellationToken)
+    private async Task<Result<PageViewModel>> LoadPageToolbarWithResult(int id, CancellationToken cancellationToken)
     {
-        if (id < 1)
-        {
-            return Content(string.Empty);
-        }
-
         try
         {
             var pageDto = await _pageService.GetByIdAsync(id, cancellationToken);
             
             if (pageDto == null)
             {
-                return Content($"The page with ID {id} could not be found");
+                return Result<PageViewModel>.Failure(
+                    $"The page with ID {id} could not be found",
+                    "PAGE_NOT_FOUND"
+                ).WithContext("PageId", id);
             }
 
             var viewModel = new PageViewModel
@@ -221,34 +307,17 @@ public class WikiController : Controller
                 CanDelete = false // TODO: Check user permissions
             };
 
-            return PartialView("_PageToolbar", viewModel);
+            return Result<PageViewModel>.Success(viewModel);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading page toolbar for page {PageId}", id);
-            return Content(string.Empty);
+            return Result<PageViewModel>.Failure(
+                "Error loading page toolbar",
+                "PAGE_TOOLBAR_ERROR"
+            ).WithContext("PageId", id);
         }
     }
 
-    /// <summary>
-    /// 404 Not Found page
-    /// </summary>
-    [HttpGet("/wiki/notfound")]
-    [DynamicResponseCache(OverrideDuration = 3600)]
-    public new IActionResult NotFound()
-    {
-        Response.StatusCode = 404;
-        return View("404");
-    }
-
-    /// <summary>
-    /// 500 Server Error page
-    /// </summary>
-    [HttpGet("/wiki/error")]
-    [DynamicResponseCache(NoStore = true)]
-    public IActionResult ServerError()
-    {
-        Response.StatusCode = 500;
-        return View("500");
-    }
+    #endregion
 }

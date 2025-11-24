@@ -5,6 +5,7 @@ using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models.Admin;
 using Squirrel.Wiki.Web.Services;
 
@@ -25,7 +26,7 @@ public class MenusController : BaseController
         ITimezoneService timezoneService,
         ILogger<MenusController> logger,
         INotificationService notifications)
-        : base(logger, notifications, timezoneService)
+        : base(logger, notifications, timezoneService, null)
     {
         _menuService = menuService;
         _userContext = userContext;
@@ -154,7 +155,7 @@ public class MenusController : BaseController
     }
 
     /// <summary>
-    /// Save menu (create or update)
+    /// Save menu (create or update) - Refactored with Result Pattern
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -166,85 +167,36 @@ public class MenusController : BaseController
             return View(model);
         }
 
-        return await ExecuteAsync(async () =>
+        // Execute save operation with Result Pattern
+        var result = model.IsNew
+            ? await CreateMenuWithResult(model, forceActivation)
+            : await UpdateMenuWithResult(model, forceActivation);
+
+        // Handle success/failure
+        if (result.IsSuccess)
         {
-            bool isNew = model.Id == 0;
-            var username = _userContext.Username ?? "System";
-
-            if (isNew)
+            var action = model.IsNew ? "Created" : "Updated";
+            var notificationKey = model.IsNew ? "Notification_MenuCreated" : "Notification_MenuUpdated";
+            
+            _logger.LogInformation("{Action} menu '{MenuName}' (ID: {MenuId}) by {User}", 
+                action, result.Value!.Name, result.Value.Id, _userContext.Username ?? "System");
+            
+            NotifyLocalizedSuccess(notificationKey, result.Value.Name);
+            
+            // Check if menu was automatically set to inactive
+            if (model.IsEnabled && !result.Value.IsEnabled)
             {
-                // Create new menu
-                var createDto = new MenuCreateDto
-                {
-                    Name = model.Name,
-                    MenuType = model.MenuType,
-                    Description = model.Description ?? string.Empty,
-                    MenuMarkup = model.MenuMarkup,
-                    FooterLeftZone = model.FooterLeftZone,
-                    FooterRightZone = model.FooterRightZone,
-                    DisplayOrder = 0,
-                    IsEnabled = model.IsEnabled,
-                    ModifiedBy = username
-                };
-
-                var createdMenu = await _menuService.CreateAsync(createDto, forceActivation);
-                
-                // Check if menu was automatically set to inactive
-                if (model.IsEnabled && !createdMenu.IsEnabled)
-                {
-                    NotifyLocalizedSuccess("Notification_MenuCreated", model.Name);
-                    NotifyWarning($"Menu set to inactive because another {((MenuType)model.MenuType).ToString()} menu is already active.");
-                }
-                else
-                {
-                    NotifyLocalizedSuccess("Notification_MenuCreated", model.Name);
-                }
+                NotifyWarning($"Menu set to inactive because another {((MenuType)model.MenuType).ToString()} menu is already active.");
             }
-            else
-            {
-                // Update existing menu
-                var updateDto = new MenuUpdateDto
-                {
-                    Name = model.Name,
-                    MenuType = model.MenuType,
-                    Description = model.Description ?? string.Empty,
-                    MenuMarkup = model.MenuMarkup,
-                    FooterLeftZone = model.FooterLeftZone,
-                    FooterRightZone = model.FooterRightZone,
-                    DisplayOrder = 0,
-                    IsEnabled = model.IsEnabled,
-                    ModifiedBy = username
-                };
-
-                var updatedMenu = await _menuService.UpdateAsync(model.Id, updateDto, forceActivation);
-                
-                // Check if menu was automatically set to inactive
-                if (model.IsEnabled && !updatedMenu.IsEnabled)
-                {
-                    NotifyLocalizedSuccess("Notification_MenuUpdated", model.Name);
-                    NotifyWarning($"Menu kept inactive because another {((MenuType)model.MenuType).ToString()} menu is already active.");
-                }
-                else
-                {
-                    NotifyLocalizedSuccess("Notification_MenuUpdated", model.Name);
-                }
-            }
-
+            
             return RedirectToAction(nameof(Index));
-        },
-        ex =>
+        }
+        else
         {
-            if (ex is InvalidOperationException)
-            {
-                ModelState.AddModelError("", ex.Message);
-            }
-            else
-            {
-                ModelState.AddModelError("", "Error saving menu. Please try again.");
-            }
+            ModelState.AddModelError("", result.Error!);
             PopulateMenuTypes(model);
             return View(model);
-        });
+        }
     }
 
     /// <summary>
@@ -349,6 +301,86 @@ public class MenusController : BaseController
             });
         }
     }
+
+    #region Helper Methods - Result Pattern
+
+    /// <summary>
+    /// Creates a new menu with Result Pattern
+    /// Encapsulates menu creation logic with validation
+    /// </summary>
+    private async Task<Result<MenuDto>> CreateMenuWithResult(EditMenuViewModel model, bool forceActivation)
+    {
+        try
+        {
+            var username = _userContext.Username ?? "System";
+            
+            var createDto = new MenuCreateDto
+            {
+                Name = model.Name,
+                MenuType = model.MenuType,
+                Description = model.Description ?? string.Empty,
+                MenuMarkup = model.MenuMarkup,
+                FooterLeftZone = model.FooterLeftZone,
+                FooterRightZone = model.FooterRightZone,
+                DisplayOrder = 0,
+                IsEnabled = model.IsEnabled,
+                ModifiedBy = username
+            };
+
+            var created = await _menuService.CreateAsync(createDto, forceActivation);
+            return Result<MenuDto>.Success(created);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Validation error creating menu");
+            return Result<MenuDto>.Failure(ex.Message, "MENU_VALIDATION_ERROR");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating menu");
+            return Result<MenuDto>.Failure($"Error saving menu: {ex.Message}", "MENU_CREATE_ERROR");
+        }
+    }
+
+    /// <summary>
+    /// Updates an existing menu with Result Pattern
+    /// Encapsulates menu update logic with validation
+    /// </summary>
+    private async Task<Result<MenuDto>> UpdateMenuWithResult(EditMenuViewModel model, bool forceActivation)
+    {
+        try
+        {
+            var username = _userContext.Username ?? "System";
+            
+            var updateDto = new MenuUpdateDto
+            {
+                Name = model.Name,
+                MenuType = model.MenuType,
+                Description = model.Description ?? string.Empty,
+                MenuMarkup = model.MenuMarkup,
+                FooterLeftZone = model.FooterLeftZone,
+                FooterRightZone = model.FooterRightZone,
+                DisplayOrder = 0,
+                IsEnabled = model.IsEnabled,
+                ModifiedBy = username
+            };
+
+            var updated = await _menuService.UpdateAsync(model.Id, updateDto, forceActivation);
+            return Result<MenuDto>.Success(updated);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Validation error updating menu");
+            return Result<MenuDto>.Failure(ex.Message, "MENU_VALIDATION_ERROR");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating menu");
+            return Result<MenuDto>.Failure($"Error saving menu: {ex.Message}", "MENU_UPDATE_ERROR");
+        }
+    }
+
+    #endregion
 
     #region Private Helper Methods
 

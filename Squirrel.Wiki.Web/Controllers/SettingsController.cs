@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using Squirrel.Wiki.Core.Database;
+using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models.Admin;
 using Squirrel.Wiki.Web.Resources;
 using Squirrel.Wiki.Web.Services;
@@ -37,12 +39,123 @@ public class SettingsController : BaseController
     }
 
     /// <summary>
-    /// Display all settings grouped by category
+    /// Display all settings grouped by category - Refactored with Result Pattern
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> Index()
     {
-        return await ExecuteAsync(async () =>
+        var result = await LoadSettingsWithResult();
+
+        return result.Match<IActionResult>(
+            onSuccess: model => View(model),
+            onFailure: (error, code) =>
+            {
+                _logger.LogError("Failed to load settings: {Error} (Code: {Code})", error, code);
+                NotifyError(_localizer["ErrorLoadingSettings"]);
+                return View(new SettingsViewModel());
+            }
+        );
+    }
+
+    /// <summary>
+    /// Edit a specific setting - Refactored with Result Pattern
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> Edit(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return NotFound();
+        }
+
+        var result = await LoadSettingForEditWithResult(key);
+
+        return result.Match<IActionResult>(
+            onSuccess: model =>
+            {
+                // For timezone dropdown, provide display names
+                if (key == "TimeZone" && model.Options != null)
+                {
+                    ViewBag.TimezoneDisplayNames = model.Options.ToDictionary(
+                        id => id,
+                        id => _timezoneService.GetTimezoneDisplayName(id)
+                    );
+                }
+
+                return View(model);
+            },
+            onFailure: (error, code) =>
+            {
+                _logger.LogError("Failed to load setting {Key}: {Error} (Code: {Code})", key, error, code);
+                
+                if (code == "SETTING_NOT_FOUND")
+                {
+                    return NotFound();
+                }
+
+                NotifyError(_localizer["ErrorLoadingSetting"]);
+                return RedirectToAction(nameof(Index));
+            }
+        );
+    }
+
+    /// <summary>
+    /// Save a setting - Refactored with Result Pattern
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(EditSettingViewModel model)
+    {
+        if (!ValidateModelState())
+        {
+            return View(model);
+        }
+
+        var result = await SaveSettingWithResult(model);
+
+        return result.Match<IActionResult>(
+            onSuccess: displayName =>
+            {
+                NotifyLocalizedSuccess("Notification_SettingUpdated", displayName);
+                return RedirectToAction(nameof(Index));
+            },
+            onFailure: (error, code) =>
+            {
+                _logger.LogError("Failed to save setting {Key}: {Error} (Code: {Code})", model.Key, error, code);
+                ModelState.AddModelError("", error);
+                return View(model);
+            }
+        );
+    }
+
+    /// <summary>
+    /// Quick update a setting via AJAX - Refactored with Result Pattern
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> QuickUpdate(string key, string value)
+    {
+        var result = await QuickUpdateSettingWithResult(key, value);
+
+        return result.Match<IActionResult>(
+            onSuccess: _ => Json(new { success = true, message = "Setting updated successfully" }),
+            onFailure: (error, code) =>
+            {
+                _logger.LogError("Failed to quick-update setting {Key}: {Error} (Code: {Code})", key, error, code);
+                return Json(new { success = false, message = error });
+            }
+        );
+    }
+
+    #region Helper Methods - Result Pattern
+
+    /// <summary>
+    /// Loads all settings with Result Pattern
+    /// Encapsulates settings loading and grouping logic
+    /// </summary>
+    private async Task<Result<SettingsViewModel>> LoadSettingsWithResult()
+    {
+        try
         {
             var model = new SettingsViewModel();
 
@@ -59,31 +172,34 @@ public class SettingsController : BaseController
                 id => _timezoneService.GetTimezoneDisplayName(id)
             );
 
-            return View(model);
-        },
-        _localizer["ErrorLoadingSettings"],
-        "Error loading settings");
+            return Result<SettingsViewModel>.Success(model);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading settings");
+            return Result<SettingsViewModel>.Failure(
+                "An error occurred while loading settings",
+                "SETTINGS_LOAD_ERROR"
+            );
+        }
     }
 
     /// <summary>
-    /// Edit a specific setting
+    /// Loads a setting for editing with Result Pattern
     /// </summary>
-    [HttpGet]
-    public async Task<IActionResult> Edit(string key)
+    private async Task<Result<EditSettingViewModel>> LoadSettingForEditWithResult(string key)
     {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            return NotFound();
-        }
-
-        return await ExecuteAsync(async () =>
+        try
         {
             var value = await _settingsService.GetSettingAsync<string>(key);
             var settingDef = await GetSettingDefinitionAsync(key);
 
             if (settingDef == null)
             {
-                return NotFound();
+                return Result<EditSettingViewModel>.Failure(
+                    $"Setting '{key}' not found",
+                    "SETTING_NOT_FOUND"
+                ).WithContext("Key", key);
             }
 
             var model = new EditSettingViewModel
@@ -98,34 +214,25 @@ public class SettingsController : BaseController
                 Options = settingDef.Options
             };
 
-            // For timezone dropdown, provide display names
-            if (key == "TimeZone" && settingDef.Options != null)
-            {
-                ViewBag.TimezoneDisplayNames = settingDef.Options.ToDictionary(
-                    id => id,
-                    id => _timezoneService.GetTimezoneDisplayName(id)
-                );
-            }
-
-            return View(model);
-        },
-        _localizer["ErrorLoadingSetting"],
-        $"Error loading setting {key}");
+            return Result<EditSettingViewModel>.Success(model);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading setting {Key} for edit", key);
+            return Result<EditSettingViewModel>.Failure(
+                "An error occurred while loading the setting",
+                "SETTING_LOAD_ERROR"
+            ).WithContext("Key", key);
+        }
     }
 
     /// <summary>
-    /// Save a setting
+    /// Saves a setting with Result Pattern
+    /// Encapsulates value conversion and saving logic
     /// </summary>
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(EditSettingViewModel model)
+    private async Task<Result<string>> SaveSettingWithResult(EditSettingViewModel model)
     {
-        if (!ValidateModelState())
-        {
-            return View(model);
-        }
-
-        return await ExecuteAsync(async () =>
+        try
         {
             // Convert value based on type
             object valueToSave = model.Type switch
@@ -139,29 +246,42 @@ public class SettingsController : BaseController
 
             _logger.LogInformation("Setting {Key} updated by {User}", model.Key, User.Identity?.Name);
 
-            NotifyLocalizedSuccess("Notification_SettingUpdated", model.DisplayName);
-            return RedirectToAction(nameof(Index));
-        },
-        ex =>
+            return Result<string>.Success(model.DisplayName);
+        }
+        catch (FormatException ex)
         {
-            ModelState.AddModelError("", "Error saving setting. Please try again.");
-            return View(model);
-        });
+            _logger.LogWarning(ex, "Invalid format for setting {Key}", model.Key);
+            return Result<string>.Failure(
+                $"Invalid value format for {model.Type} setting",
+                "SETTING_INVALID_FORMAT"
+            ).WithContext("Key", model.Key)
+             .WithContext("Type", model.Type.ToString());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving setting {Key}", model.Key);
+            return Result<string>.Failure(
+                "Error saving setting. Please try again.",
+                "SETTING_SAVE_ERROR"
+            ).WithContext("Key", model.Key);
+        }
     }
 
     /// <summary>
-    /// Quick update a setting via AJAX
+    /// Quick updates a setting with Result Pattern
+    /// Used for AJAX updates
     /// </summary>
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> QuickUpdate(string key, string value)
+    private async Task<Result<bool>> QuickUpdateSettingWithResult(string key, string value)
     {
         try
         {
             var settingDef = await GetSettingDefinitionAsync(key);
             if (settingDef == null)
             {
-                return Json(new { success = false, message = "Setting not found" });
+                return Result<bool>.Failure(
+                    "Setting not found",
+                    "SETTING_NOT_FOUND"
+                ).WithContext("Key", key);
             }
 
             // Convert value based on type
@@ -176,14 +296,27 @@ public class SettingsController : BaseController
 
             _logger.LogInformation("Setting {Key} quick-updated by {User}", key, User.Identity?.Name);
 
-            return Json(new { success = true, message = "Setting updated successfully" });
+            return Result<bool>.Success(true);
+        }
+        catch (FormatException ex)
+        {
+            _logger.LogWarning(ex, "Invalid format for quick-update of setting {Key}", key);
+            return Result<bool>.Failure(
+                "Invalid value format",
+                "SETTING_INVALID_FORMAT"
+            ).WithContext("Key", key);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error quick-updating setting {Key}", key);
-            return Json(new { success = false, message = ex.Message });
+            return Result<bool>.Failure(
+                ex.Message,
+                "SETTING_QUICK_UPDATE_ERROR"
+            ).WithContext("Key", key);
         }
     }
+
+    #endregion
 
     #region Private Helper Methods
 

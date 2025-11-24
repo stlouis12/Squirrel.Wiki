@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Squirrel.Wiki.Core.Database.Entities;
+using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services;
-using Squirrel.Wiki.Core.Database.Entities;
+using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models;
 using Squirrel.Wiki.Web.Services;
 
@@ -24,7 +26,7 @@ public class AccountController : BaseController
         ITimezoneService timezoneService,
         ILogger<AccountController> logger,
         INotificationService notifications)
-        : base(logger, notifications, timezoneService)
+        : base(logger, notifications, timezoneService, null)
     {
         _userContext = userContext;
         _userService = userService;
@@ -48,6 +50,9 @@ public class AccountController : BaseController
         return View(model);
     }
 
+    /// <summary>
+    /// Login POST - Refactored with Result Pattern
+    /// </summary>
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
@@ -58,38 +63,13 @@ public class AccountController : BaseController
             return View(model);
         }
 
-        try
+        var result = await AuthenticateUserWithResult(model);
+
+        if (result.IsSuccess)
         {
-            // Authenticate user using UserService
-            var user = await _userService.AuthenticateAsync(model.UsernameOrEmail, model.Password);
-
-            if (user == null)
-            {
-                ModelState.AddModelError(string.Empty, "Invalid username/email or password.");
-                return View(model);
-            }
-
-            // Check if account is active
-            if (!user.IsActive)
-            {
-                ModelState.AddModelError(string.Empty, "Your account has been deactivated. Please contact an administrator.");
-                _logger.LogWarning("Login attempt for inactive account: {UsernameOrEmail}", model.UsernameOrEmail);
-                return View(model);
-            }
-
-            // Check if account is locked
-            if (user.IsLocked)
-            {
-                var lockMessage = user.LockedUntil.HasValue
-                    ? $"Your account is locked until {user.LockedUntil.Value:yyyy-MM-dd HH:mm}."
-                    : "Your account has been locked. Please contact an administrator.";
-                
-                ModelState.AddModelError(string.Empty, lockMessage);
-                _logger.LogWarning("Login attempt for locked account: {UsernameOrEmail}", model.UsernameOrEmail);
-                return View(model);
-            }
-
-            // Create claims for the authenticated user
+            var user = result.Value!;
+            
+            // Create claims and sign in
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -137,17 +117,9 @@ public class AccountController : BaseController
 
             return RedirectToAction("Index", "Home");
         }
-        catch (InvalidOperationException ex)
+        else
         {
-            // Handle account locked due to failed attempts
-            ModelState.AddModelError(string.Empty, ex.Message);
-            _logger.LogWarning(ex, "Login failed for {UsernameOrEmail}", model.UsernameOrEmail);
-            return View(model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during login for {UsernameOrEmail}", model.UsernameOrEmail);
-            ModelState.AddModelError(string.Empty, "An error occurred during login. Please try again.");
+            ModelState.AddModelError(string.Empty, result.Error!);
             return View(model);
         }
     }
@@ -230,6 +202,9 @@ public class AccountController : BaseController
         return View();
     }
 
+    /// <summary>
+    /// Change Password POST - Refactored with Result Pattern
+    /// </summary>
     [HttpPost]
     [Authorize]
     [ValidateAntiForgeryToken]
@@ -250,48 +225,27 @@ public class AccountController : BaseController
             return RedirectToAction("Login");
         }
 
-        try
+        var result = await ChangePasswordWithResult(userId, model);
+
+        if (result.IsSuccess)
         {
-            // Get current user
-            var user = await _userService.GetByIdAsync(userId);
-            if (user == null)
-            {
-                ModelState.AddModelError(string.Empty, "User not found.");
-                return View(model);
-            }
-
-            // Check if user is a local user
-            if (user.Provider.ToString() != "Local")
-            {
-                ModelState.AddModelError(string.Empty, "Password change is only available for local accounts.");
-                return View(model);
-            }
-
-            // Verify current password
-            var authenticatedUser = await _userService.AuthenticateAsync(user.Email, model.CurrentPassword);
-            if (authenticatedUser == null)
-            {
-                ModelState.AddModelError(nameof(model.CurrentPassword), "Current password is incorrect.");
-                return View(model);
-            }
-
-            // Change password
-            await _userService.SetPasswordAsync(userId, model.NewPassword);
-
+            _logger.LogInformation("Password changed for user {Username} (ID: {UserId})", 
+                result.Value!, userId);
+            
             NotifyLocalizedSuccess("Notification_PasswordChanged");
-            _logger.LogInformation("Password changed for user {Username} (ID: {UserId})", user.Username, userId);
-
             return RedirectToAction("Profile");
         }
-        catch (InvalidOperationException ex)
+        else
         {
-            ModelState.AddModelError(string.Empty, ex.Message);
-            return View(model);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error changing password for user {UserId}", userId);
-            ModelState.AddModelError(string.Empty, "An error occurred while changing your password. Please try again.");
+            // Check if it's a current password error
+            if (result.ErrorCode == "PASSWORD_INCORRECT")
+            {
+                ModelState.AddModelError(nameof(model.CurrentPassword), result.Error!);
+            }
+            else
+            {
+                ModelState.AddModelError(string.Empty, result.Error!);
+            }
             return View(model);
         }
     }
@@ -303,4 +257,132 @@ public class AccountController : BaseController
         ViewBag.ReturnUrl = returnUrl;
         return View();
     }
+
+    #region Helper Methods - Result Pattern
+
+    /// <summary>
+    /// Authenticates a user with Result Pattern
+    /// Encapsulates authentication logic with validation
+    /// </summary>
+    private async Task<Result<UserDto>> AuthenticateUserWithResult(LoginViewModel model)
+    {
+        try
+        {
+            // Authenticate user using UserService
+            var user = await _userService.AuthenticateAsync(model.UsernameOrEmail, model.Password);
+
+            if (user == null)
+            {
+                _logger.LogWarning("Failed login attempt for {UsernameOrEmail}", model.UsernameOrEmail);
+                return Result<UserDto>.Failure(
+                    "Invalid username/email or password.",
+                    "LOGIN_INVALID_CREDENTIALS"
+                ).WithContext("UsernameOrEmail", model.UsernameOrEmail);
+            }
+
+            // Check if account is active
+            if (!user.IsActive)
+            {
+                _logger.LogWarning("Login attempt for inactive account: {UsernameOrEmail}", model.UsernameOrEmail);
+                return Result<UserDto>.Failure(
+                    "Your account has been deactivated. Please contact an administrator.",
+                    "LOGIN_ACCOUNT_INACTIVE"
+                ).WithContext("UserId", user.Id)
+                 .WithContext("Username", user.Username);
+            }
+
+            // Check if account is locked
+            if (user.IsLocked)
+            {
+                var lockMessage = user.LockedUntil.HasValue
+                    ? $"Your account is locked until {user.LockedUntil.Value:yyyy-MM-dd HH:mm}."
+                    : "Your account has been locked. Please contact an administrator.";
+                
+                _logger.LogWarning("Login attempt for locked account: {UsernameOrEmail}", model.UsernameOrEmail);
+                return Result<UserDto>.Failure(
+                    lockMessage,
+                    "LOGIN_ACCOUNT_LOCKED"
+                ).WithContext("UserId", user.Id)
+                 .WithContext("Username", user.Username)
+                 .WithContext("LockedUntil", user.LockedUntil);
+            }
+
+            return Result<UserDto>.Success(user);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Handle account locked due to failed attempts
+            _logger.LogWarning(ex, "Login failed for {UsernameOrEmail}", model.UsernameOrEmail);
+            return Result<UserDto>.Failure(ex.Message, "LOGIN_FAILED_ATTEMPTS");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during login for {UsernameOrEmail}", model.UsernameOrEmail);
+            return Result<UserDto>.Failure(
+                "An error occurred during login. Please try again.",
+                "LOGIN_ERROR"
+            );
+        }
+    }
+
+    /// <summary>
+    /// Changes user password with Result Pattern
+    /// Encapsulates password change logic with validation
+    /// </summary>
+    private async Task<Result<string>> ChangePasswordWithResult(Guid userId, ChangePasswordViewModel model)
+    {
+        try
+        {
+            // Get current user
+            var user = await _userService.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return Result<string>.Failure(
+                    "User not found.",
+                    "USER_NOT_FOUND"
+                ).WithContext("UserId", userId);
+            }
+
+            // Check if user is a local user
+            if (user.Provider.ToString() != "Local")
+            {
+                return Result<string>.Failure(
+                    "Password change is only available for local accounts.",
+                    "PASSWORD_CHANGE_NOT_ALLOWED"
+                ).WithContext("UserId", userId)
+                 .WithContext("Provider", user.Provider.ToString());
+            }
+
+            // Verify current password
+            var authenticatedUser = await _userService.AuthenticateAsync(user.Email, model.CurrentPassword);
+            if (authenticatedUser == null)
+            {
+                _logger.LogWarning("Incorrect current password for user {UserId}", userId);
+                return Result<string>.Failure(
+                    "Current password is incorrect.",
+                    "PASSWORD_INCORRECT"
+                ).WithContext("UserId", userId);
+            }
+
+            // Change password
+            await _userService.SetPasswordAsync(userId, model.NewPassword);
+
+            return Result<string>.Success(user.Username);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Validation error changing password for user {UserId}", userId);
+            return Result<string>.Failure(ex.Message, "PASSWORD_CHANGE_VALIDATION_ERROR");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error changing password for user {UserId}", userId);
+            return Result<string>.Failure(
+                "An error occurred while changing your password. Please try again.",
+                "PASSWORD_CHANGE_ERROR"
+            );
+        }
+    }
+
+    #endregion
 }

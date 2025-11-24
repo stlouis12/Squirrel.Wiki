@@ -9,6 +9,7 @@ namespace Squirrel.Wiki.Web.Models.Admin;
 public class CategoryViewModel : BaseViewModel
 {
     public List<CategoryTreeNode> Categories { get; set; } = new();
+    public int MaxCategoryDepth { get; set; }
 }
 
 /// <summary>
@@ -37,43 +38,6 @@ public class EditCategoryViewModel
     public bool IsNew => Id == 0;
 }
 
-
-/// <summary>
-/// View model for category details
-/// </summary>
-public class CategoryDetailsViewModel : BaseViewModel
-{
-    public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public string FullPath { get; set; } = string.Empty;
-    public int? ParentId { get; set; }
-    public string? ParentName { get; set; }
-    public int Level { get; set; }
-    public int PageCount { get; set; }
-    public int DirectPageCount { get; set; }
-    public int SubcategoryCount { get; set; }
-    public DateTime CreatedOn { get; set; }
-    public string CreatedBy { get; set; } = string.Empty;
-    public DateTime ModifiedOn { get; set; }
-    public string ModifiedBy { get; set; } = string.Empty;
-    public List<CategoryTreeNode> Subcategories { get; set; } = new();
-    public List<CategoryPageItem> Pages { get; set; } = new();
-    public new List<string> Breadcrumbs { get; set; } = new();
-}
-
-/// <summary>
-/// Page item in category details
-/// </summary>
-public class CategoryPageItem
-{
-    public int Id { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public DateTime ModifiedOn { get; set; }
-    public string ModifiedBy { get; set; } = string.Empty;
-}
 
 /// <summary>
 /// Request model for moving a category

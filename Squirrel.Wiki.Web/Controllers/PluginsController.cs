@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Squirrel.Wiki.Core.Database.Entities;
+using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models;
 using Squirrel.Wiki.Web.Services;
 
@@ -162,18 +165,120 @@ public class PluginsController : BaseController
     }
 
     /// <summary>
-    /// Save plugin configuration
+    /// Save plugin configuration - Refactored with Result Pattern
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Configure(Guid id, [FromForm] Dictionary<string, string> configuration)
     {
-        return await ExecuteAsync(async () =>
+        var result = await ConfigurePluginWithResult(id, configuration);
+
+        if (result.IsSuccess)
+        {
+            _logger.LogInformation("Configured plugin '{PluginName}' (ID: {PluginId})", 
+                result.Value!.Name, result.Value.Id);
+            
+            NotifyLocalizedSuccess("Notification_PluginConfigured", result.Value.Name);
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        else
+        {
+            NotifyError(result.Error!);
+            return RedirectToAction(nameof(Configure), new { id });
+        }
+    }
+
+    /// <summary>
+    /// Enable a plugin - Refactored with Result Pattern
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Enable(Guid id)
+    {
+        var result = await EnablePluginWithResult(id);
+
+        if (result.IsSuccess)
+        {
+            _logger.LogInformation("Enabled plugin '{PluginName}' (ID: {PluginId})", 
+                result.Value!.Name, result.Value.Id);
+            
+            NotifyLocalizedSuccess("Notification_PluginEnabled", result.Value.Name);
+            return RedirectToAction(nameof(Index));
+        }
+        else
+        {
+            NotifyError(result.Error!);
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    /// <summary>
+    /// Disable a plugin - Refactored with Result Pattern
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Disable(Guid id)
+    {
+        var result = await DisablePluginWithResult(id);
+
+        if (result.IsSuccess)
+        {
+            _logger.LogInformation("Disabled plugin '{PluginName}' (ID: {PluginId})", 
+                result.Value!.Name, result.Value.Id);
+            
+            NotifyLocalizedSuccess("Notification_PluginDisabled", result.Value.Name);
+            return RedirectToAction(nameof(Index));
+        }
+        else
+        {
+            NotifyError(result.Error!);
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    /// <summary>
+    /// Delete a plugin (non-core only) - Refactored with Result Pattern
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var result = await DeletePluginWithResult(id);
+
+        if (result.IsSuccess)
+        {
+            _logger.LogInformation("Deleted plugin '{PluginName}' (ID: {PluginId})", 
+                result.Value!, id);
+            
+            NotifyLocalizedSuccess("Notification_PluginDeleted", result.Value);
+            return RedirectToAction(nameof(Index));
+        }
+        else
+        {
+            NotifyError(result.Error!);
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    #region Helper Methods - Result Pattern
+
+    /// <summary>
+    /// Configures a plugin with Result Pattern
+    /// Encapsulates plugin configuration logic with validation
+    /// </summary>
+    private async Task<Result<AuthenticationPlugin>> ConfigurePluginWithResult(Guid id, Dictionary<string, string> configuration)
+    {
+        try
         {
             var plugin = await _pluginService.GetPluginAsync(id);
             
-            if (!ValidateEntityExists(plugin, "Plugin"))
-                return RedirectToAction(nameof(Index));
+            if (plugin == null)
+            {
+                return Result<AuthenticationPlugin>.Failure(
+                    "Plugin not found",
+                    "PLUGIN_NOT_FOUND"
+                ).WithContext("PluginId", id);
+            }
 
             // Remove empty values
             var cleanedConfig = configuration
@@ -181,90 +286,150 @@ public class PluginsController : BaseController
                 .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
             await _pluginService.UpdatePluginConfigurationAsync(id, cleanedConfig);
-
-            NotifyLocalizedSuccess("Notification_PluginConfigured", plugin.Name);
-            return RedirectToAction(nameof(Details), new { id });
-        },
-        ex =>
+            
+            // Get updated plugin
+            var updatedPlugin = await _pluginService.GetPluginAsync(id);
+            return Result<AuthenticationPlugin>.Success(updatedPlugin!);
+        }
+        catch (InvalidOperationException ex)
         {
-            NotifyError("Failed to save configuration: " + ex.Message);
-            return RedirectToAction(nameof(Configure), new { id });
-        });
+            _logger.LogWarning(ex, "Validation error configuring plugin {PluginId}", id);
+            return Result<AuthenticationPlugin>.Failure(ex.Message, "PLUGIN_CONFIGURATION_ERROR");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error configuring plugin {PluginId}", id);
+            return Result<AuthenticationPlugin>.Failure(
+                $"Failed to save configuration: {ex.Message}",
+                "PLUGIN_CONFIGURATION_FAILED"
+            );
+        }
     }
 
     /// <summary>
-    /// Enable a plugin
+    /// Enables a plugin with Result Pattern
+    /// Encapsulates plugin enable logic with validation
     /// </summary>
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Enable(Guid id)
+    private async Task<Result<AuthenticationPlugin>> EnablePluginWithResult(Guid id)
     {
-        return await ExecuteAsync(async () =>
+        try
         {
             var plugin = await _pluginService.GetPluginAsync(id);
             
-            if (!ValidateEntityExists(plugin, "Plugin"))
-                return RedirectToAction(nameof(Index));
+            if (plugin == null)
+            {
+                return Result<AuthenticationPlugin>.Failure(
+                    "Plugin not found",
+                    "PLUGIN_NOT_FOUND"
+                ).WithContext("PluginId", id);
+            }
 
             await _pluginService.EnablePluginAsync(id);
-
-            NotifyLocalizedSuccess("Notification_PluginEnabled", plugin.Name);
-            return RedirectToAction(nameof(Index));
-        },
-        "Failed to enable plugin.",
-        $"Error enabling plugin ID: {id}");
+            
+            // Get updated plugin
+            var updatedPlugin = await _pluginService.GetPluginAsync(id);
+            return Result<AuthenticationPlugin>.Success(updatedPlugin!);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Validation error enabling plugin {PluginId}", id);
+            return Result<AuthenticationPlugin>.Failure(ex.Message, "PLUGIN_ENABLE_ERROR");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error enabling plugin {PluginId}", id);
+            return Result<AuthenticationPlugin>.Failure(
+                $"Failed to enable plugin: {ex.Message}",
+                "PLUGIN_ENABLE_FAILED"
+            );
+        }
     }
 
     /// <summary>
-    /// Disable a plugin
+    /// Disables a plugin with Result Pattern
+    /// Encapsulates plugin disable logic with validation
     /// </summary>
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Disable(Guid id)
+    private async Task<Result<AuthenticationPlugin>> DisablePluginWithResult(Guid id)
     {
-        return await ExecuteAsync(async () =>
+        try
         {
             var plugin = await _pluginService.GetPluginAsync(id);
             
-            if (!ValidateEntityExists(plugin, "Plugin"))
-                return RedirectToAction(nameof(Index));
+            if (plugin == null)
+            {
+                return Result<AuthenticationPlugin>.Failure(
+                    "Plugin not found",
+                    "PLUGIN_NOT_FOUND"
+                ).WithContext("PluginId", id);
+            }
 
             await _pluginService.DisablePluginAsync(id);
-
-            NotifyLocalizedSuccess("Notification_PluginDisabled", plugin.Name);
-            return RedirectToAction(nameof(Index));
-        },
-        "Failed to disable plugin.",
-        $"Error disabling plugin ID: {id}");
+            
+            // Get updated plugin
+            var updatedPlugin = await _pluginService.GetPluginAsync(id);
+            return Result<AuthenticationPlugin>.Success(updatedPlugin!);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Validation error disabling plugin {PluginId}", id);
+            return Result<AuthenticationPlugin>.Failure(ex.Message, "PLUGIN_DISABLE_ERROR");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error disabling plugin {PluginId}", id);
+            return Result<AuthenticationPlugin>.Failure(
+                $"Failed to disable plugin: {ex.Message}",
+                "PLUGIN_DISABLE_FAILED"
+            );
+        }
     }
 
     /// <summary>
-    /// Delete a plugin (non-core only)
+    /// Deletes a plugin with Result Pattern
+    /// Encapsulates plugin deletion logic with validation
     /// </summary>
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Delete(Guid id)
+    private async Task<Result<string>> DeletePluginWithResult(Guid id)
     {
-        return await ExecuteAsync(async () =>
+        try
         {
             var plugin = await _pluginService.GetPluginAsync(id);
             
-            if (!ValidateEntityExists(plugin, "Plugin"))
-                return RedirectToAction(nameof(Index));
+            if (plugin == null)
+            {
+                return Result<string>.Failure(
+                    "Plugin not found",
+                    "PLUGIN_NOT_FOUND"
+                ).WithContext("PluginId", id);
+            }
 
             if (plugin.IsCorePlugin)
             {
-                NotifyError("Cannot delete core plugins");
-                return RedirectToAction(nameof(Index));
+                return Result<string>.Failure(
+                    "Cannot delete core plugins",
+                    "PLUGIN_CORE_DELETE_FORBIDDEN"
+                ).WithContext("PluginId", id)
+                 .WithContext("PluginName", plugin.Name);
             }
 
             var pluginName = plugin.Name;
             await _pluginService.DeletePluginAsync(id);
-
-            NotifyLocalizedSuccess("Notification_PluginDeleted", pluginName);
-            return RedirectToAction(nameof(Index));
-        },
-        "Failed to delete plugin.",
-        $"Error deleting plugin ID: {id}");
+            
+            return Result<string>.Success(pluginName);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Validation error deleting plugin {PluginId}", id);
+            return Result<string>.Failure(ex.Message, "PLUGIN_DELETE_ERROR");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting plugin {PluginId}", id);
+            return Result<string>.Failure(
+                $"Failed to delete plugin: {ex.Message}",
+                "PLUGIN_DELETE_FAILED"
+            );
+        }
     }
+
+    #endregion
 }

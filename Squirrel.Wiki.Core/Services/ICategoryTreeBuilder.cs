@@ -113,4 +113,9 @@ public class CategorySelectItem
     public string FullPath { get; set; } = string.Empty;
     public int Level { get; set; }
     public bool IsDisabled { get; set; }
+    
+    /// <summary>
+    /// Display name with visual hierarchy indication using em-dashes
+    /// </summary>
+    public string DisplayName => Level > 0 ? new string('—', Level) + " " + Name : Name;
 }

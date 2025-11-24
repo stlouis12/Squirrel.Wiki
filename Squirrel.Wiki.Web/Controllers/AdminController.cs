@@ -1,11 +1,13 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Squirrel.Wiki.Core.Database;
+using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models.Admin;
 using Squirrel.Wiki.Web.Services;
-using System.Diagnostics;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -33,19 +35,22 @@ public class AdminController : BaseController
     }
 
     /// <summary>
-    /// Admin dashboard
+    /// Admin dashboard - Refactored with Result Pattern
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> Index()
     {
-        var model = new DashboardViewModel
-        {
-            Statistics = await GetSystemStatisticsAsync(),
-            RecentActivities = await GetRecentActivitiesAsync(),
-            Health = await GetSystemHealthAsync()
-        };
+        var result = await LoadDashboardWithResult();
 
-        return View(model);
+        return result.Match<IActionResult>(
+            onSuccess: model => View(model),
+            onFailure: (error, code) =>
+            {
+                _logger.LogError("Failed to load admin dashboard: {Error} (Code: {Code})", error, code);
+                NotifyError("An error occurred while loading the dashboard.");
+                return View(new DashboardViewModel());
+            }
+        );
     }
 
     /// <summary>
@@ -80,11 +85,84 @@ public class AdminController : BaseController
     }
 
     /// <summary>
-    /// Clear all caches
+    /// Clear all caches - Refactored with Result Pattern
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
     public IActionResult ClearCache()
+    {
+        var result = ClearCacheWithResult();
+
+        return result.Match<IActionResult>(
+            onSuccess: _ =>
+            {
+                NotifyLocalizedSuccess("Notification_CacheCleared");
+                return RedirectToAction(nameof(Index));
+            },
+            onFailure: (error, code) =>
+            {
+                NotifyError($"Error clearing cache: {error}");
+                return RedirectToAction(nameof(Index));
+            }
+        );
+    }
+
+    /// <summary>
+    /// Rebuild search index - Refactored with Result Pattern
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RebuildSearchIndex()
+    {
+        var result = await RebuildSearchIndexWithResult();
+
+        return result.Match<IActionResult>(
+            onSuccess: _ =>
+            {
+                NotifyLocalizedSuccess("Notification_SearchIndexRebuilt");
+                return RedirectToAction(nameof(Index));
+            },
+            onFailure: (error, code) =>
+            {
+                NotifyError($"Error rebuilding search index: {error}");
+                return RedirectToAction(nameof(Index));
+            }
+        );
+    }
+
+    #region Helper Methods - Result Pattern
+
+    /// <summary>
+    /// Loads admin dashboard with Result Pattern
+    /// Encapsulates all dashboard data loading
+    /// </summary>
+    private async Task<Result<DashboardViewModel>> LoadDashboardWithResult()
+    {
+        try
+        {
+            var model = new DashboardViewModel
+            {
+                Statistics = await GetSystemStatisticsAsync(),
+                RecentActivities = await GetRecentActivitiesAsync(),
+                Health = await GetSystemHealthAsync()
+            };
+
+            return Result<DashboardViewModel>.Success(model);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading admin dashboard");
+            return Result<DashboardViewModel>.Failure(
+                "An error occurred while loading the dashboard",
+                "DASHBOARD_LOAD_ERROR"
+            );
+        }
+    }
+
+    /// <summary>
+    /// Clears cache with Result Pattern
+    /// </summary>
+    private Result<bool> ClearCacheWithResult()
     {
         try
         {
@@ -94,25 +172,24 @@ public class AdminController : BaseController
             
             _logger.LogInformation("Cache clear requested by {User}", User.Identity?.Name);
             
-            NotifyLocalizedSuccess("Notification_CacheCleared");
-            return RedirectToAction(nameof(Index));
+            return Result<bool>.Success(true);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error clearing cache");
-            NotifyError($"Error clearing cache: {ex.Message}");
-            return RedirectToAction(nameof(Index));
+            return Result<bool>.Failure(
+                ex.Message,
+                "CACHE_CLEAR_ERROR"
+            );
         }
     }
 
     /// <summary>
-    /// Rebuild search index
+    /// Rebuilds search index with Result Pattern
     /// </summary>
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RebuildSearchIndex()
+    private async Task<Result<bool>> RebuildSearchIndexWithResult()
     {
-        return await ExecuteAsync(async () =>
+        try
         {
             _logger.LogInformation("Search index rebuild requested by {User}", User.Identity?.Name);
             
@@ -121,15 +198,19 @@ public class AdminController : BaseController
 
             _logger.LogInformation("Search index rebuilt successfully");
             
-            NotifyLocalizedSuccess("Notification_SearchIndexRebuilt");
-            return RedirectToAction(nameof(Index));
-        },
-        ex =>
+            return Result<bool>.Success(true);
+        }
+        catch (Exception ex)
         {
-            NotifyError($"Error rebuilding search index: {ex.Message}");
-            return RedirectToAction(nameof(Index));
-        });
+            _logger.LogError(ex, "Error rebuilding search index");
+            return Result<bool>.Failure(
+                ex.Message,
+                "SEARCH_INDEX_REBUILD_ERROR"
+            );
+        }
     }
+
+    #endregion
 
     #region Private Helper Methods
 

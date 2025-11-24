@@ -3,6 +3,7 @@
 @model Squirrel.Wiki.Core.Services.CategoryTreeNode
 @{
     var timezoneService = ViewData["TimezoneService"] as ITimezoneService;
+    var maxCategoryDepth = ViewData["MaxCategoryDepth"] as int? ?? 3; // Default to 3 if not provided
 }
 
 <div class="category-node" data-category-id="@Model.Id" data-level="@Model.Level">
@@ -33,7 +34,7 @@
         
         <div class="category-info flex-grow-1">
             <div class="d-flex align-items-center">
-                <a asp-action="Details" asp-route-id="@Model.Id" class="category-name text-decoration-none text-dark fw-bold me-2">
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="category-name text-decoration-none text-dark fw-bold me-2">
                     @Model.Name
                 </a>
                 
@@ -76,7 +77,7 @@
         
         <div class="category-actions ms-auto">
             <div class="btn-group btn-group-sm" role="group">
-                @if (Model.Level < 2)
+                @if (Model.Level < maxCategoryDepth - 1)
                 {
                     <a asp-action="Create" asp-route-parentId="@Model.Id" 
                        class="btn btn-outline-success" 
@@ -98,13 +99,8 @@
                    title="@Localizer["Edit"]">
                     <i class="bi bi-pencil"></i>
                 </a>
-                <a asp-action="Details" asp-route-id="@Model.Id" 
-                   class="btn btn-outline-info" 
-                   title="@Localizer["View"]">
-                    <i class="bi bi-info-circle"></i>
-                </a>
                 <button type="button" 
-                        class="btn btn-outline-danger delete-category-btn" 
+                        class="btn btn-outline-danger delete-category-btn"
                         data-category-id="@Model.Id"
                         data-category-name="@Model.Name"
                         data-subcategory-count="@Model.SubcategoryCount"
@@ -121,7 +117,10 @@
         <div class="category-children ms-4">
             @foreach (var child in Model.Children)
             {
-                @await Html.PartialAsync("_CategoryTreeNode", child, new ViewDataDictionary(ViewData) { { "TimezoneService", timezoneService } })
+                var childViewData = new ViewDataDictionary(ViewData);
+                childViewData["TimezoneService"] = timezoneService;
+                childViewData["MaxCategoryDepth"] = maxCategoryDepth;
+                @await Html.PartialAsync("_CategoryTreeNode", child, childViewData)
             }
         </div>
     }

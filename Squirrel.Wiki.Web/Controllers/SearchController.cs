@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models;
 using Squirrel.Wiki.Web.Services;
 
@@ -23,7 +25,7 @@ public class SearchController : BaseController
         ITimezoneService timezoneService,
         ILogger<SearchController> logger,
         INotificationService notifications)
-        : base(logger, notifications, timezoneService)
+        : base(logger, notifications, timezoneService, null)
     {
         _searchService = searchService;
         _authorizationService = authorizationService;
@@ -31,7 +33,7 @@ public class SearchController : BaseController
     }
 
     /// <summary>
-    /// Displays search results
+    /// Displays search results - Refactored with Result Pattern
     /// </summary>
     /// <param name="q">Search query</param>
     /// <param name="page">Page number (default: 1)</param>
@@ -42,82 +44,43 @@ public class SearchController : BaseController
     {
         _logger.LogInformation("Search request received - Query: '{Query}', Page: {Page}, PageSize: {PageSize}", q, page, pageSize);
         
+        // Handle empty query early
         if (string.IsNullOrWhiteSpace(q))
         {
             _logger.LogInformation("Empty search query, returning empty results");
             return View(new SearchResultsViewModel { Query = string.Empty });
         }
 
-        try
-        {
-            // Check index stats first
-            var indexStats = await _searchService.GetIndexStatsAsync(cancellationToken);
-            _logger.LogInformation("Search index stats - Documents: {DocCount}, Valid: {IsValid}, Size: {Size} bytes", 
-                indexStats.TotalDocuments, indexStats.IsValid, indexStats.IndexSizeBytes);
-            
-            if (!indexStats.IsValid || indexStats.TotalDocuments == 0)
+        // Execute search with Result Pattern for clean error handling
+        var result = await ExecuteSearchWithResult(q, page, pageSize, cancellationToken);
+        
+        // Use Result Pattern to handle success/failure
+        return result.Match<IActionResult>(
+            onSuccess: viewModel =>
             {
-                _logger.LogWarning("Search index is empty or invalid. Documents: {DocCount}, Valid: {IsValid}", 
-                    indexStats.TotalDocuments, indexStats.IsValid);
-            }
-            
-            var results = await _searchService.SearchAsync(q, page, pageSize, cancellationToken);
-            
-            _logger.LogInformation("Search completed - Query: '{Query}', Results: {ResultCount}, Total: {TotalResults}", 
-                q, results.Results.Count(), results.TotalResults);
-            
-            // Filter results based on authorization
-            var authorizedResults = new List<SearchResultItemViewModel>();
-            foreach (var result in results.Results)
+                PopulateBaseViewModel(viewModel);
+                return View(viewModel);
+            },
+            onFailure: (error, code) =>
             {
-                var pageEntity = await _pageRepository.GetByIdAsync(result.PageId, cancellationToken);
-                if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
+                _logger.LogError("Search failed: {Error}", error);
+                
+                var errorViewModel = new SearchResultsViewModel
                 {
-                    authorizedResults.Add(new SearchResultItemViewModel
-                    {
-                        PageId = result.PageId,
-                        Title = result.Title,
-                        Slug = result.Slug ?? string.Empty,
-                        Excerpt = result.Excerpt ?? string.Empty,
-                        ModifiedBy = result.ModifiedBy ?? string.Empty,
-                        ModifiedOn = result.ModifiedOn,
-                        Score = result.Score
-                    });
-                }
+                    Query = q,
+                    Page = page,
+                    PageSize = pageSize
+                };
+                
+                PopulateBaseViewModel(errorViewModel);
+                NotifyError("An error occurred while searching. Please try again.");
+                return View(errorViewModel);
             }
-            
-            var viewModel = new SearchResultsViewModel
-            {
-                Query = q,
-                Page = page,
-                PageSize = pageSize,
-                TotalResults = authorizedResults.Count, // Use filtered count
-                TotalPages = (int)Math.Ceiling((double)authorizedResults.Count / pageSize),
-                Results = authorizedResults
-            };
-
-            PopulateBaseViewModel(viewModel);
-            return View(viewModel);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error performing search for query: {Query}", q);
-            
-            var errorViewModel = new SearchResultsViewModel
-            {
-                Query = q,
-                Page = page,
-                PageSize = pageSize
-            };
-            
-            PopulateBaseViewModel(errorViewModel);
-            NotifyError("An error occurred while searching. Please try again.");
-            return View(errorViewModel);
-        }
+        );
     }
 
     /// <summary>
-    /// Quick search API endpoint (for autocomplete/suggestions)
+    /// Quick search API endpoint (for autocomplete/suggestions) - Refactored with Result Pattern
     /// </summary>
     /// <param name="q">Search query</param>
     /// <param name="limit">Maximum number of results (default: 10)</param>
@@ -130,34 +93,18 @@ public class SearchController : BaseController
             return Json(new List<object>());
         }
 
-        try
-        {
-            var results = await _searchService.SearchAsync(q, 1, limit, cancellationToken);
-            
-            // Filter results based on authorization
-            var authorizedSuggestions = new List<object>();
-            foreach (var result in results.Results)
+        // Execute quick search with Result Pattern
+        var result = await ExecuteQuickSearchWithResult(q, limit, cancellationToken);
+        
+        // Use Match for custom handling - returns empty array on failure
+        return result.Match<IActionResult>(
+            onSuccess: suggestions => Json(suggestions),
+            onFailure: (error, code) =>
             {
-                var pageEntity = await _pageRepository.GetByIdAsync(result.PageId, cancellationToken);
-                if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
-                {
-                    authorizedSuggestions.Add(new
-                    {
-                        id = result.PageId,
-                        title = result.Title,
-                        slug = result.Slug,
-                        excerpt = TruncateExcerpt(result.Excerpt, 100)
-                    });
-                }
+                _logger.LogWarning("Quick search failed: {Error}", error);
+                return Json(new List<object>());
             }
-
-            return Json(authorizedSuggestions);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error performing quick search for query: {Query}", q);
-            return Json(new List<object>());
-        }
+        );
     }
 
     /// <summary>
@@ -184,6 +131,118 @@ public class SearchController : BaseController
         });
     }
 
+    #region Helper Methods
+
+    /// <summary>
+    /// Executes search operation with Result Pattern
+    /// Encapsulates all search logic including authorization filtering
+    /// </summary>
+    private async Task<Result<SearchResultsViewModel>> ExecuteSearchWithResult(
+        string query, 
+        int page, 
+        int pageSize, 
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Check index stats first
+            var indexStats = await _searchService.GetIndexStatsAsync(cancellationToken);
+            _logger.LogInformation("Search index stats - Documents: {DocCount}, Valid: {IsValid}, Size: {Size} bytes", 
+                indexStats.TotalDocuments, indexStats.IsValid, indexStats.IndexSizeBytes);
+            
+            if (!indexStats.IsValid || indexStats.TotalDocuments == 0)
+            {
+                _logger.LogWarning("Search index is empty or invalid. Documents: {DocCount}, Valid: {IsValid}", 
+                    indexStats.TotalDocuments, indexStats.IsValid);
+            }
+            
+            // Perform search
+            var results = await _searchService.SearchAsync(query, page, pageSize, cancellationToken);
+            
+            _logger.LogInformation("Search completed - Query: '{Query}', Results: {ResultCount}, Total: {TotalResults}", 
+                query, results.Results.Count(), results.TotalResults);
+            
+            // Filter results based on authorization
+            var authorizedResults = new List<SearchResultItemViewModel>();
+            foreach (var result in results.Results)
+            {
+                var pageEntity = await _pageRepository.GetByIdAsync(result.PageId, cancellationToken);
+                if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
+                {
+                    authorizedResults.Add(new SearchResultItemViewModel
+                    {
+                        PageId = result.PageId,
+                        Title = result.Title,
+                        Slug = result.Slug ?? string.Empty,
+                        Excerpt = result.Excerpt ?? string.Empty,
+                        ModifiedBy = result.ModifiedBy ?? string.Empty,
+                        ModifiedOn = result.ModifiedOn,
+                        Score = result.Score
+                    });
+                }
+            }
+            
+            // Build view model
+            var viewModel = new SearchResultsViewModel
+            {
+                Query = query,
+                Page = page,
+                PageSize = pageSize,
+                TotalResults = authorizedResults.Count,
+                TotalPages = (int)Math.Ceiling((double)authorizedResults.Count / pageSize),
+                Results = authorizedResults
+            };
+
+            return Result<SearchResultsViewModel>.Success(viewModel);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error performing search for query: {Query}", query);
+            return Result<SearchResultsViewModel>.Failure(
+                "An error occurred while searching. Please try again.", 
+                "SEARCH_ERROR");
+        }
+    }
+
+    /// <summary>
+    /// Executes quick search operation with Result Pattern
+    /// Used for autocomplete/suggestions
+    /// </summary>
+    private async Task<Result<List<object>>> ExecuteQuickSearchWithResult(
+        string query, 
+        int limit, 
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var results = await _searchService.SearchAsync(query, 1, limit, cancellationToken);
+            
+            // Filter results based on authorization
+            var authorizedSuggestions = new List<object>();
+            foreach (var result in results.Results)
+            {
+                var pageEntity = await _pageRepository.GetByIdAsync(result.PageId, cancellationToken);
+                if (pageEntity != null && await _authorizationService.CanViewPageAsync(pageEntity, cancellationToken))
+                {
+                    authorizedSuggestions.Add(new
+                    {
+                        id = result.PageId,
+                        title = result.Title,
+                        slug = result.Slug,
+                        excerpt = TruncateExcerpt(result.Excerpt, 100)
+                    });
+                }
+            }
+
+            return Result<List<object>>.Success(authorizedSuggestions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error performing quick search for query: {Query}", query);
+            return Result<List<object>>.Failure("Quick search failed", "QUICK_SEARCH_ERROR");
+        }
+    }
+
     private static string TruncateExcerpt(string? text, int maxLength)
     {
         if (string.IsNullOrEmpty(text))
@@ -194,4 +253,6 @@ public class SearchController : BaseController
 
         return text.Substring(0, maxLength) + "...";
     }
+
+    #endregion
 }

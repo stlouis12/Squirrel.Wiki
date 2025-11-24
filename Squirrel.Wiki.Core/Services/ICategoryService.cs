@@ -135,6 +135,11 @@ public interface ICategoryService
     /// Deletes a category with options for handling pages and subcategories
     /// </summary>
     Task DeleteAsync(int id, CategoryDeleteOptions options, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Gets the maximum allowed category depth
+    /// </summary>
+    int GetMaxCategoryDepth();
 }
 
 /// <summary>

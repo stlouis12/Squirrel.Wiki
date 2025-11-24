@@ -287,6 +287,7 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
 
     /// <summary>
     /// Recursively flattens tree into a list with indentation
+    /// Note: Visual hierarchy is handled by CategorySelectItem.DisplayName property
     /// </summary>
     private void FlattenTreeRecursive(
         IEnumerable<CategoryTreeNode> nodes,
@@ -299,7 +300,7 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
             items.Add(new CategorySelectItem
             {
                 Id = node.Id,
-                Name = prefix + node.Name,
+                Name = node.Name,  // Store plain name; DisplayName property adds visual hierarchy
                 FullPath = node.FullPath,
                 Level = node.Level,
                 IsDisabled = excludedIds.Contains(node.Id)
@@ -307,7 +308,7 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
 
             if (node.Children.Any())
             {
-                FlattenTreeRecursive(node.Children, items, excludedIds, prefix + "  ");
+                FlattenTreeRecursive(node.Children, items, excludedIds, prefix);  // prefix no longer used
             }
         }
     }
@@ -374,4 +375,3 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
 
     #endregion
 }
-

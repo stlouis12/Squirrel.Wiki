@@ -4,6 +4,7 @@ using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models;
 using Squirrel.Wiki.Web.Filters;
 using Squirrel.Wiki.Web.Services;
@@ -39,7 +40,7 @@ public class PagesController : BaseController
         ITimezoneService timezoneService,
         ILogger<PagesController> logger,
         INotificationService notifications)
-        : base(logger, notifications, timezoneService)
+        : base(logger, notifications, timezoneService, null)
     {
         _pageService = pageService;
         _tagService = tagService;
@@ -345,7 +346,7 @@ public class PagesController : BaseController
     }
 
     /// <summary>
-    /// Creates a new page
+    /// Creates a new page - Refactored with Result Pattern
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -355,58 +356,33 @@ public class PagesController : BaseController
         // Ensure RawTags is never null
         model.RawTags ??= string.Empty;
         
-        _logger.LogInformation("New page POST - Title: {Title}, RawTags: '{RawTags}', RawTags IsNull: {IsNull}", 
-            model.Title, model.RawTags, model.RawTags == null);
+        _logger.LogInformation("New page POST - Title: {Title}, RawTags: '{RawTags}'", 
+            model.Title, model.RawTags);
         
+        // Handle validation errors early
         if (!ModelState.IsValid)
         {
             _logger.LogWarning("ModelState is invalid. Errors: {Errors}", 
                 string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
             
-            // Reload dropdown data
-            var allTags = await _tagService.GetAllTagsAsync(cancellationToken);
-            var allCategories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
-            model.AllTags = allTags.Select(t => new TagViewModel { Id = t.Id, Name = t.Name }).ToList();
-            model.AllCategories = MapCategoriesToViewModel(allCategories);
-            
+            await ReloadPageFormDataAsync(model, cancellationToken);
             return View("Edit", model);
         }
 
-        try
+        // Execute page creation with Result Pattern
+        var result = await CreatePageWithResult(model, cancellationToken);
+        
+        // Use Result Pattern to handle success/failure
+        if (result.IsSuccess)
         {
-            var createDto = new CreatePageDto
-            {
-                Title = model.Title,
-                Content = model.Content,
-                CategoryId = model.CategoryId,
-                Visibility = model.Visibility,
-                IsLocked = model.IsLocked,
-                Tags = string.IsNullOrWhiteSpace(model.RawTags) 
-                    ? new List<string>() 
-                    : model.RawTags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
-                CreatedBy = User.Identity?.Name ?? "Anonymous" // TODO: Get from authenticated user
-            };
-
-            var createdPage = await _pageService.CreatePageAsync(createDto, cancellationToken);
-
-            // Index the page for search
-            await _searchService.IndexPageAsync(createdPage.Id, cancellationToken);
-
-            _logger.LogInformation("Page {PageId} created: {Title}", createdPage.Id, createdPage.Title);
-            
-            return RedirectToAction("Index", "Wiki", new { id = createdPage.Id, slug = createdPage.Slug });
+            _logger.LogInformation("Page {PageId} created: {Title}", result.Value!.Id, result.Value.Title);
+            return RedirectToAction("Index", "Wiki", new { id = result.Value.Id, slug = result.Value.Slug });
         }
-        catch (Exception ex)
+        else
         {
-            _logger.LogError(ex, "Error creating new page");
-            ModelState.AddModelError(string.Empty, "An error occurred while creating the page");
-            
-            // Reload dropdown data
-            var allTags = await _tagService.GetAllTagsAsync(cancellationToken);
-            var allCategories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
-            model.AllTags = allTags.Select(t => new TagViewModel { Id = t.Id, Name = t.Name }).ToList();
-            model.AllCategories = MapCategoriesToViewModel(allCategories);
-            
+            _logger.LogError("Error creating page: {Error}", result.Error);
+            ModelState.AddModelError(string.Empty, result.Error!);
+            await ReloadPageFormDataAsync(model, cancellationToken);
             return View("Edit", model);
         }
     }
@@ -483,7 +459,7 @@ public class PagesController : BaseController
     }
 
     /// <summary>
-    /// Updates an existing page
+    /// Updates an existing page - Refactored with Result Pattern
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -493,53 +469,27 @@ public class PagesController : BaseController
         // Ensure RawTags is never null
         model.RawTags ??= string.Empty;
         
+        // Handle validation errors early
         if (!ModelState.IsValid)
         {
-            // Reload dropdown data
-            var allTags = await _tagService.GetAllTagsAsync(cancellationToken);
-            var allCategories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
-            model.AllTags = allTags.Select(t => new TagViewModel { Id = t.Id, Name = t.Name }).ToList();
-            model.AllCategories = MapCategoriesToViewModel(allCategories);
-            
+            await ReloadPageFormDataAsync(model, cancellationToken);
             return View(model);
         }
 
-        try
+        // Execute page update with Result Pattern
+        var result = await UpdatePageWithResult(model, cancellationToken);
+        
+        // Use Result Pattern to handle success/failure
+        if (result.IsSuccess)
         {
-            var updateDto = new UpdatePageDto
-            {
-                Id = model.Id,
-                Title = model.Title,
-                Content = model.Content,
-                CategoryId = model.CategoryId,
-                Visibility = model.Visibility,
-                IsLocked = model.IsLocked,
-                Tags = string.IsNullOrWhiteSpace(model.RawTags) 
-                    ? new List<string>() 
-                    : model.RawTags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
-                ModifiedBy = User.Identity?.Name ?? "Anonymous" // TODO: Get from authenticated user
-            };
-
-            await _pageService.UpdatePageAsync(updateDto, cancellationToken);
-
-            // Update search index
-            await _searchService.IndexPageAsync(model.Id, cancellationToken);
-
             _logger.LogInformation("Page {PageId} updated: {Title}", model.Id, model.Title);
-            
             return RedirectToAction("Index", "Wiki", new { id = model.Id, slug = model.Slug });
         }
-        catch (Exception ex)
+        else
         {
-            _logger.LogError(ex, "Error updating page {PageId}", model.Id);
-            ModelState.AddModelError(string.Empty, "An error occurred while updating the page");
-            
-            // Reload dropdown data
-            var allTags = await _tagService.GetAllTagsAsync(cancellationToken);
-            var allCategories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
-            model.AllTags = allTags.Select(t => new TagViewModel { Id = t.Id, Name = t.Name }).ToList();
-            model.AllCategories = MapCategoriesToViewModel(allCategories);
-            
+            _logger.LogError("Error updating page {PageId}: {Error}", model.Id, result.Error);
+            ModelState.AddModelError(string.Empty, result.Error!);
+            await ReloadPageFormDataAsync(model, cancellationToken);
             return View(model);
         }
     }
@@ -783,6 +733,95 @@ public class PagesController : BaseController
         });
     }
 
+    #region Helper Methods - Result Pattern
+
+    /// <summary>
+    /// Creates a new page with Result Pattern
+    /// Encapsulates page creation logic including search indexing
+    /// </summary>
+    private async Task<Result<PageDto>> CreatePageWithResult(PageViewModel model, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var createDto = new CreatePageDto
+            {
+                Title = model.Title,
+                Content = model.Content,
+                CategoryId = model.CategoryId,
+                Visibility = model.Visibility,
+                IsLocked = model.IsLocked,
+                Tags = string.IsNullOrWhiteSpace(model.RawTags) 
+                    ? new List<string>() 
+                    : model.RawTags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
+                CreatedBy = User.Identity?.Name ?? "Anonymous"
+            };
+
+            var createdPage = await _pageService.CreatePageAsync(createDto, cancellationToken);
+
+            // Index the page for search
+            await _searchService.IndexPageAsync(createdPage.Id, cancellationToken);
+
+            return Result<PageDto>.Success(createdPage);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating new page");
+            return Result<PageDto>.Failure("An error occurred while creating the page", "PAGE_CREATE_ERROR");
+        }
+    }
+
+    /// <summary>
+    /// Updates an existing page with Result Pattern
+    /// Encapsulates page update logic including search indexing
+    /// </summary>
+    private async Task<Result> UpdatePageWithResult(PageViewModel model, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var updateDto = new UpdatePageDto
+            {
+                Id = model.Id,
+                Title = model.Title,
+                Content = model.Content,
+                CategoryId = model.CategoryId,
+                Visibility = model.Visibility,
+                IsLocked = model.IsLocked,
+                Tags = string.IsNullOrWhiteSpace(model.RawTags) 
+                    ? new List<string>() 
+                    : model.RawTags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
+                ModifiedBy = User.Identity?.Name ?? "Anonymous"
+            };
+
+            await _pageService.UpdatePageAsync(updateDto, cancellationToken);
+
+            // Update search index
+            await _searchService.IndexPageAsync(model.Id, cancellationToken);
+
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating page {PageId}", model.Id);
+            return Result.Failure("An error occurred while updating the page", "PAGE_UPDATE_ERROR");
+        }
+    }
+
+    /// <summary>
+    /// Reloads dropdown data for page form (tags and categories)
+    /// Used when returning to form after validation errors
+    /// </summary>
+    private async Task ReloadPageFormDataAsync(PageViewModel model, CancellationToken cancellationToken)
+    {
+        var allTags = await _tagService.GetAllTagsAsync(cancellationToken);
+        var allCategories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
+        model.AllTags = allTags.Select(t => new TagViewModel { Id = t.Id, Name = t.Name }).ToList();
+        model.AllCategories = MapCategoriesToViewModel(allCategories);
+    }
+
+    #endregion
+
+    #region Helper Methods - Authorization & Mapping
+
     /// <summary>
     /// Filters a list of pages to only include those the current user is authorized to view
     /// Uses batch authorization checking for better performance
@@ -864,4 +903,6 @@ public class PagesController : BaseController
         
         return result;
     }
+
+    #endregion
 }
