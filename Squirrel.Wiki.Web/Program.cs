@@ -11,6 +11,17 @@ using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Core.Services.Caching;
+using Squirrel.Wiki.Core.Services.Categories;
+using Squirrel.Wiki.Core.Services.Configuration;
+using Squirrel.Wiki.Core.Services.Content;
+using Squirrel.Wiki.Core.Services.Infrastructure;
+using Squirrel.Wiki.Core.Services.Menus;
+using Squirrel.Wiki.Core.Services.Pages;
+using Squirrel.Wiki.Core.Services.Plugins;
+using Squirrel.Wiki.Core.Services.Search;
+using Squirrel.Wiki.Core.Services.Tags;
+using Squirrel.Wiki.Core.Services.Users;
 using Squirrel.Wiki.Web.Middleware;
 using Squirrel.Wiki.Web.Resources;
 using System.Globalization;
@@ -53,7 +64,7 @@ builder.Services.AddAutoMapper(typeof(Squirrel.Wiki.Core.Mapping.UserMappingProf
 builder.Services.AddResponseCaching();
 
 // Configure search settings
-builder.Services.Configure<Squirrel.Wiki.Core.Services.SearchSettings>(options =>
+builder.Services.Configure<Squirrel.Wiki.Core.Services.Search.SearchSettings>(options =>
 {
     options.IndexPath = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "SearchIndex");
 });

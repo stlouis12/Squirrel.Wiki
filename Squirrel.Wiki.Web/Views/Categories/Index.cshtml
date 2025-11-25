@@ -141,12 +141,12 @@
 </div>
 
 @functions {
-    private int CountAllCategories(Squirrel.Wiki.Core.Services.CategoryTreeNode node)
+    private int CountAllCategories(Squirrel.Wiki.Core.Services.Categories.CategoryTreeNode node)
     {
         return 1 + node.Children.Sum(c => CountAllCategories(c));
     }
 
-    private int GetMaxDepth(Squirrel.Wiki.Core.Services.CategoryTreeNode node, int currentDepth)
+    private int GetMaxDepth(Squirrel.Wiki.Core.Services.Categories.CategoryTreeNode node, int currentDepth)
     {
         if (!node.Children.Any())
             return currentDepth;

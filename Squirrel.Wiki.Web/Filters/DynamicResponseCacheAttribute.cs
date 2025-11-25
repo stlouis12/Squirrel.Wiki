@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Core.Services.Configuration;
 
 namespace Squirrel.Wiki.Web.Filters;
 

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Exceptions;
-using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Core.Services.Configuration;
 using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models;
 using Squirrel.Wiki.Web.Resources;

@@ -3,7 +3,11 @@ using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
-using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Core.Services.Categories;
+using Squirrel.Wiki.Core.Services.Content;
+using Squirrel.Wiki.Core.Services.Menus;
+using Squirrel.Wiki.Core.Services.Pages;
+using Squirrel.Wiki.Core.Services.Tags;
 using Squirrel.Wiki.Web.Models;
 
 namespace Squirrel.Wiki.Web.ViewComponents;
@@ -17,7 +21,7 @@ public class SidebarNavigationViewComponent : ViewComponent
     private readonly ITagService _tagService;
     private readonly ICategoryService _categoryService;
     private readonly IPageService _pageService;
-    private readonly Squirrel.Wiki.Core.Security.IAuthorizationService _authorizationService;
+    private readonly IAuthorizationService _authorizationService;
     private readonly IPageRepository _pageRepository;
     private readonly IUrlTokenResolver _urlTokenResolver;
     private readonly ILogger<SidebarNavigationViewComponent> _logger;
@@ -27,7 +31,7 @@ public class SidebarNavigationViewComponent : ViewComponent
         ITagService tagService,
         ICategoryService categoryService,
         IPageService pageService,
-        Squirrel.Wiki.Core.Security.IAuthorizationService authorizationService,
+        IAuthorizationService authorizationService,
         IPageRepository pageRepository,
         IUrlTokenResolver urlTokenResolver,
         ILogger<SidebarNavigationViewComponent> logger)
@@ -202,7 +206,7 @@ public class SidebarNavigationViewComponent : ViewComponent
             // For each tag, count only the pages the user can see
             foreach (var tag in tags.OrderBy(t => t.Name))
             {
-                var tagPages = await _pageService.GetPagesByTagAsync(tag.Name);
+                var tagPages = await _pageService.GetByTagAsync(tag.Name);
                 
                 // ✅ Batch load all page entities and perform batch authorization check
                 var pageIds = tagPages.Select(p => p.Id).ToList();

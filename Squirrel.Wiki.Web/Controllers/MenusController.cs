@@ -4,8 +4,8 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
-using Squirrel.Wiki.Core.Services;
-using Squirrel.Wiki.Web.Extensions;
+using Squirrel.Wiki.Core.Services.Configuration;
+using Squirrel.Wiki.Core.Services.Menus;
 using Squirrel.Wiki.Web.Models.Admin;
 using Squirrel.Wiki.Web.Services;
 

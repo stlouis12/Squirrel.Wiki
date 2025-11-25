@@ -1,9 +1,11 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
-using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Core.Services.Categories;
+using Squirrel.Wiki.Core.Services.Configuration;
+using Squirrel.Wiki.Core.Services.Content;
+using Squirrel.Wiki.Core.Services.Pages;
 using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Filters;
 using Squirrel.Wiki.Web.Models;
@@ -18,7 +20,7 @@ public class WikiController : Controller
     private readonly IPageService _pageService;
     private readonly IMarkdownService _markdownService;
     private readonly ICategoryService _categoryService;
-    private readonly Squirrel.Wiki.Core.Security.IAuthorizationService _coreAuthorizationService;
+    private readonly IAuthorizationService _coreAuthorizationService;
     private readonly Microsoft.AspNetCore.Authorization.IAuthorizationService _authorizationService;
     private readonly IPageRepository _pageRepository;
     private readonly ITimezoneService _timezoneService;
@@ -28,7 +30,7 @@ public class WikiController : Controller
         IPageService pageService,
         IMarkdownService markdownService,
         ICategoryService categoryService,
-        Squirrel.Wiki.Core.Security.IAuthorizationService coreAuthorizationService,
+        IAuthorizationService coreAuthorizationService,
         Microsoft.AspNetCore.Authorization.IAuthorizationService authorizationService,
         IPageRepository pageRepository,
         ITimezoneService timezoneService,
@@ -190,7 +192,7 @@ public class WikiController : Controller
             }
 
             // Get the latest content
-            var contentDto = await _pageService.GetLatestContentAsync(id, cancellationToken);
+            var contentDto = await _pageRepository.GetLatestContentAsync(id, cancellationToken);
             
             if (contentDto == null)
             {
@@ -202,7 +204,7 @@ public class WikiController : Controller
             }
 
             // Convert markdown to HTML
-            var htmlContent = await _markdownService.ToHtmlAsync(contentDto.Content, cancellationToken);
+            var htmlContent = await _markdownService.ToHtmlAsync(contentDto.Text, cancellationToken);
 
             // Convert internal slug-only links to full /wiki/{id}/{slug} URLs
             htmlContent = await _markdownService.ConvertInternalLinksAsync(
@@ -224,7 +226,7 @@ public class WikiController : Controller
                 Id = pageDto.Id,
                 Title = pageDto.Title,
                 Slug = pageDto.Slug,
-                Content = contentDto.Content,
+                Content = contentDto.Text,
                 HtmlContent = htmlContent,
                 CategoryId = pageDto.CategoryId,
                 IsLocked = pageDto.IsLocked,

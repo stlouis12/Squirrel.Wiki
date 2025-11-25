@@ -19,7 +19,7 @@ public class EnvironmentVariableConfigurationProvider : IConfigurationProvider
         _logger = logger;
     }
 
-    public Task<ConfigurationValue?> GetValueAsync(string key, CancellationToken ct = default)
+    public Task<ConfigurationValue?> GetValueAsync(string key, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -78,20 +78,20 @@ public class EnvironmentVariableConfigurationProvider : IConfigurationProvider
         }
     }
 
-    public Task<bool> CanSetValueAsync(string key, CancellationToken ct = default)
+    public Task<bool> CanSetValueAsync(string key, CancellationToken cancellationToken = default)
     {
         // Environment variables are read-only from the application's perspective
         return Task.FromResult(false);
     }
 
-    public Task SetValueAsync(string key, object value, CancellationToken ct = default)
+    public Task SetValueAsync(string key, object value, CancellationToken cancellationToken = default)
     {
         throw new NotSupportedException(
             "Cannot modify environment variables from the application. " +
             "Environment variables must be set at the system level and require an application restart.");
     }
 
-    public Task<IEnumerable<string>> GetAllKeysAsync(CancellationToken ct = default)
+    public Task<IEnumerable<string>> GetAllKeysAsync(CancellationToken cancellationToken = default)
     {
         // Return all keys that have environment variables set
         var keys = new List<string>();

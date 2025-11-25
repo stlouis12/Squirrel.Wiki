@@ -19,7 +19,7 @@ public class DefaultConfigurationProvider : IConfigurationProvider
         _logger = logger;
     }
 
-    public Task<ConfigurationValue?> GetValueAsync(string key, CancellationToken ct = default)
+    public Task<ConfigurationValue?> GetValueAsync(string key, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -55,18 +55,18 @@ public class DefaultConfigurationProvider : IConfigurationProvider
         }
     }
 
-    public Task<bool> CanSetValueAsync(string key, CancellationToken ct = default)
+    public Task<bool> CanSetValueAsync(string key, CancellationToken cancellationToken = default)
     {
         // Default provider is read-only
         return Task.FromResult(false);
     }
 
-    public Task SetValueAsync(string key, object value, CancellationToken ct = default)
+    public Task SetValueAsync(string key, object value, CancellationToken cancellationToken = default)
     {
         throw new NotSupportedException("Cannot modify default configuration values");
     }
 
-    public Task<IEnumerable<string>> GetAllKeysAsync(CancellationToken ct = default)
+    public Task<IEnumerable<string>> GetAllKeysAsync(CancellationToken cancellationToken = default)
     {
         var keys = ConfigurationMetadataRegistry.GetAllKeys();
         return Task.FromResult(keys);

@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Squirrel.Wiki.Core.Models;
-using Squirrel.Wiki.Core.Services;
-using Squirrel.Wiki.Web.Extensions;
+using Squirrel.Wiki.Core.Services.Pages;
 using Squirrel.Wiki.Web.Filters;
 
 namespace Squirrel.Wiki.Web.Controllers;

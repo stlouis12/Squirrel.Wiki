@@ -1,6 +1,6 @@
+@using Squirrel.Wiki.Core.Services.Configuration
 @using Squirrel.Wiki.Web.Extensions
-@using Squirrel.Wiki.Core.Services
-@model Squirrel.Wiki.Core.Services.CategoryTreeNode
+@model Squirrel.Wiki.Core.Services.Categories.CategoryTreeNode
 @{
     var timezoneService = ViewData["TimezoneService"] as ITimezoneService;
     var maxCategoryDepth = ViewData["MaxCategoryDepth"] as int? ?? 3; // Default to 3 if not provided

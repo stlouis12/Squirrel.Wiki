@@ -4,8 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Models;
-using Squirrel.Wiki.Core.Services;
-using Squirrel.Wiki.Web.Extensions;
+using Squirrel.Wiki.Core.Services.Caching;
+using Squirrel.Wiki.Core.Services.Search;
 using Squirrel.Wiki.Web.Models.Admin;
 using Squirrel.Wiki.Web.Services;
 

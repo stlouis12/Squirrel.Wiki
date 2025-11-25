@@ -10,18 +10,18 @@ public interface IConfigurationService
     /// Gets a strongly-typed configuration section
     /// </summary>
     /// <typeparam name="T">The configuration class type</typeparam>
-    /// <param name="ct">Cancellation token</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The populated configuration object</returns>
-    Task<T> GetAsync<T>(CancellationToken ct = default) where T : class, new();
+    Task<T> GetAsync<T>(CancellationToken cancellationToken = default) where T : class, new();
 
     /// <summary>
     /// Gets a configuration value by key
     /// </summary>
     /// <typeparam name="TValue">The value type</typeparam>
     /// <param name="key">The configuration key (e.g., "SQUIRREL_SITE_NAME")</param>
-    /// <param name="ct">Cancellation token</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The configuration value</returns>
-    Task<TValue> GetValueAsync<TValue>(string key, CancellationToken ct = default);
+    Task<TValue> GetValueAsync<TValue>(string key, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Sets a configuration value (only for non-environment-variable settings)
@@ -29,9 +29,9 @@ public interface IConfigurationService
     /// <typeparam name="TValue">The value type</typeparam>
     /// <param name="key">The configuration key</param>
     /// <param name="value">The value to set</param>
-    /// <param name="ct">Cancellation token</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <exception cref="InvalidOperationException">Thrown when trying to modify an environment variable setting</exception>
-    Task SetValueAsync<TValue>(string key, TValue value, CancellationToken ct = default);
+    Task SetValueAsync<TValue>(string key, TValue value, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets the source of a configuration value

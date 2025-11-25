@@ -257,42 +257,6 @@ public class SearchIndexStatsDto
 }
 
 // ============================================================================
-// PAGE DTOs (Additional for Controllers)
-// ============================================================================
-
-/// <summary>
-/// DTO for creating a new page (controller-friendly version)
-/// </summary>
-public class CreatePageDto
-{
-    public string Title { get; set; } = string.Empty;
-    public string Content { get; set; } = string.Empty;
-    public string? Slug { get; set; }
-    public int? CategoryId { get; set; }
-    public PageVisibility Visibility { get; set; } = PageVisibility.Inherit;
-    public List<string> Tags { get; set; } = new();
-    public bool IsLocked { get; set; }
-    public string CreatedBy { get; set; } = string.Empty;
-}
-
-/// <summary>
-/// DTO for updating an existing page (controller-friendly version)
-/// </summary>
-public class UpdatePageDto
-{
-    public int Id { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public string Content { get; set; } = string.Empty;
-    public string? Slug { get; set; }
-    public int? CategoryId { get; set; }
-    public PageVisibility Visibility { get; set; } = PageVisibility.Inherit;
-    public List<string> Tags { get; set; } = new();
-    public bool IsLocked { get; set; }
-    public string ModifiedBy { get; set; } = string.Empty;
-    public string? ChangeComment { get; set; }
-}
-
-// ============================================================================
 // PASSWORD VALIDATION DTOs
 // ============================================================================
 

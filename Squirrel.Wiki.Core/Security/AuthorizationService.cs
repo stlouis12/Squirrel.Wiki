@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Core.Services.Configuration;
 
 namespace Squirrel.Wiki.Core.Security;
 

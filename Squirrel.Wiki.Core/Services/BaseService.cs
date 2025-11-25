@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
+using Squirrel.Wiki.Core.Services.Caching;
 
 namespace Squirrel.Wiki.Core.Services;
 

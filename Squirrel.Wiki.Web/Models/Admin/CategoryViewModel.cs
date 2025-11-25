@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Core.Services.Categories;
 
 namespace Squirrel.Wiki.Web.Models.Admin;
 

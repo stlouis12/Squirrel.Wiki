@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Squirrel.Wiki.Core.Models;
-using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Core.Database.Repositories;
-using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models;
 using Squirrel.Wiki.Web.Services;
+using Squirrel.Wiki.Core.Services.Search;
+using Squirrel.Wiki.Core.Services.Configuration;
 
 namespace Squirrel.Wiki.Web.Controllers;
 

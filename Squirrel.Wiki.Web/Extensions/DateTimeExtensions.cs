@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Localization;
-using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Core.Services.Configuration;
 using System.Globalization;
 
 namespace Squirrel.Wiki.Web.Extensions;

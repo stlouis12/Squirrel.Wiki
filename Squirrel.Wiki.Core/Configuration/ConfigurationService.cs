@@ -30,7 +30,7 @@ public class ConfigurationService : IConfigurationService
             string.Join(", ", _providers.Select(p => $"{p.Name}({p.Priority})")));
     }
 
-    public async Task<T> GetAsync<T>(CancellationToken ct = default) where T : class, new()
+    public async Task<T> GetAsync<T>(CancellationToken cancellationToken = default) where T : class, new()
     {
         var instance = new T();
         var properties = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
@@ -46,7 +46,7 @@ public class ConfigurationService : IConfigurationService
 
             try
             {
-                var value = await GetValueInternalAsync(key, property.PropertyType, ct);
+                var value = await GetValueInternalAsync(key, property.PropertyType, cancellationToken);
                 if (value != null)
                 {
                     property.SetValue(instance, value);
@@ -62,9 +62,9 @@ public class ConfigurationService : IConfigurationService
         return instance;
     }
 
-    public async Task<TValue> GetValueAsync<TValue>(string key, CancellationToken ct = default)
+    public async Task<TValue> GetValueAsync<TValue>(string key, CancellationToken cancellationToken = default)
     {
-        var value = await GetValueInternalAsync(key, typeof(TValue), ct);
+        var value = await GetValueInternalAsync(key, typeof(TValue), cancellationToken);
         
         if (value == null)
         {
@@ -74,7 +74,7 @@ public class ConfigurationService : IConfigurationService
         return (TValue)value;
     }
 
-    public async Task SetValueAsync<TValue>(string key, TValue value, CancellationToken ct = default)
+    public async Task SetValueAsync<TValue>(string key, TValue value, CancellationToken cancellationToken = default)
     {
         // Check if the value is currently from an environment variable
         var source = GetSource(key);
@@ -94,7 +94,7 @@ public class ConfigurationService : IConfigurationService
         }
 
         // Find a provider that can set values (should be DatabaseConfigurationProvider)
-        var writableProvider = _providers.FirstOrDefault(p => p.CanSetValueAsync(key, ct).Result);
+        var writableProvider = _providers.FirstOrDefault(p => p.CanSetValueAsync(key, cancellationToken).Result);
         
         if (writableProvider == null)
         {
@@ -102,7 +102,7 @@ public class ConfigurationService : IConfigurationService
                 $"No writable configuration provider available for key '{key}'");
         }
 
-        await writableProvider.SetValueAsync(key, value!, ct);
+        await writableProvider.SetValueAsync(key, value!, cancellationToken);
 
         // Invalidate cache for this key
         InvalidateCache(key);
@@ -246,7 +246,7 @@ public class ConfigurationService : IConfigurationService
     /// <summary>
     /// Internal method to get a value with caching
     /// </summary>
-    private async Task<object?> GetValueInternalAsync(string key, Type targetType, CancellationToken ct)
+    private async Task<object?> GetValueInternalAsync(string key, Type targetType, CancellationToken cancellationToken)
     {
         // Check cache first
         var cacheKey = $"{CacheKeyPrefix}{key}";
@@ -261,7 +261,7 @@ public class ConfigurationService : IConfigurationService
         {
             try
             {
-                var configValue = await provider.GetValueAsync(key, ct);
+                var configValue = await provider.GetValueAsync(key, cancellationToken);
                 if (configValue != null)
                 {
                     // Cache the value

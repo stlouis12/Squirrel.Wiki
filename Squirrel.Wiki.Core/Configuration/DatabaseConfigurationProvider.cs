@@ -29,13 +29,13 @@ public class DatabaseConfigurationProvider : IConfigurationProvider
         _logger = logger;
     }
 
-    public async Task<ConfigurationValue?> GetValueAsync(string key, CancellationToken ct = default)
+    public async Task<ConfigurationValue?> GetValueAsync(string key, CancellationToken cancellationToken = default)
     {
         try
         {
             var setting = await _context.SiteConfigurations
                 .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.Key == key, ct);
+                .FirstOrDefaultAsync(s => s.Key == key, cancellationToken);
 
             if (setting == null)
             {
@@ -84,13 +84,13 @@ public class DatabaseConfigurationProvider : IConfigurationProvider
         }
     }
 
-    public Task<bool> CanSetValueAsync(string key, CancellationToken ct = default)
+    public Task<bool> CanSetValueAsync(string key, CancellationToken cancellationToken = default)
     {
         // Database provider can set values
         return Task.FromResult(true);
     }
 
-    public async Task SetValueAsync(string key, object value, CancellationToken ct = default)
+    public async Task SetValueAsync(string key, object value, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -107,7 +107,7 @@ public class DatabaseConfigurationProvider : IConfigurationProvider
 
             // Find existing setting or create new one
             var setting = await _context.SiteConfigurations
-                .FirstOrDefaultAsync(s => s.Key == key, ct);
+                .FirstOrDefaultAsync(s => s.Key == key, cancellationToken);
 
             var currentUser = _userContext.Username ?? "System";
 
@@ -136,7 +136,7 @@ public class DatabaseConfigurationProvider : IConfigurationProvider
                     key, stringValue, currentUser);
             }
 
-            await _context.SaveChangesAsync(ct);
+            await _context.SaveChangesAsync(cancellationToken);
         }
         catch (Exception ex)
         {
@@ -145,14 +145,14 @@ public class DatabaseConfigurationProvider : IConfigurationProvider
         }
     }
 
-    public async Task<IEnumerable<string>> GetAllKeysAsync(CancellationToken ct = default)
+    public async Task<IEnumerable<string>> GetAllKeysAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             var keys = await _context.SiteConfigurations
                 .AsNoTracking()
                 .Select(s => s.Key)
-                .ToListAsync(ct);
+                .ToListAsync(cancellationToken);
 
             return keys;
         }

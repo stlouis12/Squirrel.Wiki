@@ -1,4 +1,4 @@
-@inject Squirrel.Wiki.Core.Services.ISettingsService SettingsService
+@inject Squirrel.Wiki.Core.Services.Configuration.ISettingsService SettingsService
 @{
     var siteName = await SettingsService.GetSettingAsync<string>("SiteName") ?? "Squirrel Wiki";
     // Remove quotes if present (settings are stored as JSON)
@@ -116,7 +116,7 @@
             </div>
         </nav>
     </header>
-    @inject Squirrel.Wiki.Core.Services.IMenuService MenuService
+    @inject Squirrel.Wiki.Core.Services.Menus.IMenuService MenuService
     <div class="container-fluid">
         <div class="row">
             @{

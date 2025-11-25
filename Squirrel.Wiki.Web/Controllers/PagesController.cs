@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Database.Repositories;
@@ -11,6 +10,12 @@ using Squirrel.Wiki.Web.Services;
 using DiffPlex;
 using DiffPlex.DiffBuilder;
 using DiffPlex.DiffBuilder.Model;
+using Squirrel.Wiki.Core.Services.Pages;
+using Squirrel.Wiki.Core.Services.Tags;
+using Squirrel.Wiki.Core.Services.Categories;
+using Squirrel.Wiki.Core.Services.Content;
+using Squirrel.Wiki.Core.Services.Search;
+using Squirrel.Wiki.Core.Services.Configuration;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -27,6 +32,7 @@ public class PagesController : BaseController
     private readonly Squirrel.Wiki.Core.Security.IAuthorizationService _coreAuthorizationService;
     private readonly Microsoft.AspNetCore.Authorization.IAuthorizationService _authorizationService;
     private readonly IPageRepository _pageRepository;
+    private readonly IPageContentService _pageContent;
     private readonly ISettingsService _settingsService;
 
     public PagesController(
@@ -38,6 +44,7 @@ public class PagesController : BaseController
         Squirrel.Wiki.Core.Security.IAuthorizationService coreAuthorizationService,
         Microsoft.AspNetCore.Authorization.IAuthorizationService authorizationService,
         IPageRepository pageRepository,
+        IPageContentService pageContent,
         ISettingsService settingsService,
         ITimezoneService timezoneService,
         ILogger<PagesController> logger,
@@ -52,6 +59,7 @@ public class PagesController : BaseController
         _coreAuthorizationService = coreAuthorizationService;
         _authorizationService = authorizationService;
         _pageRepository = pageRepository;
+        _pageContent = pageContent;
         _settingsService = settingsService;
     }
 
@@ -78,7 +86,7 @@ public class PagesController : BaseController
             {
                 // Filter by tag
                 tag = Uri.UnescapeDataString(tag);
-                allPages = await _pageService.GetPagesByTagAsync(tag, cancellationToken);
+                allPages = await _pageService.GetByTagAsync(tag, cancellationToken);
                 filterBy = "Tag";
                 filterValue = tag;
             }
@@ -86,7 +94,7 @@ public class PagesController : BaseController
             {
                 // Filter by user
                 user = Uri.UnescapeDataString(user);
-                allPages = await _pageService.GetPagesByAuthorAsync(user, cancellationToken);
+                allPages = await _pageService.GetByAuthorAsync(user, cancellationToken);
                 filterBy = "User";
                 filterValue = user;
             }
@@ -102,7 +110,7 @@ public class PagesController : BaseController
             else
             {
                 // No filter - get all pages
-                allPages = await _pageService.GetAllPagesAsync(cancellationToken);
+                allPages = await _pageService.GetAllAsync(cancellationToken);
             }
             
             var categories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
@@ -194,7 +202,7 @@ public class PagesController : BaseController
             // For each tag, count only the pages the user can see
             foreach (var tag in allTags.OrderBy(t => t.Name))
             {
-                var tagPages = await _pageService.GetPagesByTagAsync(tag.Name, cancellationToken);
+                var tagPages = await _pageService.GetByTagAsync(tag.Name, cancellationToken);
                 
                 // ✅ Get all page IDs and batch load entities in a single query
                 var pageIds = tagPages.Select(p => p.Id).ToList();
@@ -261,7 +269,7 @@ public class PagesController : BaseController
             // Decode username if it was base64 encoded
             string username = encoded ? System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(id)) : id;
             
-            var pages = await _pageService.GetPagesByAuthorAsync(username, cancellationToken);
+            var pages = await _pageService.GetByAuthorAsync(username, cancellationToken);
             
             // Filter pages based on authorization
             var authorizedPages = await FilterAuthorizedPagesAsync(pages, cancellationToken);
@@ -414,7 +422,7 @@ public class PagesController : BaseController
                 NotifyWarning("This page is locked and can only be edited by administrators.");
             }
 
-            var content = await _pageService.GetLatestContentAsync(id, cancellationToken);
+            var content = await _pageContent.GetLatestContentAsync(id, cancellationToken);
             var tags = await _pageService.GetPageTagsAsync(id, cancellationToken);
             var allTags = await _tagService.GetAllTagsAsync(cancellationToken);
             var allCategories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
@@ -507,7 +515,7 @@ public class PagesController : BaseController
     {
         return await ExecuteAsync(async () =>
         {
-            await _pageService.DeletePageAsync(id, cancellationToken);
+            await _pageService.DeleteAsync(id, cancellationToken);
             
             // Remove from search index
             await _searchService.RemoveFromIndexAsync(id, cancellationToken);
@@ -558,7 +566,7 @@ public class PagesController : BaseController
                 return NotFound($"Page with ID {id} not found");
             }
 
-            var history = await _pageService.GetPageHistoryAsync(id, cancellationToken);
+            var history = await _pageContent.GetContentHistoryAsync(id, cancellationToken);
             
             var versions = history.Select(h => new PageHistoryViewModel
             {
@@ -605,7 +613,7 @@ public class PagesController : BaseController
             }
 
             // Get all versions to find the version number
-            var history = await _pageService.GetPageHistoryAsync(id, cancellationToken);
+            var history = await _pageContent.GetContentHistoryAsync(id, cancellationToken);
             var versionContent = history.FirstOrDefault(h => h.Id == versionId);
             
             if (versionContent == null)
@@ -657,7 +665,7 @@ public class PagesController : BaseController
                 return NotFound($"Page with ID {id} not found");
             }
 
-            var history = await _pageService.GetPageHistoryAsync(id, cancellationToken);
+            var history = await _pageContent.GetContentHistoryAsync(id, cancellationToken);
             var content1 = history.FirstOrDefault(h => h.Id == version1);
             var content2 = history.FirstOrDefault(h => h.Id == version2);
 
@@ -705,7 +713,7 @@ public class PagesController : BaseController
             var username = User.Identity?.Name ?? "Anonymous";
             
             _logger.LogInformation("Calling RevertToVersionAsync for page {PageId} to version {Version}", id, versionNumber);
-            var result = await _pageService.RevertToVersionAsync(id, versionNumber, username, cancellationToken);
+            var result = await _pageContent.RevertToVersionAsync(id, versionNumber, username, cancellationToken);
             _logger.LogInformation("RevertToVersionAsync completed successfully. New version: {NewVersion}", result.Version);
 
             // Update search index
@@ -728,20 +736,21 @@ public class PagesController : BaseController
     {
         try
         {
-            var createDto = new CreatePageDto
+            var createDto = new PageCreateDto
             {
                 Title = model.Title,
                 Content = model.Content,
+                Slug = model.Slug,
                 CategoryId = model.CategoryId,
                 Visibility = model.Visibility,
-                IsLocked = model.IsLocked,
                 Tags = string.IsNullOrWhiteSpace(model.RawTags) 
                     ? new List<string>() 
                     : model.RawTags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
-                CreatedBy = User.Identity?.Name ?? "Anonymous"
+                IsLocked = model.IsLocked
             };
 
-            var createdPage = await _pageService.CreatePageAsync(createDto, cancellationToken);
+            var username = User.Identity?.Name ?? "Anonymous";
+            var createdPage = await _pageService.CreateAsync(createDto, username, cancellationToken);
 
             // Index the page for search
             await _searchService.IndexPageAsync(createdPage.Id, cancellationToken);
@@ -763,21 +772,22 @@ public class PagesController : BaseController
     {
         try
         {
-            var updateDto = new UpdatePageDto
+            var updateDto = new PageUpdateDto
             {
-                Id = model.Id,
                 Title = model.Title,
                 Content = model.Content,
+                Slug = model.Slug,
                 CategoryId = model.CategoryId,
                 Visibility = model.Visibility,
-                IsLocked = model.IsLocked,
                 Tags = string.IsNullOrWhiteSpace(model.RawTags) 
                     ? new List<string>() 
                     : model.RawTags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
-                ModifiedBy = User.Identity?.Name ?? "Anonymous"
+                IsLocked = model.IsLocked
+                // Note: ChangeComment is not captured in the view model, could be added if needed
             };
 
-            await _pageService.UpdatePageAsync(updateDto, cancellationToken);
+            var username = User.Identity?.Name ?? "Anonymous";
+            await _pageService.UpdateAsync(model.Id, updateDto, username, cancellationToken);
 
             // Update search index
             await _searchService.IndexPageAsync(model.Id, cancellationToken);

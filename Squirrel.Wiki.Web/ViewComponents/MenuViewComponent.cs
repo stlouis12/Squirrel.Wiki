@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewComponents;
-using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Core.Services.Menus;
 
 namespace Squirrel.Wiki.Web.ViewComponents;
 

@@ -2,8 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Models;
-using Squirrel.Wiki.Core.Services;
-using Squirrel.Wiki.Web.Extensions;
+using Squirrel.Wiki.Core.Services.Plugins;
 using Squirrel.Wiki.Web.Models;
 using Squirrel.Wiki.Web.Services;
 

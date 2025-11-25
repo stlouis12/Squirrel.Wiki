@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Mvc;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Security;
-using Squirrel.Wiki.Core.Services;
+using Squirrel.Wiki.Core.Services.Menus;
 using System.Text.RegularExpressions;
 
 namespace Squirrel.Wiki.Web.ViewComponents;
@@ -13,12 +13,12 @@ namespace Squirrel.Wiki.Web.ViewComponents;
 public class MainNavigationViewComponent : ViewComponent
 {
     private readonly IMenuService _menuService;
-    private readonly Squirrel.Wiki.Core.Security.IAuthorizationService _authorizationService;
+    private readonly IAuthorizationService _authorizationService;
     private readonly ILogger<MainNavigationViewComponent> _logger;
 
     public MainNavigationViewComponent(
         IMenuService menuService,
-        Squirrel.Wiki.Core.Security.IAuthorizationService authorizationService,
+        IAuthorizationService authorizationService,
         ILogger<MainNavigationViewComponent> logger)
     {
         _menuService = menuService;

@@ -24,7 +24,7 @@ public interface IConfigurationProvider
     /// <param name="key">The configuration key</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>The configuration value, or null if not found</returns>
-    Task<ConfigurationValue?> GetValueAsync(string key, CancellationToken ct = default);
+    Task<ConfigurationValue?> GetValueAsync(string key, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Checks if this provider can set values
@@ -32,7 +32,7 @@ public interface IConfigurationProvider
     /// <param name="key">The configuration key</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>True if this provider can set the value</returns>
-    Task<bool> CanSetValueAsync(string key, CancellationToken ct = default);
+    Task<bool> CanSetValueAsync(string key, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Sets a configuration value
@@ -41,14 +41,14 @@ public interface IConfigurationProvider
     /// <param name="value">The value to set</param>
     /// <param name="ct">Cancellation token</param>
     /// <exception cref="NotSupportedException">Thrown if this provider is read-only</exception>
-    Task SetValueAsync(string key, object value, CancellationToken ct = default);
+    Task SetValueAsync(string key, object value, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all configuration keys available from this provider
     /// </summary>
     /// <param name="ct">Cancellation token</param>
     /// <returns>All configuration keys</returns>
-    Task<IEnumerable<string>> GetAllKeysAsync(CancellationToken ct = default);
+    Task<IEnumerable<string>> GetAllKeysAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
