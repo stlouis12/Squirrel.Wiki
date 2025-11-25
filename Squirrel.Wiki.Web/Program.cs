@@ -216,25 +216,12 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContext, UserContext>();
 
 // Configure Data Protection for encryption
-// Use database storage for distributed deployments, file system for development
-if (builder.Environment.IsDevelopment())
-{
-    // Development: Use file system (simpler for single-instance dev)
-    var dataProtectionPath = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtection-Keys");
-    builder.Services.AddDataProtection()
-        .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath))
-        .SetApplicationName("Squirrel.Wiki");
-    Log.Information("Data Protection configured with file system storage (development)");
-}
-else
-{
-    // Production: Use database storage for multi-instance deployments
-    // Keys are automatically cached in memory by the Data Protection system
-    builder.Services.AddDataProtection()
-        .PersistKeysToDbContext<SquirrelDbContext>()
-        .SetApplicationName("Squirrel.Wiki");
-    Log.Information("Data Protection configured with database storage (production)");
-}
+// Use database storage for all environments (supports multi-instance deployments)
+// Keys are automatically cached in memory by the Data Protection system
+builder.Services.AddDataProtection()
+    .PersistKeysToDbContext<SquirrelDbContext>()
+    .SetApplicationName("Squirrel.Wiki");
+Log.Information("Data Protection configured with database storage");
 
 // Register Repositories
 builder.Services.AddScoped<IPageRepository, PageRepository>();
