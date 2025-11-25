@@ -262,7 +262,13 @@ builder.Services.AddScoped<ICacheInvalidationService, CacheInvalidationService>(
 
 // Register services that depend on cache services
 builder.Services.AddScoped<IMarkdownService, MarkdownService>();
+
+// Register new page-related services (from refactoring)
+builder.Services.AddScoped<IPageContentService, PageContentService>();
+builder.Services.AddScoped<IPageRenderingService, PageRenderingService>();
+builder.Services.AddScoped<IPageLinkService, PageLinkService>();
 builder.Services.AddScoped<IPageService, PageService>();
+
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 
