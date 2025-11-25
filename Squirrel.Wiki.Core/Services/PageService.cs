@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Exceptions;
@@ -33,8 +34,9 @@ public class PageService : BaseService, IPageService
         ITagService tagService,
         ISlugGenerator slugGenerator,
         ILogger<PageService> logger,
-        ICacheInvalidationService cacheInvalidation)
-        : base(logger, cacheService, cacheInvalidation, null)
+        ICacheInvalidationService cacheInvalidation,
+        IConfigurationService configuration)
+        : base(logger, cacheService, cacheInvalidation, null, configuration)
     {
         _pageRepository = pageRepository;
         _tagRepository = tagRepository;
@@ -745,4 +747,3 @@ public class PageService : BaseService, IPageService
         await CacheInvalidation.InvalidatePageAsync(pageId, cancellationToken);
     }
 }
-

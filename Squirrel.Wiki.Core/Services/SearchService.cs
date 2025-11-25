@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Models;
 using System.Text.RegularExpressions;
@@ -21,8 +22,9 @@ public class SearchService : BaseService, ISearchService
         IPageRepository pageRepository,
         ILogger<SearchService> logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation)
-        : base(logger, cache, cacheInvalidation, null)
+        ICacheInvalidationService cacheInvalidation,
+        IConfigurationService configuration)
+        : base(logger, cache, cacheInvalidation, null, configuration)
     {
         _pageRepository = pageRepository;
     }
@@ -635,4 +637,3 @@ public class SearchService : BaseService, ISearchService
         return await SearchAsync(query, pageNum, pageSize, cancellationToken);
     }
 }
-

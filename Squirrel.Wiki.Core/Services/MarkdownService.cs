@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using Squirrel.Wiki.Contracts.Configuration;
 
 namespace Squirrel.Wiki.Core.Services;
 
@@ -20,8 +21,9 @@ public class MarkdownService : BaseService, IMarkdownService
         ISlugGenerator slugGenerator,
         ILogger<MarkdownService> logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation)
-        : base(logger, cache, cacheInvalidation, null)
+        ICacheInvalidationService cacheInvalidation,
+        IConfigurationService configuration)
+        : base(logger, cache, cacheInvalidation, null, configuration)
     {
         _slugGenerator = slugGenerator;
         
@@ -268,4 +270,3 @@ public class MarkdownService : BaseService, IMarkdownService
         return html;
     }
 }
-

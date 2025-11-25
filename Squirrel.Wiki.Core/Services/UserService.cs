@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Authentication;
+using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Exceptions;
@@ -24,8 +25,9 @@ public class UserService : BaseService, IUserService
         ILogger<UserService> logger,
         ICacheService cache,
         ICacheInvalidationService cacheInvalidation,
-        IMapper mapper)
-        : base(logger, cache, cacheInvalidation, mapper)
+        IMapper mapper,
+        IConfigurationService configuration)
+        : base(logger, cache, cacheInvalidation, mapper, configuration)
     {
         _userRepository = userRepository;
         _pageRepository = pageRepository;

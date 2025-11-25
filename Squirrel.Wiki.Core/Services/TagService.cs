@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.Extensions.Logging;
+using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Exceptions;
@@ -29,8 +30,9 @@ public class TagService : BaseService, ITagService
         IMapper mapper,
         ILogger<TagService> logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation)
-        : base(logger, cache, cacheInvalidation, mapper)
+        ICacheInvalidationService cacheInvalidation,
+        IConfigurationService configuration)
+        : base(logger, cache, cacheInvalidation, mapper, configuration)
     {
         _tagRepository = tagRepository;
         _pageRepository = pageRepository;

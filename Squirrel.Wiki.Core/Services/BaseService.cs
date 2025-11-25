@@ -1,11 +1,12 @@
 using AutoMapper;
 using Microsoft.Extensions.Logging;
+using Squirrel.Wiki.Contracts.Configuration;
 
 namespace Squirrel.Wiki.Core.Services;
 
 /// <summary>
 /// Base service class providing common functionality for all services
-/// Includes logging, caching, cache invalidation, and object mapping capabilities
+/// Includes logging, caching, cache invalidation, configuration access, and object mapping capabilities
 /// </summary>
 public abstract class BaseService
 {
@@ -30,22 +31,31 @@ public abstract class BaseService
     protected readonly IMapper Mapper;
 
     /// <summary>
+    /// Configuration service for accessing application settings
+    /// Optional to avoid circular dependencies with CacheService
+    /// </summary>
+    protected IConfigurationService? Configuration { get; private set; }
+
+    /// <summary>
     /// Initializes a new instance of the BaseService class
     /// </summary>
     /// <param name="logger">Logger instance for the derived service</param>
     /// <param name="cache">Cache service for data caching</param>
     /// <param name="cacheInvalidation">Cache invalidation service</param>
     /// <param name="mapper">AutoMapper instance for object mapping</param>
+    /// <param name="configuration">Configuration service (optional to avoid circular dependencies)</param>
     protected BaseService(
         ILogger logger,
         ICacheService cache,
         ICacheInvalidationService cacheInvalidation,
-        IMapper mapper)
+        IMapper mapper,
+        IConfigurationService? configuration = null)
     {
         Logger = logger;
         Cache = cache;
         CacheInvalidation = cacheInvalidation;
         Mapper = mapper;
+        Configuration = configuration;
     }
 
     /// <summary>

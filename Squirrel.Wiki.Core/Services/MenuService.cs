@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
+using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Exceptions;
@@ -50,8 +51,9 @@ public class MenuService : BaseService, IMenuService
         IMapper mapper,
         ILogger<MenuService> logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation)
-        : base(logger, cache, cacheInvalidation, mapper)
+        ICacheInvalidationService cacheInvalidation,
+        IConfigurationService configuration)
+        : base(logger, cache, cacheInvalidation, mapper, configuration)
     {
         _menuRepository = menuRepository;
         _pageRepository = pageRepository;

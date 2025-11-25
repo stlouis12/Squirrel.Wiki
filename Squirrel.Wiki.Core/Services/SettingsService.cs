@@ -2,7 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
-using Squirrel.Wiki.Core.Configuration;
+using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Exceptions;
@@ -17,22 +17,20 @@ public class SettingsService : BaseService, ISettingsService
 {
     private readonly SquirrelDbContext _dbContext;
     private readonly IUserContext _userContext;
-    private readonly EnvironmentVariableProvider _envProvider;
     private const string CacheKeyPrefix = "settings:";
     private static readonly TimeSpan CacheExpiration = TimeSpan.FromHours(24);
 
     public SettingsService(
         SquirrelDbContext dbContext,
         IUserContext userContext,
-        EnvironmentVariableProvider envProvider,
         ILogger<SettingsService> logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation)
-        : base(logger, cache, cacheInvalidation, null)
+        ICacheInvalidationService cacheInvalidation,
+        IConfigurationService configuration)
+        : base(logger, cache, cacheInvalidation, null, configuration)
     {
         _dbContext = dbContext;
         _userContext = userContext;
-        _envProvider = envProvider;
     }
 
     /// <inheritdoc/>
@@ -205,93 +203,6 @@ public class SettingsService : BaseService, ISettingsService
             .AnyAsync(s => s.Key == key, ct);
     }
 
-    /// <summary>
-    /// Synchronizes environment variable settings to the database
-    /// This should be called on application startup
-    /// </summary>
-    public async Task SyncEnvironmentVariablesAsync(CancellationToken ct = default)
-    {
-        LogInfo("Starting environment variable synchronization...");
-
-        var envSettings = _envProvider.GetAllEnvironmentSettings();
-        var syncedCount = 0;
-
-        foreach (var (key, value) in envSettings)
-        {
-            try
-            {
-                // Only sync if the environment variable has a valid value
-                // Invalid values are already logged by EnvironmentVariableProvider
-                if (!_envProvider.IsFromEnvironment(key))
-                {
-                    LogDebug(
-                        "Skipping sync for setting '{Key}' - environment variable has invalid value",
-                        key);
-                    continue;
-                }
-
-                var setting = await _dbContext.SiteConfigurations
-                    .FirstOrDefaultAsync(s => s.Key == key, ct);
-
-                var jsonValue = JsonSerializer.Serialize(value);
-                var envVarName = _envProvider.GetEnvironmentVariableName(key);
-
-                if (setting == null)
-                {
-                    // Create new setting from environment variable
-                    setting = new SiteConfiguration
-                    {
-                        Id = Guid.NewGuid(),
-                        Key = key,
-                        Value = jsonValue,
-                        ModifiedOn = DateTime.UtcNow,
-                        ModifiedBy = "Environment",
-                        IsFromEnvironment = true,
-                        EnvironmentVariableName = envVarName
-                    };
-
-                    _dbContext.SiteConfigurations.Add(setting);
-                    LogInfo(
-                        "Created setting '{Key}' from environment variable '{EnvVar}'",
-                        key, envVarName);
-                }
-                else if (!setting.IsFromEnvironment || setting.Value != jsonValue)
-                {
-                    // Update existing setting with environment variable value
-                    setting.Value = jsonValue;
-                    setting.ModifiedOn = DateTime.UtcNow;
-                    setting.ModifiedBy = "Environment";
-                    setting.IsFromEnvironment = true;
-                    setting.EnvironmentVariableName = envVarName;
-
-                    LogInfo(
-                        "Updated setting '{Key}' from environment variable '{EnvVar}'",
-                        key, envVarName);
-                }
-
-                // Invalidate cache for this setting
-                await Cache.RemoveAsync(GetCacheKey(key), ct);
-                syncedCount++;
-            }
-            catch (Exception ex)
-            {
-                LogError(ex, "Error syncing environment variable for setting '{Key}'", key);
-            }
-        }
-
-        if (syncedCount > 0)
-        {
-            await _dbContext.SaveChangesAsync(ct);
-            LogInfo(
-                "Environment variable synchronization complete. Synced {Count} settings.",
-                syncedCount);
-        }
-        else
-        {
-            LogInfo("No environment variables to sync.");
-        }
-    }
-
     private static string GetCacheKey(string key)
     {
         return $"{CacheKeyPrefix}{key}";
@@ -350,4 +261,3 @@ public class SettingsService : BaseService, ISettingsService
         }
     }
 }
-

@@ -1,4 +1,6 @@
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.DependencyInjection;
+using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Contracts.Plugins;
 
 namespace Squirrel.Wiki.Plugins;
@@ -8,6 +10,11 @@ namespace Squirrel.Wiki.Plugins;
 /// </summary>
 public abstract class PluginBase : IPlugin
 {
+    /// <summary>
+    /// Configuration service for accessing application and plugin settings
+    /// </summary>
+    protected IConfigurationService? Configuration { get; private set; }
+
     /// <inheritdoc/>
     public abstract PluginMetadata Metadata { get; }
 
@@ -80,7 +87,16 @@ public abstract class PluginBase : IPlugin
         IServiceProvider services,
         CancellationToken cancellationToken = default)
     {
-        // Default implementation does nothing
+        // Get configuration service from DI
+        Configuration = services.GetService<IConfigurationService>();
+        
+        if (Configuration == null)
+        {
+            throw new InvalidOperationException(
+                "IConfigurationService is not registered. " +
+                "Plugins require access to configuration.");
+        }
+
         return Task.CompletedTask;
     }
 

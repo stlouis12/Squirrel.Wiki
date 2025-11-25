@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using Serilog;
+using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Configuration;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Database.Repositories;
@@ -231,8 +232,13 @@ builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ITagRepository, TagRepository>();
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
 
-// Register Configuration Providers
-builder.Services.AddSingleton<EnvironmentVariableProvider>();
+// Register Configuration System
+builder.Services.AddMemoryCache(); // Required for ConfigurationService caching
+builder.Services.AddScoped<Squirrel.Wiki.Core.Configuration.IConfigurationProvider, DefaultConfigurationProvider>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Configuration.IConfigurationProvider, EnvironmentVariableConfigurationProvider>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Configuration.IConfigurationProvider, DatabaseConfigurationProvider>();
+builder.Services.AddScoped<IConfigurationService, Squirrel.Wiki.Core.Configuration.ConfigurationService>();
+Log.Information("New ConfigurationService registered (Phase 2 migration)");
 
 // Register Services
 builder.Services.AddSingleton<ISlugGenerator, SlugGenerator>();
@@ -294,8 +300,8 @@ builder.Services.AddScoped<IPluginService>(sp =>
     var auditService = sp.GetRequiredService<IPluginAuditService>();
     var userContext = sp.GetRequiredService<IUserContext>();
     var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
-    var envProvider = sp.GetRequiredService<EnvironmentVariableProvider>();
-    return new PluginService(context, pluginLoader, logger, cache, cacheInvalidation, encryptionService, auditService, userContext, httpContextAccessor, envProvider, pluginsPath);
+    var configuration = sp.GetRequiredService<IConfigurationService>();
+    return new PluginService(context, pluginLoader, logger, cache, cacheInvalidation, encryptionService, auditService, userContext, httpContextAccessor, pluginsPath, configuration);
 });
 
 // Add health checks
@@ -335,9 +341,6 @@ using (var scope = app.Services.CreateScope())
         
         // Sync environment variables to database
         var settingsService = services.GetRequiredService<ISettingsService>();
-        logger.LogInformation("Synchronizing environment variables to database...");
-        await settingsService.SyncEnvironmentVariablesAsync();
-        logger.LogInformation("Environment variable synchronization complete");
         
         // Initialize plugin service
         var pluginService = services.GetRequiredService<IPluginService>();
@@ -345,21 +348,12 @@ using (var scope = app.Services.CreateScope())
         await pluginService.InitializeAsync();
         logger.LogInformation("Plugin service initialized successfully");
         
-        // Get default language using EnvironmentVariableProvider pattern
-        var languageEnvProvider = services.GetRequiredService<EnvironmentVariableProvider>();
+        // Get default language using IConfigurationService
+        var configService = services.GetRequiredService<IConfigurationService>();
+        defaultLanguage = await configService.GetValueAsync<string>("DefaultLanguage") ?? "en";
         
-        // Check if DefaultLanguage is set via environment variable
-        if (languageEnvProvider.IsFromEnvironment("DefaultLanguage"))
-        {
-            defaultLanguage = languageEnvProvider.GetValue("DefaultLanguage") ?? "en";
-            logger.LogInformation("Default language loaded from environment variable: {Language}", defaultLanguage);
-        }
-        else
-        {
-            // Fall back to database setting
-            defaultLanguage = await settingsService.GetSettingAsync<string>("DefaultLanguage") ?? "en";
-            logger.LogInformation("Default language loaded from database: {Language}", defaultLanguage);
-        }
+        var source = configService.GetSource("DefaultLanguage");
+        logger.LogInformation("Default language loaded from {Source}: {Language}", source, defaultLanguage);
     }
     catch (Exception ex)
     {

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Squirrel.Wiki.Contracts.Configuration;
 using Lucene.Net.Analysis.Standard;
 using Lucene.Net.Documents;
 using Lucene.Net.Index;
@@ -32,8 +33,9 @@ public class LuceneSearchService : BaseService, ISearchService
         ILogger<LuceneSearchService> logger,
         ICacheService cache,
         ICacheInvalidationService cacheInvalidation,
-        IOptions<SearchSettings> searchSettings)
-        : base(logger, cache, cacheInvalidation, null)
+        IOptions<SearchSettings> searchSettings,
+        IConfigurationService configuration)
+        : base(logger, cache, cacheInvalidation, null, configuration)
     {
         _pageRepository = pageRepository;
         _markdownService = markdownService;
@@ -583,4 +585,3 @@ public class SearchSettings
 {
     public string IndexPath { get; set; } = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "App_Data", "SearchIndex");
 }
-

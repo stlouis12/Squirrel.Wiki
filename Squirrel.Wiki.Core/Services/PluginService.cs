@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Contracts.Plugins;
 using Squirrel.Wiki.Core.Configuration;
 using Squirrel.Wiki.Core.Database;
@@ -24,7 +25,6 @@ public class PluginService : BaseService, IPluginService
     private readonly IUserContext _userContext;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly PluginConfigurationValidator _validator;
-    private readonly EnvironmentVariableProvider _envProvider;
     private readonly string _pluginsPath;
     private bool _initialized = false;
 
@@ -38,9 +38,9 @@ public class PluginService : BaseService, IPluginService
         IPluginAuditService auditService,
         IUserContext userContext,
         IHttpContextAccessor httpContextAccessor,
-        EnvironmentVariableProvider envProvider,
-        string pluginsPath)
-        : base(logger, cache, cacheInvalidation, null)
+        string pluginsPath,
+        IConfigurationService configuration)
+        : base(logger, cache, cacheInvalidation, null, configuration)
     {
         _context = context;
         _pluginLoader = pluginLoader;
@@ -49,7 +49,6 @@ public class PluginService : BaseService, IPluginService
         _userContext = userContext;
         _httpContextAccessor = httpContextAccessor;
         _validator = new PluginConfigurationValidator();
-        _envProvider = envProvider;
         _pluginsPath = pluginsPath;
     }
 
@@ -376,22 +375,31 @@ public class PluginService : BaseService, IPluginService
             // Check if value comes from environment variable
             if (setting.IsFromEnvironment && !string.IsNullOrEmpty(setting.EnvironmentVariableName))
             {
-                value = _envProvider.GetValue(setting.EnvironmentVariableName) ?? string.Empty;
-                
-                if (string.IsNullOrEmpty(value))
+                // Use IConfigurationService to get environment variable value
+                try
                 {
-                    LogWarning(
-                        "Environment variable {EnvVar} not found for plugin {PluginId} setting {Key}",
-                        setting.EnvironmentVariableName,
-                        plugin.PluginId,
-                        setting.Key);
+                    value = await Configuration.GetValueAsync<string>(setting.EnvironmentVariableName, cancellationToken) ?? string.Empty;
+                    
+                    if (string.IsNullOrEmpty(value))
+                    {
+                        LogWarning(
+                            "Configuration key {Key} not found for plugin {PluginId} setting {SettingKey}",
+                            setting.EnvironmentVariableName,
+                            plugin.PluginId,
+                            setting.Key);
+                    }
+                    else
+                    {
+                        LogDebug(
+                            "Loaded setting {Key} from configuration key {ConfigKey}",
+                            setting.Key,
+                            setting.EnvironmentVariableName);
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    LogDebug(
-                        "Loaded setting {Key} from environment variable {EnvVar}",
-                        setting.Key,
-                        setting.EnvironmentVariableName);
+                    LogError(ex, "Failed to load configuration for key: {Key}", setting.EnvironmentVariableName);
+                    value = string.Empty;
                 }
             }
             else
@@ -577,4 +585,3 @@ public class PluginService : BaseService, IPluginService
         }
     }
 }
-

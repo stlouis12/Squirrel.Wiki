@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Models;
 
 namespace Squirrel.Wiki.Core.Services;
@@ -14,8 +15,9 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
         IPageService pageService,
         ILogger<CategoryTreeBuilder> logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation)
-        : base(logger, cache, cacheInvalidation, null)
+        ICacheInvalidationService cacheInvalidation,
+        IConfigurationService configuration)
+        : base(logger, cache, cacheInvalidation, null, configuration)
     {
         _pageService = pageService;
     }

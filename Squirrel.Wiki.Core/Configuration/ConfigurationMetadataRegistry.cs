@@ -1,0 +1,357 @@
+using Squirrel.Wiki.Contracts.Configuration;
+
+namespace Squirrel.Wiki.Core.Configuration;
+
+/// <summary>
+/// Central registry of all configuration property metadata
+/// </summary>
+public static class ConfigurationMetadataRegistry
+{
+    private static readonly Dictionary<string, ConfigurationProperty> _metadata = new()
+    {
+        // Site Configuration
+        {
+            "SQUIRREL_SITE_NAME",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_SITE_NAME",
+                DisplayName = "Site Name",
+                Description = "The name of your wiki site",
+                Category = "General",
+                ValueType = typeof(string),
+                DefaultValue = "Squirrel Wiki",
+                EnvironmentVariable = "SQUIRREL_SITE_NAME",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_SITE_URL",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_SITE_URL",
+                DisplayName = "Site URL",
+                Description = "The public URL of your wiki site (e.g., https://wiki.example.com)",
+                Category = "General",
+                ValueType = typeof(string),
+                DefaultValue = "",
+                EnvironmentVariable = "SQUIRREL_SITE_URL",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules
+                {
+                    MustBeUrl = true
+                }
+            }
+        },
+        {
+            "SQUIRREL_DEFAULT_LANGUAGE",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_DEFAULT_LANGUAGE",
+                DisplayName = "Default Language",
+                Description = "Default language for the wiki interface",
+                Category = "General",
+                ValueType = typeof(string),
+                DefaultValue = "en",
+                EnvironmentVariable = "SQUIRREL_DEFAULT_LANGUAGE",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules
+                {
+                    AllowedValues = new[] { "en", "es", "fr", "de", "it" }
+                }
+            }
+        },
+        {
+            "SQUIRREL_TIMEZONE",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_TIMEZONE",
+                DisplayName = "Time Zone",
+                Description = "Default time zone for displaying dates and times",
+                Category = "General",
+                ValueType = typeof(string),
+                DefaultValue = "UTC",
+                EnvironmentVariable = "SQUIRREL_TIMEZONE",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules()
+            }
+        },
+
+        // Security Configuration
+        {
+            "SQUIRREL_ALLOW_ANONYMOUS_READING",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_ALLOW_ANONYMOUS_READING",
+                DisplayName = "Allow Anonymous Reading",
+                Description = "Whether unauthenticated users can read wiki pages",
+                Category = "Security",
+                ValueType = typeof(bool),
+                DefaultValue = false,
+                EnvironmentVariable = "SQUIRREL_ALLOW_ANONYMOUS_READING",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_SESSION_TIMEOUT_MINUTES",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_SESSION_TIMEOUT_MINUTES",
+                DisplayName = "Session Timeout (Minutes)",
+                Description = "How long a user session remains active without activity",
+                Category = "Security",
+                ValueType = typeof(int),
+                DefaultValue = 480,
+                EnvironmentVariable = "SQUIRREL_SESSION_TIMEOUT_MINUTES",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules
+                {
+                    MinValue = 30,
+                    MaxValue = 20160 // 14 days
+                }
+            }
+        },
+        {
+            "SQUIRREL_MAX_LOGIN_ATTEMPTS",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_MAX_LOGIN_ATTEMPTS",
+                DisplayName = "Maximum Login Attempts",
+                Description = "Number of failed login attempts before account is locked",
+                Category = "Security",
+                ValueType = typeof(int),
+                DefaultValue = 5,
+                EnvironmentVariable = "SQUIRREL_MAX_LOGIN_ATTEMPTS",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules
+                {
+                    MinValue = 3,
+                    MaxValue = 20
+                }
+            }
+        },
+        {
+            "SQUIRREL_ACCOUNT_LOCK_DURATION_MINUTES",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_ACCOUNT_LOCK_DURATION_MINUTES",
+                DisplayName = "Account Lock Duration (Minutes)",
+                Description = "How long an account remains locked after too many failed login attempts",
+                Category = "Security",
+                ValueType = typeof(int),
+                DefaultValue = 30,
+                EnvironmentVariable = "SQUIRREL_ACCOUNT_LOCK_DURATION_MINUTES",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules
+                {
+                    MinValue = 5,
+                    MaxValue = 1440 // 24 hours
+                }
+            }
+        },
+
+        // Content Configuration
+        {
+            "SQUIRREL_DEFAULT_PAGE_TEMPLATE",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_DEFAULT_PAGE_TEMPLATE",
+                DisplayName = "Default Page Template",
+                Description = "Default markdown template for new pages",
+                Category = "Content",
+                ValueType = typeof(string),
+                DefaultValue = "",
+                EnvironmentVariable = "SQUIRREL_DEFAULT_PAGE_TEMPLATE",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_MAX_PAGE_TITLE_LENGTH",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_MAX_PAGE_TITLE_LENGTH",
+                DisplayName = "Maximum Page Title Length",
+                Description = "Maximum number of characters allowed in page titles",
+                Category = "Content",
+                ValueType = typeof(int),
+                DefaultValue = 200,
+                EnvironmentVariable = "SQUIRREL_MAX_PAGE_TITLE_LENGTH",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules
+                {
+                    MinValue = 25,
+                    MaxValue = 500
+                }
+            }
+        },
+        {
+            "SQUIRREL_ENABLE_PAGE_VERSIONING",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_ENABLE_PAGE_VERSIONING",
+                DisplayName = "Enable Page Versioning",
+                Description = "Whether to keep historical versions of pages",
+                Category = "Content",
+                ValueType = typeof(bool),
+                DefaultValue = false,
+                EnvironmentVariable = "SQUIRREL_ENABLE_PAGE_VERSIONING",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules()
+            }
+        },
+
+        // Search Configuration
+        {
+            "SQUIRREL_SEARCH_RESULTS_PER_PAGE",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_SEARCH_RESULTS_PER_PAGE",
+                DisplayName = "Search Results Per Page",
+                Description = "Number of search results to display per page",
+                Category = "Search",
+                ValueType = typeof(int),
+                DefaultValue = 20,
+                EnvironmentVariable = "SQUIRREL_SEARCH_RESULTS_PER_PAGE",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules
+                {
+                    MinValue = 5,
+                    MaxValue = 100
+                }
+            }
+        },
+        {
+            "SQUIRREL_ENABLE_FUZZY_SEARCH",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_ENABLE_FUZZY_SEARCH",
+                DisplayName = "Enable Fuzzy Search",
+                Description = "Whether to enable fuzzy/approximate matching in search",
+                Category = "Search",
+                ValueType = typeof(bool),
+                DefaultValue = false,
+                EnvironmentVariable = "SQUIRREL_ENABLE_FUZZY_SEARCH",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_SEARCH_MINIMUM_LENGTH",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_SEARCH_MINIMUM_LENGTH",
+                DisplayName = "Search Minimum Length",
+                Description = "Minimum number of characters required for a search query",
+                Category = "Search",
+                ValueType = typeof(int),
+                DefaultValue = 3,
+                EnvironmentVariable = "SQUIRREL_SEARCH_MINIMUM_LENGTH",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules
+                {
+                    MinValue = 1,
+                    MaxValue = 10
+                }
+            }
+        },
+
+        // Performance Configuration
+        {
+            "SQUIRREL_ENABLE_CACHING",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_ENABLE_CACHING",
+                DisplayName = "Enable Caching",
+                Description = "Whether to enable caching for improved performance",
+                Category = "Performance",
+                ValueType = typeof(bool),
+                DefaultValue = false,
+                EnvironmentVariable = "SQUIRREL_ENABLE_CACHING",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_CACHE_DURATION_MINUTES",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_CACHE_DURATION_MINUTES",
+                DisplayName = "Cache Duration (Minutes)",
+                Description = "How long cached items remain valid",
+                Category = "Performance",
+                ValueType = typeof(int),
+                DefaultValue = 60,
+                EnvironmentVariable = "SQUIRREL_CACHE_DURATION_MINUTES",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules
+                {
+                    MinValue = 1,
+                    MaxValue = 1440 // 24 hours
+                }
+            }
+        }
+    };
+
+    /// <summary>
+    /// Gets metadata for a specific configuration key
+    /// </summary>
+    public static ConfigurationProperty GetMetadata(string key)
+    {
+        if (_metadata.TryGetValue(key, out var metadata))
+        {
+            return metadata;
+        }
+
+        throw new KeyNotFoundException($"Configuration key '{key}' not found in metadata registry");
+    }
+
+    /// <summary>
+    /// Gets all configuration metadata
+    /// </summary>
+    public static IEnumerable<ConfigurationProperty> GetAllMetadata()
+    {
+        return _metadata.Values;
+    }
+
+    /// <summary>
+    /// Checks if a configuration key exists
+    /// </summary>
+    public static bool HasMetadata(string key)
+    {
+        return _metadata.ContainsKey(key);
+    }
+
+    /// <summary>
+    /// Gets all configuration keys
+    /// </summary>
+    public static IEnumerable<string> GetAllKeys()
+    {
+        return _metadata.Keys;
+    }
+
+    /// <summary>
+    /// Gets metadata for all keys in a specific category
+    /// </summary>
+    public static IEnumerable<ConfigurationProperty> GetMetadataByCategory(string category)
+    {
+        return _metadata.Values.Where(m => m.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
+    }
+}
