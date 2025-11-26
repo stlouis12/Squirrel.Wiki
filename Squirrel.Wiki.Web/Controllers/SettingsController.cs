@@ -325,8 +325,8 @@ public class SettingsController : BaseController
 
     private async Task<List<SettingGroup>> GetSettingGroupsAsync(Dictionary<string, string> existingSettings)
     {
-        // Get all configuration metadata
-        var allMetadata = _configurationService.GetAllMetadata();
+        // Get only UI-visible configuration metadata
+        var allMetadata = _configurationService.GetUIVisibleMetadata();
         
         // Build environment info by checking the actual source of each setting
         var envInfo = new Dictionary<string, (bool IsFromEnvironment, string? EnvironmentVariableName)>();

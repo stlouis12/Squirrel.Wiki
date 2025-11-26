@@ -7,16 +7,12 @@ using Squirrel.Wiki.Core.Services.Caching;
 namespace Squirrel.Wiki.Core.Services;
 
 /// <summary>
-/// Base service class providing common functionality for all services
-/// Includes logging, caching, event publishing, configuration access, and object mapping capabilities
+/// Full-featured base service class for business services
+/// Extends MinimalBaseService and adds caching, event publishing, configuration access, and object mapping capabilities
+/// Use this for domain/business services that require these features
 /// </summary>
-public abstract class BaseService
+public abstract class BaseService : MinimalBaseService
 {
-    /// <summary>
-    /// Logger instance for the derived service
-    /// </summary>
-    protected readonly ILogger Logger;
-
     /// <summary>
     /// Cache service for reading and writing cached data
     /// </summary>
@@ -52,43 +48,11 @@ public abstract class BaseService
         IEventPublisher eventPublisher,
         IMapper mapper,
         IConfigurationService? configuration = null)
+        : base(logger)
     {
-        Logger = logger;
         Cache = cache;
         EventPublisher = eventPublisher;
         Mapper = mapper;
         Configuration = configuration;
-    }
-
-    /// <summary>
-    /// Logs an informational message
-    /// </summary>
-    protected void LogInfo(string message, params object[] args)
-    {
-        Logger.LogInformation(message, args);
-    }
-
-    /// <summary>
-    /// Logs a debug message
-    /// </summary>
-    protected void LogDebug(string message, params object[] args)
-    {
-        Logger.LogDebug(message, args);
-    }
-
-    /// <summary>
-    /// Logs a warning message
-    /// </summary>
-    protected void LogWarning(string message, params object[] args)
-    {
-        Logger.LogWarning(message, args);
-    }
-
-    /// <summary>
-    /// Logs an error message
-    /// </summary>
-    protected void LogError(Exception ex, string message, params object[] args)
-    {
-        Logger.LogError(ex, message, args);
     }
 }

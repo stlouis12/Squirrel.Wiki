@@ -283,7 +283,7 @@ public class PageService : BaseService, IPageService
         await _pageRepository.UpdateAsync(page, cancellationToken);
 
         // Check if page versioning is enabled
-        var enableVersioning = await _settingsService.GetSettingAsync<bool>("EnablePageVersioning", cancellationToken);
+        var enableVersioning = await _settingsService.GetSettingAsync<bool>("SQUIRREL_ENABLE_PAGE_VERSIONING", cancellationToken);
 
         if (enableVersioning)
         {

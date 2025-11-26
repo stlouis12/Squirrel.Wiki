@@ -51,6 +51,12 @@ public class ConfigurationProperty
     public bool AllowRuntimeModification { get; set; }
 
     /// <summary>
+    /// Whether this setting should be visible in the Settings UI.
+    /// Set to false for startup-only settings that shouldn't be displayed to users.
+    /// </summary>
+    public bool IsVisibleInUI { get; set; } = true;
+
+    /// <summary>
     /// Validation rules for this setting
     /// </summary>
     public ValidationRules? Validation { get; set; }

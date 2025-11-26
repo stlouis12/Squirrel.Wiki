@@ -334,8 +334,8 @@ public class PagesController : BaseController
             var allCategories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
 
             // Load settings
-            var defaultTemplate = await _settingsService.GetSettingAsync<string>("DefaultPageTemplate", cancellationToken);
-            var maxTitleLength = await _settingsService.GetSettingAsync<int?>("MaxPageTitleLength", cancellationToken);
+            var defaultTemplate = await _settingsService.GetSettingAsync<string>("SQUIRREL_DEFAULT_PAGE_TEMPLATE", cancellationToken);
+            var maxTitleLength = await _settingsService.GetSettingAsync<int?>("SQUIRREL_MAX_PAGE_TITLE_LENGTH", cancellationToken);
 
             var viewModel = new PageViewModel
             {
@@ -428,7 +428,7 @@ public class PagesController : BaseController
             var allCategories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
 
             // Load settings
-            var maxTitleLength = await _settingsService.GetSettingAsync<int?>("MaxPageTitleLength", cancellationToken);
+            var maxTitleLength = await _settingsService.GetSettingAsync<int?>("SQUIRREL_MAX_PAGE_TITLE_LENGTH", cancellationToken);
 
             // Get full category path if page has a category
             string? categoryFullPath = null;

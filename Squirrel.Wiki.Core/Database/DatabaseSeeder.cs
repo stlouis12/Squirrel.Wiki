@@ -12,7 +12,21 @@ public static class DatabaseSeeder
 {
     private const string SeedDataFileName = "seed-data.yaml";
 
+    /// <summary>
+    /// Seeds the database with initial data from the default embedded seed-data.yaml file
+    /// </summary>
     public static async Task SeedAsync(SquirrelDbContext context, ILogger logger)
+    {
+        await SeedAsync(context, logger, null);
+    }
+
+    /// <summary>
+    /// Seeds the database with initial data from a custom seed data file or the default embedded file
+    /// </summary>
+    /// <param name="context">The database context</param>
+    /// <param name="logger">The logger</param>
+    /// <param name="customSeedDataPath">Optional path to a custom seed data YAML file. If null, uses the default embedded file.</param>
+    public static async Task SeedAsync(SquirrelDbContext context, ILogger logger, string? customSeedDataPath)
     {
         try
         {
@@ -26,7 +40,7 @@ public static class DatabaseSeeder
             logger.LogInformation("Seeding database with initial data...");
 
             // Load seed data from YAML file
-            var seedData = LoadSeedData(logger);
+            var seedData = LoadSeedData(logger, customSeedDataPath);
             if (seedData == null)
             {
                 logger.LogWarning("No seed data loaded, skipping database seeding");
@@ -62,38 +76,56 @@ public static class DatabaseSeeder
         }
     }
 
-    private static SeedData? LoadSeedData(ILogger logger)
+    private static SeedData? LoadSeedData(ILogger logger, string? customSeedDataPath)
     {
         try
         {
-            // Look for seed-data.yaml in the Database directory
-            var assemblyLocation = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            var assemblyDirectory = Path.GetDirectoryName(assemblyLocation);
-            var seedFilePath = Path.Combine(assemblyDirectory!, "Database", SeedDataFileName);
-
-            // If not found in assembly directory, try current directory
-            if (!File.Exists(seedFilePath))
+            string seedFilePath;
+            
+            // If a custom seed data path is provided, use it
+            if (!string.IsNullOrEmpty(customSeedDataPath))
             {
-                seedFilePath = Path.Combine(Directory.GetCurrentDirectory(), "Database", SeedDataFileName);
-            }
-
-            // If still not found, try one level up (for development scenarios)
-            if (!File.Exists(seedFilePath))
-            {
-                var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
-                if (parentDir != null)
+                seedFilePath = customSeedDataPath;
+                
+                if (!File.Exists(seedFilePath))
                 {
-                    seedFilePath = Path.Combine(parentDir, "Database", SeedDataFileName);
+                    logger.LogWarning("Custom seed data file not found: {Path}", seedFilePath);
+                    return null;
                 }
+                
+                logger.LogInformation("Loading seed data from custom file: {Path}", seedFilePath);
             }
-
-            if (!File.Exists(seedFilePath))
+            else
             {
-                logger.LogWarning("Seed data file not found at expected locations. Tried: {Path}", seedFilePath);
-                return null;
-            }
+                // Look for seed-data.yaml in the Database directory
+                var assemblyLocation = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                var assemblyDirectory = Path.GetDirectoryName(assemblyLocation);
+                seedFilePath = Path.Combine(assemblyDirectory!, "Database", SeedDataFileName);
 
-            logger.LogInformation("Loading seed data from: {Path}", seedFilePath);
+                // If not found in assembly directory, try current directory
+                if (!File.Exists(seedFilePath))
+                {
+                    seedFilePath = Path.Combine(Directory.GetCurrentDirectory(), "Database", SeedDataFileName);
+                }
+
+                // If still not found, try one level up (for development scenarios)
+                if (!File.Exists(seedFilePath))
+                {
+                    var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
+                    if (parentDir != null)
+                    {
+                        seedFilePath = Path.Combine(parentDir, "Database", SeedDataFileName);
+                    }
+                }
+
+                if (!File.Exists(seedFilePath))
+                {
+                    logger.LogWarning("Seed data file not found at expected locations. Tried: {Path}", seedFilePath);
+                    return null;
+                }
+
+                logger.LogInformation("Loading seed data from default file: {Path}", seedFilePath);
+            }
 
             var yaml = File.ReadAllText(seedFilePath);
             var deserializer = new DeserializerBuilder()
@@ -276,7 +308,7 @@ public static class DatabaseSeeder
             var setting = new SiteConfiguration
             {
                 Key = seedSetting.Key,
-                Value = $"\"{seedSetting.Value}\"", // Wrap in quotes for JSON serialization
+                Value = seedSetting.Value, // Store as plain string, not JSON-serialized
                 ModifiedOn = now,
                 ModifiedBy = "system",
                 IsFromEnvironment = false
@@ -315,15 +347,26 @@ public static class DatabaseSeeder
                 continue;
             }
 
+            // Only seed settings that are visible in the UI
+            // Settings like SQUIRREL_ADMIN_PASSWORD should only come from environment variables
+            // and should not be stored in the database
+            if (!metadata.IsVisibleInUI)
+            {
+                logger.LogDebug("Skipping {Key} - not visible in UI (should only come from environment variables)", metadata.Key);
+                continue;
+            }
+
             // Serialize the default value based on type
+            // Note: We store values as plain strings, not JSON-serialized
             string serializedValue;
             if (metadata.DefaultValue == null)
             {
-                serializedValue = "null";
+                serializedValue = string.Empty;
             }
             else if (metadata.ValueType == typeof(string))
             {
-                serializedValue = JsonSerializer.Serialize(metadata.DefaultValue.ToString());
+                // Store string values directly without JSON serialization
+                serializedValue = metadata.DefaultValue.ToString()!;
             }
             else if (metadata.ValueType == typeof(bool))
             {
@@ -335,8 +378,8 @@ public static class DatabaseSeeder
             }
             else
             {
-                // For other types, use JSON serialization
-                serializedValue = JsonSerializer.Serialize(metadata.DefaultValue);
+                // For other types, convert to string
+                serializedValue = metadata.DefaultValue.ToString()!;
             }
 
             var config = new SiteConfiguration

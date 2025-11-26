@@ -9,17 +9,16 @@ namespace Squirrel.Wiki.Core.Services.Plugins;
 /// <summary>
 /// Service for auditing plugin operations
 /// </summary>
-public class PluginAuditService : IPluginAuditService
+public class PluginAuditService : MinimalBaseService, IPluginAuditService
 {
     private readonly SquirrelDbContext _context;
-    private readonly ILogger<PluginAuditService> _logger;
 
     public PluginAuditService(
         SquirrelDbContext context,
         ILogger<PluginAuditService> logger)
+        : base(logger)
     {
         _context = context;
-        _logger = logger;
     }
 
     /// <inheritdoc/>
@@ -61,7 +60,7 @@ public class PluginAuditService : IPluginAuditService
             _context.PluginAuditLogs.Add(auditLog);
             await _context.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation(
+            LogInfo(
                 "Audit log created: Plugin={PluginId}, Operation={Operation}, User={Username}, Success={Success}",
                 pluginIdentifier,
                 operation,
@@ -71,7 +70,7 @@ public class PluginAuditService : IPluginAuditService
         catch (Exception ex)
         {
             // Don't let audit logging failures break the application
-            _logger.LogError(ex, "Failed to create audit log for plugin {PluginId}", pluginIdentifier);
+            LogError(ex, "Failed to create audit log for plugin {PluginId}", pluginIdentifier);
         }
     }
 
@@ -185,7 +184,7 @@ public class PluginAuditService : IPluginAuditService
             _context.PluginAuditLogs.RemoveRange(logsToDelete);
             await _context.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation("Deleted {Count} old audit logs older than {Date}", count, olderThan);
+            LogInfo("Deleted {Count} old audit logs older than {Date}", count, olderThan);
         }
 
         return count;

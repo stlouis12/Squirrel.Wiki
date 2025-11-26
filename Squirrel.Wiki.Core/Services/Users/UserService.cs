@@ -319,7 +319,7 @@ public class UserService : BaseService, IUserService
         if (!isPasswordValid)
         {
             // Get max login attempts from settings (default to 5 if not set)
-            var maxLoginAttempts = await _settingsService.GetSettingAsync<int>("MaxLoginAttempts", cancellationToken);
+            var maxLoginAttempts = await _settingsService.GetSettingAsync<int>("SQUIRREL_MAX_LOGIN_ATTEMPTS", cancellationToken);
             if (maxLoginAttempts <= 0)
             {
                 maxLoginAttempts = 5; // Default fallback
@@ -332,7 +332,7 @@ public class UserService : BaseService, IUserService
             if (user.FailedLoginAttempts >= maxLoginAttempts)
             {
                 // Get account lock duration from settings (default to 30 minutes if not set)
-                var lockDurationMinutes = await _settingsService.GetSettingAsync<int>("AccountLockDurationMinutes", cancellationToken);
+                var lockDurationMinutes = await _settingsService.GetSettingAsync<int>("SQUIRREL_ACCOUNT_LOCK_DURATION_MINUTES", cancellationToken);
                 if (lockDurationMinutes <= 0)
                 {
                     lockDurationMinutes = 30; // Default fallback

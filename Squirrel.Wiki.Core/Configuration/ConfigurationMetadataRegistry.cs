@@ -81,6 +81,76 @@ public static class ConfigurationMetadataRegistry
             }
         },
 
+        // Admin Bootstrap Configuration
+        {
+            "SQUIRREL_ADMIN_USERNAME",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_ADMIN_USERNAME",
+                DisplayName = "Admin Username",
+                Description = "Default admin username for initial bootstrap",
+                Category = "Security",
+                ValueType = typeof(string),
+                DefaultValue = "admin",
+                EnvironmentVariable = "SQUIRREL_ADMIN_USERNAME",
+                IsSecret = false,
+                AllowRuntimeModification = false,
+                IsVisibleInUI = false,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_ADMIN_PASSWORD",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_ADMIN_PASSWORD",
+                DisplayName = "Admin Password",
+                Description = "Default admin password for initial bootstrap (should be changed after first login)",
+                Category = "Security",
+                ValueType = typeof(string),
+                DefaultValue = "Squirrel123!",
+                EnvironmentVariable = "SQUIRREL_ADMIN_PASSWORD",
+                IsSecret = true,
+                AllowRuntimeModification = false,
+                IsVisibleInUI = false,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_ADMIN_EMAIL",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_ADMIN_EMAIL",
+                DisplayName = "Admin Email",
+                Description = "Default admin email address for initial bootstrap",
+                Category = "Security",
+                ValueType = typeof(string),
+                DefaultValue = "admin@localhost",
+                EnvironmentVariable = "SQUIRREL_ADMIN_EMAIL",
+                IsSecret = false,
+                AllowRuntimeModification = false,
+                IsVisibleInUI = false,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_ADMIN_DISPLAYNAME",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_ADMIN_DISPLAYNAME",
+                DisplayName = "Admin Display Name",
+                Description = "Default admin display name for initial bootstrap",
+                Category = "Security",
+                ValueType = typeof(string),
+                DefaultValue = "Administrator",
+                EnvironmentVariable = "SQUIRREL_ADMIN_DISPLAYNAME",
+                IsSecret = false,
+                AllowRuntimeModification = false,
+                IsVisibleInUI = false,
+                Validation = new ValidationRules()
+            }
+        },
+
         // Security Configuration
         {
             "SQUIRREL_ALLOW_ANONYMOUS_READING",
@@ -347,6 +417,115 @@ public static class ConfigurationMetadataRegistry
             }
         },
         
+        // Application Paths (Startup-Only, useful for containerized deployments)
+        {
+            "SQUIRREL_APP_DATA_PATH",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_APP_DATA_PATH",
+                DisplayName = "Application Data Path",
+                Description = "The directory path where application data (database, search index, etc.) is stored. Useful for containerized deployments to mount volumes.",
+                Category = "Application",
+                ValueType = typeof(string),
+                DefaultValue = "App_Data",
+                EnvironmentVariable = "SQUIRREL_APP_DATA_PATH",
+                IsSecret = false,
+                AllowRuntimeModification = false,
+                IsVisibleInUI = false,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_SEED_DATA_FILE_PATH",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_SEED_DATA_FILE_PATH",
+                DisplayName = "Seed Data File Path",
+                Description = "The path to a custom seed data YAML file. If not specified, uses the default embedded seed-data.yaml. Useful for containerized deployments with custom initial data.",
+                Category = "Application",
+                ValueType = typeof(string),
+                DefaultValue = null,
+                EnvironmentVariable = "SQUIRREL_SEED_DATA_FILE_PATH",
+                IsSecret = false,
+                AllowRuntimeModification = false,
+                IsVisibleInUI = false,
+                Validation = new ValidationRules()
+            }
+        },
+        
+        // Database Configuration (Startup-Only)
+        {
+            "SQUIRREL_DATABASE_PROVIDER",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_DATABASE_PROVIDER",
+                DisplayName = "Database Provider",
+                Description = "The database provider to use (PostgreSQL, MySQL, MariaDB, SQLServer, SQLite)",
+                Category = "Database",
+                ValueType = typeof(string),
+                DefaultValue = "SQLite",
+                EnvironmentVariable = "SQUIRREL_DATABASE_PROVIDER",
+                IsSecret = false,
+                AllowRuntimeModification = false,
+                IsVisibleInUI = false,
+                Validation = new ValidationRules
+                {
+                    AllowedValues = new[] { "PostgreSQL", "MySQL", "MariaDB", "SQLServer", "SQLite" }
+                }
+            }
+        },
+        {
+            "SQUIRREL_DATABASE_CONNECTION_STRING",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_DATABASE_CONNECTION_STRING",
+                DisplayName = "Database Connection String",
+                Description = "The database connection string (startup-only configuration)",
+                Category = "Database",
+                ValueType = typeof(string),
+                DefaultValue = "Data Source=App_Data/squirrel.db",
+                EnvironmentVariable = "SQUIRREL_DATABASE_CONNECTION_STRING",
+                IsSecret = true,
+                AllowRuntimeModification = false,
+                IsVisibleInUI = false,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_DATABASE_AUTO_MIGRATE",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_DATABASE_AUTO_MIGRATE",
+                DisplayName = "Auto Migrate Database",
+                Description = "Whether to automatically apply database migrations on startup",
+                Category = "Database",
+                ValueType = typeof(bool),
+                DefaultValue = true,
+                EnvironmentVariable = "SQUIRREL_DATABASE_AUTO_MIGRATE",
+                IsSecret = false,
+                AllowRuntimeModification = false,
+                IsVisibleInUI = false,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_DATABASE_SEED_DATA",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_DATABASE_SEED_DATA",
+                DisplayName = "Seed Database Data",
+                Description = "Whether to seed initial data into the database on startup",
+                Category = "Database",
+                ValueType = typeof(bool),
+                DefaultValue = true,
+                EnvironmentVariable = "SQUIRREL_DATABASE_SEED_DATA",
+                IsSecret = false,
+                AllowRuntimeModification = false,
+                IsVisibleInUI = false,
+                Validation = new ValidationRules()
+            }
+        },
+        
         // Performance Configuration - Cache Provider
         {
             "SQUIRREL_CACHE_PROVIDER",
@@ -361,6 +540,7 @@ public static class ConfigurationMetadataRegistry
                 EnvironmentVariable = "SQUIRREL_CACHE_PROVIDER",
                 IsSecret = false,
                 AllowRuntimeModification = false,
+                IsVisibleInUI = true,
                 Validation = new ValidationRules
                 {
                     AllowedValues = new[] { "Memory", "Redis" }
@@ -380,6 +560,7 @@ public static class ConfigurationMetadataRegistry
                 EnvironmentVariable = "SQUIRREL_REDIS_CONFIGURATION",
                 IsSecret = false,
                 AllowRuntimeModification = false,
+                IsVisibleInUI = true,
                 Validation = new ValidationRules()
             }
         },
@@ -396,6 +577,7 @@ public static class ConfigurationMetadataRegistry
                 EnvironmentVariable = "SQUIRREL_REDIS_INSTANCE_NAME",
                 IsSecret = false,
                 AllowRuntimeModification = false,
+                IsVisibleInUI = true,
                 Validation = new ValidationRules()
             }
         }
@@ -444,5 +626,23 @@ public static class ConfigurationMetadataRegistry
     public static IEnumerable<ConfigurationProperty> GetMetadataByCategory(string category)
     {
         return _metadata.Values.Where(m => m.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Gets all configuration metadata that should be visible in the UI
+    /// </summary>
+    public static IEnumerable<ConfigurationProperty> GetUIVisibleMetadata()
+    {
+        return _metadata.Values.Where(m => m.IsVisibleInUI);
+    }
+
+    /// <summary>
+    /// Gets metadata for all UI-visible keys in a specific category
+    /// </summary>
+    public static IEnumerable<ConfigurationProperty> GetUIVisibleMetadataByCategory(string category)
+    {
+        return _metadata.Values.Where(m => 
+            m.IsVisibleInUI && 
+            m.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
     }
 }

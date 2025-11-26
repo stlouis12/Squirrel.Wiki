@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
 using System.Reflection;
@@ -12,18 +11,13 @@ namespace Squirrel.Wiki.Core.Configuration;
 public class ConfigurationService : IConfigurationService
 {
     private readonly IEnumerable<IConfigurationProvider> _providers;
-    private readonly IMemoryCache _memoryCache;
     private readonly ILogger<ConfigurationService> _logger;
-    private const string CacheKeyPrefix = "Config_";
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(60);
 
     public ConfigurationService(
         IEnumerable<IConfigurationProvider> providers,
-        IMemoryCache memoryCache,
         ILogger<ConfigurationService> logger)
     {
         _providers = providers.OrderByDescending(p => p.Priority).ToList();
-        _memoryCache = memoryCache;
         _logger = logger;
 
         _logger.LogInformation("ConfigurationService initialized with providers: {Providers}",
@@ -68,6 +62,23 @@ public class ConfigurationService : IConfigurationService
         
         if (value == null)
         {
+            // Try to get default from metadata registry
+            try
+            {
+                var metadata = ConfigurationMetadataRegistry.GetMetadata(key);
+                if (metadata.DefaultValue != null)
+                {
+                    _logger.LogDebug("Configuration '{Key}' not found in any provider, using default from metadata: {Default}",
+                        key, metadata.DefaultValue);
+                    return (TValue)metadata.DefaultValue;
+                }
+            }
+            catch (KeyNotFoundException)
+            {
+                // Key not in metadata registry, return default
+                _logger.LogDebug("Configuration '{Key}' not found in any provider or metadata registry", key);
+            }
+            
             return default(TValue)!;
         }
 
@@ -112,21 +123,12 @@ public class ConfigurationService : IConfigurationService
 
     public ConfigurationSource GetSource(string key)
     {
-        // Check cache first
-        var cacheKey = $"{CacheKeyPrefix}{key}_Source";
-        if (_memoryCache.TryGetValue<ConfigurationSource>(cacheKey, out var cachedSource))
-        {
-            return cachedSource;
-        }
-
         // Check each provider in priority order
         foreach (var provider in _providers)
         {
             var value = provider.GetValueAsync(key).Result;
             if (value != null)
             {
-                // Cache the source
-                _memoryCache.Set(cacheKey, value.Source, CacheDuration);
                 return value.Source;
             }
         }
@@ -143,6 +145,11 @@ public class ConfigurationService : IConfigurationService
     public IEnumerable<ConfigurationProperty> GetAllMetadata()
     {
         return ConfigurationMetadataRegistry.GetAllMetadata();
+    }
+
+    public IEnumerable<ConfigurationProperty> GetUIVisibleMetadata()
+    {
+        return ConfigurationMetadataRegistry.GetUIVisibleMetadata();
     }
 
     public ValidationResult Validate(string key, object value)
@@ -226,36 +233,16 @@ public class ConfigurationService : IConfigurationService
 
     public void InvalidateCache(string? key = null)
     {
-        if (key == null)
-        {
-            // Clear all configuration cache entries
-            // Note: MemoryCache doesn't have a clear all method, so we'd need to track keys
-            // For now, we'll just log that we should clear all
-            _logger.LogInformation("Invalidating all configuration cache");
-            // In a production system, you might want to maintain a list of cached keys
-        }
-        else
-        {
-            var cacheKey = $"{CacheKeyPrefix}{key}";
-            _memoryCache.Remove(cacheKey);
-            _memoryCache.Remove($"{cacheKey}_Source");
-            _logger.LogDebug("Invalidated cache for configuration key {Key}", key);
-        }
+        // No-op: ConfigurationService no longer caches internally
+        // Providers may cache internally and handle their own invalidation
+        _logger.LogDebug("Cache invalidation requested for key {Key} (no-op in ConfigurationService)", key ?? "all");
     }
 
     /// <summary>
-    /// Internal method to get a value with caching
+    /// Internal method to get a value from providers
     /// </summary>
     private async Task<object?> GetValueInternalAsync(string key, Type targetType, CancellationToken cancellationToken)
     {
-        // Check cache first
-        var cacheKey = $"{CacheKeyPrefix}{key}";
-        if (_memoryCache.TryGetValue<object>(cacheKey, out var cachedValue))
-        {
-            _logger.LogDebug("Configuration '{Key}' loaded from cache", key);
-            return cachedValue;
-        }
-
         // Query providers in priority order
         foreach (var provider in _providers)
         {
@@ -264,10 +251,6 @@ public class ConfigurationService : IConfigurationService
                 var configValue = await provider.GetValueAsync(key, cancellationToken);
                 if (configValue != null)
                 {
-                    // Cache the value
-                    _memoryCache.Set(cacheKey, configValue.Value, CacheDuration);
-                    _memoryCache.Set($"{cacheKey}_Source", configValue.Source, CacheDuration);
-
                     _logger.LogDebug("Configuration '{Key}' loaded from {Provider}: {Value}",
                         key, provider.Name, configValue.Value);
 

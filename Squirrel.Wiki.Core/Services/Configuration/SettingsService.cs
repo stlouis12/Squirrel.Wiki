@@ -118,7 +118,9 @@ public class SettingsService : BaseService, ISettingsService
              .WithContext("EnvironmentVariable", existingSetting.EnvironmentVariableName ?? "unknown");
         }
 
-        var jsonValue = JsonSerializer.Serialize(value);
+        // Store as plain string value, not JSON-serialized
+        // This matches the behavior of DatabaseConfigurationProvider
+        var stringValue = value?.ToString() ?? string.Empty;
         var currentUser = _userContext.Username ?? "System";
 
         if (existingSetting == null)
@@ -128,7 +130,7 @@ public class SettingsService : BaseService, ISettingsService
             {
                 Id = Guid.NewGuid(),
                 Key = key,
-                Value = jsonValue,
+                Value = stringValue,
                 ModifiedOn = DateTime.UtcNow,
                 ModifiedBy = currentUser,
                 IsFromEnvironment = false
@@ -141,13 +143,13 @@ public class SettingsService : BaseService, ISettingsService
         {
             // Update existing setting
             var oldValue = existingSetting.Value;
-            existingSetting.Value = jsonValue;
+            existingSetting.Value = stringValue;
             existingSetting.ModifiedOn = DateTime.UtcNow;
             existingSetting.ModifiedBy = currentUser;
 
             LogInfo(
                 "Updating setting {Key} by {User}. Old value: {OldValue}, New value: {NewValue}",
-                key, currentUser, oldValue, jsonValue);
+                key, currentUser, oldValue, stringValue);
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);

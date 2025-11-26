@@ -89,7 +89,7 @@ public class AccountController : BaseController
             var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
 
             // Get session timeout from settings (default to 480 minutes / 8 hours if not set)
-            var sessionTimeoutMinutes = await _settingsService.GetSettingAsync<int>("SessionTimeoutMinutes");
+            var sessionTimeoutMinutes = await _settingsService.GetSettingAsync<int>("SQUIRREL_SESSION_TIMEOUT_MINUTES");
             if (sessionTimeoutMinutes <= 0)
             {
                 sessionTimeoutMinutes = 480; // Default to 8 hours

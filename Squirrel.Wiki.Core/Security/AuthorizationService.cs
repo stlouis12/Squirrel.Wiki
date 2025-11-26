@@ -52,7 +52,7 @@ public class AuthorizationService : IAuthorizationService
             default:
                 // Inherit from global setting
                 var allowAnonymousReading = await _settingsService.GetSettingAsync<bool>(
-                    "AllowAnonymousReading", cancellationToken);
+                    "SQUIRREL_ALLOW_ANONYMOUS_READING", cancellationToken);
                 
                 if (allowAnonymousReading)
                 {
@@ -86,7 +86,7 @@ public class AuthorizationService : IAuthorizationService
 
         // Get the global setting once for all pages that inherit
         var allowAnonymousReading = await _settingsService.GetSettingAsync<bool>(
-            "AllowAnonymousReading", cancellationToken);
+            "SQUIRREL_ALLOW_ANONYMOUS_READING", cancellationToken);
         var isAuthenticated = IsAuthenticated();
 
         // Process each page using the same logic as CanViewPageAsync

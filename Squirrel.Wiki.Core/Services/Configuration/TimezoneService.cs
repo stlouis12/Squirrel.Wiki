@@ -5,18 +5,17 @@ namespace Squirrel.Wiki.Core.Services.Configuration;
 /// <summary>
 /// Service for handling timezone conversions and configuration
 /// </summary>
-public class TimezoneService : ITimezoneService
+public class TimezoneService : MinimalBaseService, ITimezoneService
 {
     private readonly ISettingsService _settingsService;
-    private readonly ILogger<TimezoneService> _logger;
     private TimeZoneInfo? _cachedTimezone;
     private DateTime _cacheExpiry = DateTime.MinValue;
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
 
     public TimezoneService(ISettingsService settingsService, ILogger<TimezoneService> logger)
+        : base(logger)
     {
         _settingsService = settingsService;
-        _logger = logger;
     }
 
     /// <inheritdoc/>
@@ -29,7 +28,7 @@ public class TimezoneService : ITimezoneService
         }
 
         // Get timezone ID from settings
-        var timezoneId = await _settingsService.GetSettingAsync<string>("TimeZone", cancellationToken);
+        var timezoneId = await _settingsService.GetSettingAsync<string>("SQUIRREL_TIMEZONE", cancellationToken);
         
         if (string.IsNullOrEmpty(timezoneId))
         {
@@ -40,12 +39,12 @@ public class TimezoneService : ITimezoneService
         {
             _cachedTimezone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
             _cacheExpiry = DateTime.UtcNow.Add(CacheDuration);
-            _logger.LogDebug("Configured timezone: {TimezoneId} ({DisplayName})", timezoneId, _cachedTimezone.DisplayName);
+            LogDebug("Configured timezone: {TimezoneId} ({DisplayName})", timezoneId, _cachedTimezone.DisplayName);
             return _cachedTimezone;
         }
         catch (TimeZoneNotFoundException ex)
         {
-            _logger.LogWarning(ex, "Configured timezone '{TimezoneId}' not found, falling back to UTC", timezoneId);
+            LogError(ex, "Configured timezone '{TimezoneId}' not found, falling back to UTC", timezoneId);
             _cachedTimezone = TimeZoneInfo.Utc;
             _cacheExpiry = DateTime.UtcNow.Add(CacheDuration);
             return _cachedTimezone;
@@ -58,7 +57,7 @@ public class TimezoneService : ITimezoneService
         // Ensure the DateTime is treated as UTC
         if (utcDateTime.Kind != DateTimeKind.Utc)
         {
-            _logger.LogWarning("ConvertFromUtcAsync called with non-UTC DateTime (Kind: {Kind}). Treating as UTC.", utcDateTime.Kind);
+            LogWarning("ConvertFromUtcAsync called with non-UTC DateTime (Kind: {Kind}). Treating as UTC.", utcDateTime.Kind);
             utcDateTime = DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc);
         }
 
@@ -112,7 +111,7 @@ public class TimezoneService : ITimezoneService
         }
         catch (TimeZoneNotFoundException)
         {
-            _logger.LogWarning("Timezone ID '{TimezoneId}' not found", timezoneId);
+            LogWarning("Timezone ID '{TimezoneId}' not found", timezoneId);
             return timezoneId;
         }
     }

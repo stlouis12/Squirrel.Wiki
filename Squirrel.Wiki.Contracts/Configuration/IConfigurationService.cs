@@ -54,6 +54,12 @@ public interface IConfigurationService
     IEnumerable<ConfigurationProperty> GetAllMetadata();
 
     /// <summary>
+    /// Gets all configuration metadata that should be visible in the UI
+    /// </summary>
+    /// <returns>UI-visible configuration property metadata</returns>
+    IEnumerable<ConfigurationProperty> GetUIVisibleMetadata();
+
+    /// <summary>
     /// Validates a configuration value
     /// </summary>
     /// <param name="key">The configuration key</param>

@@ -64,17 +64,44 @@ builder.Services.AddAutoMapper(typeof(Squirrel.Wiki.Core.Mapping.UserMappingProf
 // Add response caching
 builder.Services.AddResponseCaching();
 
-// Configure search settings
+// Create MinimalConfigurationService for startup configuration
+// This service only reads from environment variables and is used before the database exists
+var startupLogger = LoggerFactory.Create(config => config.AddConsole()).CreateLogger<MinimalConfigurationService>();
+var minimalConfig = new MinimalConfigurationService(startupLogger);
+
+// Get application data path (useful for containerized deployments)
+var appDataPath = minimalConfig.GetValue("SQUIRREL_APP_DATA_PATH", "App_Data");
+var resolvedAppDataPath = Path.IsPathRooted(appDataPath) 
+    ? appDataPath 
+    : Path.Combine(AppContext.BaseDirectory, appDataPath);
+
+Log.Information("Application data path: {AppDataPath} (from {Source})", 
+    resolvedAppDataPath, 
+    minimalConfig.GetSource("SQUIRREL_APP_DATA_PATH"));
+
+// Ensure App_Data directory exists
+if (!Directory.Exists(resolvedAppDataPath))
+{
+    Directory.CreateDirectory(resolvedAppDataPath);
+    Log.Information("Created application data directory: {Directory}", resolvedAppDataPath);
+}
+
+// Configure search settings using the resolved app data path
 builder.Services.Configure<Squirrel.Wiki.Core.Services.Search.SearchSettings>(options =>
 {
-    options.IndexPath = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "SearchIndex");
+    options.IndexPath = Path.Combine(resolvedAppDataPath, "SearchIndex");
 });
 
 // Configure database
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-var databaseProvider = builder.Configuration["Database:Provider"] ?? "PostgreSQL";
+// Priority: Environment Variables → defaults from ConfigurationMetadataRegistry
+var connectionString = minimalConfig.GetValue("SQUIRREL_DATABASE_CONNECTION_STRING");
+var databaseProvider = minimalConfig.GetValue("SQUIRREL_DATABASE_PROVIDER");
 
-// For SQLite, resolve relative paths to be relative to the executable directory
+Log.Information("Database provider: {Provider} (from {Source})", 
+    databaseProvider, 
+    minimalConfig.HasValue("SQUIRREL_DATABASE_PROVIDER") ? "environment variable" : "appsettings.json");
+
+// For SQLite, resolve relative paths using the configured app data path
 if (databaseProvider.Equals("SQLite", StringComparison.OrdinalIgnoreCase) && 
     !string.IsNullOrEmpty(connectionString))
 {
@@ -82,23 +109,47 @@ if (databaseProvider.Equals("SQLite", StringComparison.OrdinalIgnoreCase) &&
     var builder2 = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString);
     var dataSource = builder2.DataSource;
     
-    // If the path is relative (doesn't start with / or contain :), make it relative to executable
+    // If the path is relative (doesn't start with / or contain :), make it relative to app data path
     if (!string.IsNullOrEmpty(dataSource) && 
         !Path.IsPathRooted(dataSource))
     {
-        var absolutePath = Path.Combine(AppContext.BaseDirectory, dataSource);
-        
-        // Ensure the directory exists
-        var directory = Path.GetDirectoryName(absolutePath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        // If the data source starts with "App_Data/", use the resolved app data path
+        if (dataSource.StartsWith("App_Data/", StringComparison.OrdinalIgnoreCase) ||
+            dataSource.StartsWith("App_Data\\", StringComparison.OrdinalIgnoreCase))
         {
-            Directory.CreateDirectory(directory);
-            Log.Information("Created database directory: {Directory}", directory);
+            // Replace App_Data with the resolved app data path
+            var relativePath = dataSource.Substring("App_Data/".Length);
+            var absolutePath = Path.Combine(resolvedAppDataPath, relativePath);
+            
+            // Ensure the directory exists
+            var directory = Path.GetDirectoryName(absolutePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+                Log.Information("Created database directory: {Directory}", directory);
+            }
+            
+            builder2.DataSource = absolutePath;
+            connectionString = builder2.ConnectionString;
+            Log.Information("SQLite database path resolved to: {Path}", absolutePath);
         }
-        
-        builder2.DataSource = absolutePath;
-        connectionString = builder2.ConnectionString;
-        Log.Information("SQLite database path resolved to: {Path}", absolutePath);
+        else
+        {
+            // For other relative paths, make them relative to the executable directory
+            var absolutePath = Path.Combine(AppContext.BaseDirectory, dataSource);
+            
+            // Ensure the directory exists
+            var directory = Path.GetDirectoryName(absolutePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+                Log.Information("Created database directory: {Directory}", directory);
+            }
+            
+            builder2.DataSource = absolutePath;
+            connectionString = builder2.ConnectionString;
+            Log.Information("SQLite database path resolved to: {Path}", absolutePath);
+        }
     }
 }
 
@@ -135,23 +186,20 @@ builder.Services.AddDbContext<SquirrelDbContext>(options =>
     }
 });
 
-// Configure distributed caching
-// Check environment variables first for cache provider configuration
-var cacheProvider = Environment.GetEnvironmentVariable("SQUIRREL_CACHE_PROVIDER") 
-    ?? builder.Configuration["Caching:Provider"] 
-    ?? "Memory";
+// Configure distributed caching using MinimalConfigurationService
+// NOTE: We use MinimalConfigurationService here because it only reads from environment variables
+// and has no dependencies on the database (which doesn't exist yet at startup).
+// These settings match the defaults in ConfigurationMetadataRegistry.
 
-Log.Information("Configuring cache provider: {Provider}", cacheProvider);
+var cacheProvider = minimalConfig.GetValue("SQUIRREL_CACHE_PROVIDER", "Memory");
+Log.Information("Configuring cache provider: {Provider} (from {Source})", 
+    cacheProvider, 
+    minimalConfig.GetSource("SQUIRREL_CACHE_PROVIDER"));
 
 if (cacheProvider.Equals("Redis", StringComparison.OrdinalIgnoreCase))
 {
-    var redisConfiguration = Environment.GetEnvironmentVariable("SQUIRREL_REDIS_CONFIGURATION")
-        ?? builder.Configuration["Caching:Redis:Configuration"] 
-        ?? "localhost:6379";
-    
-    var redisInstanceName = Environment.GetEnvironmentVariable("SQUIRREL_REDIS_INSTANCE_NAME")
-        ?? builder.Configuration["Caching:Redis:InstanceName"] 
-        ?? "Squirrel_";
+    var redisConfiguration = minimalConfig.GetValue("SQUIRREL_REDIS_CONFIGURATION", "localhost:6379");
+    var redisInstanceName = minimalConfig.GetValue("SQUIRREL_REDIS_INSTANCE_NAME", "Squirrel_");
     
     Log.Information("Configuring Redis cache: {Configuration}, Instance: {Instance}", 
         redisConfiguration, redisInstanceName);
@@ -232,12 +280,11 @@ builder.Services.AddScoped<ITagRepository, TagRepository>();
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
 
 // Register Configuration System
-builder.Services.AddMemoryCache(); // Required for ConfigurationService caching
 builder.Services.AddScoped<Squirrel.Wiki.Core.Configuration.IConfigurationProvider, DefaultConfigurationProvider>();
 builder.Services.AddScoped<Squirrel.Wiki.Core.Configuration.IConfigurationProvider, EnvironmentVariableConfigurationProvider>();
 builder.Services.AddScoped<Squirrel.Wiki.Core.Configuration.IConfigurationProvider, DatabaseConfigurationProvider>();
 builder.Services.AddScoped<IConfigurationService, Squirrel.Wiki.Core.Configuration.ConfigurationService>();
-Log.Information("New ConfigurationService registered (Phase 2 migration)");
+Log.Information("ConfigurationService registered");
 
 // Register Services
 builder.Services.AddSingleton<ISlugGenerator, SlugGenerator>();
@@ -343,8 +390,11 @@ using (var scope = app.Services.CreateScope())
         var context = services.GetRequiredService<SquirrelDbContext>();
         var logger = services.GetRequiredService<ILogger<Program>>();
         
-        var autoMigrate = builder.Configuration.GetValue<bool>("Database:AutoMigrate");
-        var seedData = builder.Configuration.GetValue<bool>("Database:SeedData");
+        // Get database initialization settings from MinimalConfigurationService
+        var autoMigrateStr = minimalConfig.GetValue("SQUIRREL_DATABASE_AUTO_MIGRATE", "true");
+        var seedDataStr = minimalConfig.GetValue("SQUIRREL_DATABASE_SEED_DATA", "true");
+        var autoMigrate = bool.Parse(autoMigrateStr);
+        var seedData = bool.Parse(seedDataStr);
         
         if (autoMigrate)
         {
@@ -355,7 +405,32 @@ using (var scope = app.Services.CreateScope())
         
         if (seedData)
         {
-            await DatabaseSeeder.SeedAsync(context, logger);
+            // Check for custom seed data file path (useful for containerized deployments)
+            var customSeedDataPath = minimalConfig.GetValue("SQUIRREL_SEED_DATA_FILE_PATH");
+            
+            if (!string.IsNullOrEmpty(customSeedDataPath))
+            {
+                // Resolve relative paths
+                var resolvedSeedDataPath = Path.IsPathRooted(customSeedDataPath)
+                    ? customSeedDataPath
+                    : Path.Combine(AppContext.BaseDirectory, customSeedDataPath);
+                
+                if (File.Exists(resolvedSeedDataPath))
+                {
+                    logger.LogInformation("Using custom seed data file: {Path}", resolvedSeedDataPath);
+                    await DatabaseSeeder.SeedAsync(context, logger, resolvedSeedDataPath);
+                }
+                else
+                {
+                    logger.LogWarning("Custom seed data file not found: {Path}. Using default seed data.", resolvedSeedDataPath);
+                    await DatabaseSeeder.SeedAsync(context, logger);
+                }
+            }
+            else
+            {
+                // Use default embedded seed data
+                await DatabaseSeeder.SeedAsync(context, logger);
+            }
         }
         
         // Ensure admin user exists
@@ -374,9 +449,9 @@ using (var scope = app.Services.CreateScope())
         
         // Get default language using IConfigurationService
         var configService = services.GetRequiredService<IConfigurationService>();
-        defaultLanguage = await configService.GetValueAsync<string>("DefaultLanguage") ?? "en";
+        defaultLanguage = await configService.GetValueAsync<string>("SQUIRREL_DEFAULT_LANGUAGE") ?? "en";
         
-        var source = configService.GetSource("DefaultLanguage");
+        var source = configService.GetSource("SQUIRREL_DEFAULT_LANGUAGE");
         logger.LogInformation("Default language loaded from {Source}: {Language}", source, defaultLanguage);
     }
     catch (Exception ex)
@@ -388,14 +463,12 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure request localization
-var supportedCultures = new[]
-{
-    new CultureInfo("en"),
-    new CultureInfo("es"),
-    new CultureInfo("fr"),
-    new CultureInfo("de"),
-    new CultureInfo("it")
-};
+// Get supported languages from configuration metadata
+var languageMetadata = ConfigurationMetadataRegistry.GetMetadata("SQUIRREL_DEFAULT_LANGUAGE");
+var supportedLanguages = languageMetadata.Validation?.AllowedValues ?? new[] { "en" };
+var supportedCultures = supportedLanguages.Select(lang => new CultureInfo(lang)).ToArray();
+
+Log.Information("Supported cultures configured: {Cultures}", string.Join(", ", supportedLanguages));
 
 app.UseRequestLocalization(new RequestLocalizationOptions
 {
