@@ -4,6 +4,8 @@ using System.Text.RegularExpressions;
 using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Events;
+using Squirrel.Wiki.Core.Events.Menus;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
@@ -54,9 +56,9 @@ public class MenuService : BaseService, IMenuService
         IMapper mapper,
         ILogger<MenuService> logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation,
+        IEventPublisher eventPublisher,
         IConfigurationService configuration)
-        : base(logger, cache, cacheInvalidation, mapper, configuration)
+        : base(logger, cache, eventPublisher, mapper, configuration)
     {
         _menuRepository = menuRepository;
         _pageRepository = pageRepository;
@@ -732,12 +734,19 @@ public class MenuService : BaseService, IMenuService
 
     private async Task InvalidateCacheAsync(CancellationToken cancellationToken)
     {
-        await CacheInvalidation.InvalidateMenusAsync(cancellationToken);
+        await EventPublisher.PublishAsync(
+            new MenuChangedEvent(0, "*"),
+            cancellationToken);
     }
 
     private async Task InvalidateMenuCacheAsync(int menuId, CancellationToken cancellationToken)
     {
-        await CacheInvalidation.InvalidateMenusAsync(cancellationToken);
+        var menu = await _menuRepository.GetByIdAsync(menuId, cancellationToken);
+        var menuName = menu?.Name ?? "*";
+        
+        await EventPublisher.PublishAsync(
+            new MenuChangedEvent(menuId, menuName),
+            cancellationToken);
     }
 
     public async Task<bool> HasActiveMenuOfTypeAsync(MenuType menuType, int? excludeMenuId = null, CancellationToken cancellationToken = default)

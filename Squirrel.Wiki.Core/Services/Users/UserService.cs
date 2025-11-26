@@ -4,6 +4,7 @@ using Squirrel.Wiki.Contracts.Authentication;
 using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Events;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services.Caching;
@@ -26,10 +27,10 @@ public class UserService : BaseService, IUserService
         ISettingsService settingsService,
         ILogger<UserService> logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation,
+        IEventPublisher eventPublisher,
         IMapper mapper,
         IConfigurationService configuration)
-        : base(logger, cache, cacheInvalidation, mapper, configuration)
+        : base(logger, cache, eventPublisher, mapper, configuration)
     {
         _userRepository = userRepository;
         _pageRepository = pageRepository;

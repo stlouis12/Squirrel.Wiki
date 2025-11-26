@@ -2,6 +2,8 @@ using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Events;
+using Squirrel.Wiki.Core.Events.Pages;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services.Caching;
@@ -41,9 +43,9 @@ public class PageService : BaseService, IPageService
         ISlugGenerator slugGenerator,
         ICacheService cacheService,
         ILogger<PageService> logger,
-        ICacheInvalidationService cacheInvalidation,
+        IEventPublisher eventPublisher,
         IConfigurationService configuration)
-        : base(logger, cacheService, cacheInvalidation, null, configuration)
+        : base(logger, cacheService, eventPublisher, null, configuration)
     {
         _pageRepository = pageRepository;
         _tagRepository = tagRepository;
@@ -245,8 +247,10 @@ public class PageService : BaseService, IPageService
         // Handle tags
         await UpdatePageTagsAsync(page.Id, createDto.Tags, cancellationToken);
 
-        // Invalidate cache
-        await CacheInvalidation.InvalidatePageAsync(page.Id, cancellationToken);
+        // Publish page created event
+        await EventPublisher.PublishAsync(
+            new PageCreatedEvent(page.Id, page.Title, page.CategoryId, createDto.Tags),
+            cancellationToken);
 
         LogInfo("Page created successfully: {PageId}", page.Id);
 
@@ -303,8 +307,10 @@ public class PageService : BaseService, IPageService
             await _pageLinkService.UpdateLinksToPageAsync(oldTitle, page.Title, cancellationToken);
         }
 
-        // Invalidate cache
-        await CacheInvalidation.InvalidatePageAsync(page.Id, cancellationToken);
+        // Publish page updated event
+        await EventPublisher.PublishAsync(
+            new PageUpdatedEvent(page.Id, page.Title, page.CategoryId, updateDto.Tags),
+            cancellationToken);
 
         LogInfo("Page updated successfully: {PageId}", page.Id);
 
@@ -316,8 +322,16 @@ public class PageService : BaseService, IPageService
     {
         LogInfo("Soft deleting page: {PageId}", id);
 
+        var page = await _pageRepository.GetByIdAsync(id, cancellationToken);
+        if (page == null)
+            throw new EntityNotFoundException("Page", id);
+
         await _pageRepository.SoftDeleteAsync(id, cancellationToken);
-        await CacheInvalidation.InvalidatePageAsync(id, cancellationToken);
+
+        // Publish page deleted event
+        await EventPublisher.PublishAsync(
+            new PageDeletedEvent(page.Id, page.Title),
+            cancellationToken);
 
         LogInfo("Page soft deleted successfully: {PageId}", id);
     }
@@ -326,8 +340,17 @@ public class PageService : BaseService, IPageService
     {
         LogInfo("Restoring page: {PageId}", id);
 
+        var page = await _pageRepository.GetByIdAsync(id, cancellationToken);
+        if (page == null)
+            throw new EntityNotFoundException("Page", id);
+
         await _pageRepository.RestoreAsync(id, cancellationToken);
-        await CacheInvalidation.InvalidatePageAsync(id, cancellationToken);
+
+        // Publish page updated event (restoration is like an update)
+        var tags = page.PageTags?.Select(pt => pt.Tag.Name).ToList() ?? new List<string>();
+        await EventPublisher.PublishAsync(
+            new PageUpdatedEvent(page.Id, page.Title, page.CategoryId, tags),
+            cancellationToken);
 
         LogInfo("Page restored successfully: {PageId}", id);
 

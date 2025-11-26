@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Services.Caching;
+using Squirrel.Wiki.Core.Events;
 
 namespace Squirrel.Wiki.Core.Services.Content;
 
@@ -22,9 +23,9 @@ public class MarkdownService : BaseService, IMarkdownService
         ISlugGenerator slugGenerator,
         ILogger<MarkdownService> logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation,
+        IEventPublisher eventPublisher,
         IConfigurationService configuration)
-        : base(logger, cache, cacheInvalidation, null, configuration)
+        : base(logger, cache, eventPublisher, null, configuration)
     {
         _slugGenerator = slugGenerator;
         

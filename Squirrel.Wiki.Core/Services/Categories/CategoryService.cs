@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Events;
+using Squirrel.Wiki.Core.Events.Categories;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services.Caching;
@@ -28,9 +30,9 @@ public class CategoryService : BaseService, ICategoryService
         ICacheService cacheService,
         ISlugGenerator slugGenerator,
         ILogger<CategoryService> logger,
-        ICacheInvalidationService cacheInvalidation,
+        IEventPublisher eventPublisher,
         IConfigurationService configuration)
-        : base(logger, cacheService, cacheInvalidation, null, configuration)
+        : base(logger, cacheService, eventPublisher, null, configuration)
     {
         _categoryRepository = categoryRepository;
         _pageRepository = pageRepository;
@@ -783,12 +785,14 @@ public class CategoryService : BaseService, ICategoryService
     }
 
     /// <summary>
-    /// Invalidate category caches using the centralized cache invalidation service
+    /// Invalidate category caches by publishing a category changed event
     /// </summary>
     private async Task InvalidateCacheAsync(CancellationToken cancellationToken)
     {
-        // Use the centralized cache invalidation service which handles all category-related caches
-        await CacheInvalidation.InvalidateCategoryAsync(0, cancellationToken);
+        // Publish category changed event - the event handler will handle cache invalidation
+        await EventPublisher.PublishAsync(
+            new CategoryChangedEvent(0, "Category structure changed"),
+            cancellationToken);
     }
 
     public int GetMaxCategoryDepth()

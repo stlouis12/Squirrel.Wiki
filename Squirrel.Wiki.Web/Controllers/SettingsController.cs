@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
+using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services.Configuration;
@@ -18,12 +19,14 @@ namespace Squirrel.Wiki.Web.Controllers;
 public class SettingsController : BaseController
 {
     private readonly ISettingsService _settingsService;
+    private readonly IConfigurationService _configurationService;
     private readonly SquirrelDbContext _dbContext;
     private readonly IStringLocalizer<SharedResources> _localizer;
     private readonly ITimezoneService _timezoneService;
 
     public SettingsController(
         ISettingsService settingsService,
+        IConfigurationService configurationService,
         SquirrelDbContext dbContext,
         ILogger<SettingsController> logger,
         IStringLocalizer<SharedResources> localizer,
@@ -32,6 +35,7 @@ public class SettingsController : BaseController
         : base(logger, notifications)
     {
         _settingsService = settingsService;
+        _configurationService = configurationService;
         _dbContext = dbContext;
         _localizer = localizer;
         _timezoneService = timezoneService;
@@ -327,167 +331,171 @@ public class SettingsController : BaseController
             .Where(s => s.IsFromEnvironment)
             .ToDictionaryAsync(s => s.Key, s => (s.IsFromEnvironment, s.EnvironmentVariableName));
 
+        // Get all configuration metadata
+        var allMetadata = _configurationService.GetAllMetadata();
+
+        // Group by category
+        var categoryGroups = allMetadata
+            .GroupBy(m => m.Category)
+            .OrderBy(g => GetCategoryOrder(g.Key));
+
         var groups = new List<SettingGroup>();
 
-        // General Settings
-        groups.Add(new SettingGroup
+        foreach (var categoryGroup in categoryGroups)
         {
-            Name = _localizer["General"],
-            Description = _localizer["BasicSiteConfiguration"],
-            Icon = "bi-gear",
-            Settings = new List<SettingItem>
-            {
-                CreateSettingItem("SiteName", _localizer["SiteName"], "The name of your wiki", SettingType.Text, true, existingSettings, envInfo),
-                CreateSettingItem("SiteUrl", _localizer["SiteURL"], _localizer["SiteURLDescription"], SettingType.Url, true, existingSettings, envInfo),
-                CreateSettingItem("DefaultLanguage", _localizer["DefaultLanguage"], _localizer["DefaultLanguageDescription"], SettingType.Dropdown, true, existingSettings, envInfo, new List<string> { "en", "es", "fr", "de", "it" }),
-                CreateSettingItem("TimeZone", _localizer["TimeZone"], _localizer["TimeZoneDescription"], SettingType.Dropdown, true, existingSettings, envInfo, _timezoneService.GetAvailableTimezoneIds().ToList())
-            }
-        });
+            var category = categoryGroup.Key;
+            var settings = new List<SettingItem>();
 
-        // Security Settings
-        groups.Add(new SettingGroup
-        {
-            Name = _localizer["Security"],
-            Description = _localizer["SecurityAndAuthenticationSettings"],
-            Icon = "bi-shield-lock",
-            Settings = new List<SettingItem>
+            foreach (var metadata in categoryGroup.OrderBy(m => m.DisplayName))
             {
-                CreateSettingItem("AllowAnonymousReading", _localizer["AllowAnonymousReading"], _localizer["AllowAnonymousReadingDescription"], SettingType.Boolean, false, existingSettings, envInfo),
-                CreateSettingItem("SessionTimeoutMinutes",  _localizer["SessionTimeoutMinutes"], _localizer["SessionTimeoutMinutesDescription"], SettingType.Number, true, existingSettings, envInfo, minValue: 30, maxValue: 20160),
-                CreateSettingItem("MaxLoginAttempts",  _localizer["MaxLoginAttempts"], _localizer["MaxLoginAttemptsDescription"], SettingType.Number, true, existingSettings, envInfo, minValue: 3, maxValue: 10),
-                CreateSettingItem("AccountLockDurationMinutes",  _localizer["AccountLockDurationMinutes"], _localizer["AccountLockDurationMinutesDescription"], SettingType.Number, true, existingSettings, envInfo, minValue: 5, maxValue: 60)
+                var settingItem = CreateSettingItemFromMetadata(metadata, existingSettings, envInfo);
+                settings.Add(settingItem);
             }
-        });
 
-        // Content Settings
-        groups.Add(new SettingGroup
-        {
-            Name = _localizer["ContentSettings"],
-            Description = _localizer["ContentAndEditingSettings"],
-            Icon = "bi-file-text",
-            Settings = new List<SettingItem>
+            // Handle special case for Redis settings - disable if Redis not selected
+            if (category == "Performance")
             {
-                CreateSettingItem("DefaultPageTemplate",  _localizer["DefaultPageTemplate"], _localizer["DefaultPageTemplateDescription"], SettingType.TextArea, false, existingSettings, envInfo),
-                CreateSettingItem("MaxPageTitleLength",  _localizer["MaxPageTitleLength"], _localizer["MaxPageTitleLengthDescription"], SettingType.Number, true, existingSettings, envInfo, minValue: 25, maxValue: 200),
-                CreateSettingItem("EnablePageVersioning",  _localizer["EnablePageVersioning"], _localizer["EnablePageVersioningDescription"], SettingType.Boolean, false, existingSettings, envInfo)
-            }
-        });
+                existingSettings.TryGetValue("SQUIRREL_CACHE_PROVIDER", out var cacheProviderRaw);
+                string? cacheProvider = DeserializeValue(cacheProviderRaw);
+                bool isRedisEnabled = string.Equals(cacheProvider ?? "Memory", "Redis", StringComparison.OrdinalIgnoreCase);
 
-        // Performance Settings
-        groups.Add(new SettingGroup
-        {
-            Name = _localizer["Performance"],
-            Description = _localizer["CachingAndPerformanceSettings"],
-            Icon = "bi-speedometer2",
-            Settings = new List<SettingItem>
-            {
-                CreateSettingItem("EnableCaching",  _localizer["EnableCaching"], _localizer["EnableCachingDescription"], SettingType.Boolean, false, existingSettings, envInfo),
-                CreateSettingItem("CacheDurationMinutes",  _localizer["CacheDurationMinutes"], _localizer["CacheDurationMinutesDescription"], SettingType.Number, true, existingSettings, envInfo, minValue: 5, maxValue: 120)
+                if (!isRedisEnabled)
+                {
+                    foreach (var setting in settings.Where(s => s.Key.Contains("REDIS")))
+                    {
+                        setting.IsDisabled = true;
+                        setting.DisabledReason = "Redis must be selected as the Cache Provider to configure these settings";
+                    }
+                }
             }
-        });
 
-        // Distributed Cache Settings
-        var cacheSettings = new List<SettingItem>
-        {
-            CreateSettingItem("CacheEnabled",  _localizer["CacheEnabled"], _localizer["CacheEnabledDescription"], SettingType.Boolean, false, existingSettings, envInfo),
-            CreateSettingItem("CacheExpirationMinutes",  _localizer["CacheExpirationMinutes"], _localizer["CacheExpirationMinutesDescription"], SettingType.Number, true, existingSettings, envInfo),
-            CreateSettingItem("CacheProvider",  _localizer["CacheProvider"], _localizer["CacheProviderDescription"], SettingType.Dropdown, true, existingSettings, envInfo, new List<string> { "Memory", "Redis" })
-        };
-
-        // Check if Redis is selected
-        existingSettings.TryGetValue("CacheProvider", out var cacheProviderRaw);
-        
-        // Deserialize the value since it's stored as JSON
-        string? cacheProvider = cacheProviderRaw;
-        if (!string.IsNullOrEmpty(cacheProviderRaw))
-        {
-            try
+            groups.Add(new SettingGroup
             {
-                cacheProvider = System.Text.Json.JsonSerializer.Deserialize<string>(cacheProviderRaw);
-            }
-            catch
-            {
-                // If deserialization fails, use the raw value
-                cacheProvider = cacheProviderRaw;
-            }
+                Name = _localizer[category],
+                Description = _localizer[$"{category}Settings"],
+                Icon = GetCategoryIcon(category),
+                Settings = settings
+            });
         }
-        
-        bool isRedisEnabled = string.Equals(cacheProvider ?? "Memory", "Redis", StringComparison.OrdinalIgnoreCase);
-        
-        // Always show Redis settings, but disable them if Redis is not selected
-        var redisConfig = CreateSettingItem("RedisConfiguration",  _localizer["RedisConfiguration"], _localizer["RedisConfigurationDescription"], SettingType.Text, false, existingSettings, envInfo);
-        var redisInstance = CreateSettingItem("RedisInstanceName",  _localizer["RedisInstanceName"], _localizer["RedisInstanceNameDescription"], SettingType.Text, false, existingSettings, envInfo);
-        
-        if (!isRedisEnabled)
-        {
-            redisConfig.IsDisabled = true;
-            redisConfig.DisabledReason = "Redis must be selected as the Cache Provider to configure these settings";
-            redisInstance.IsDisabled = true;
-            redisInstance.DisabledReason = "Redis must be selected as the Cache Provider to configure these settings";
-        }
-        
-        cacheSettings.Add(redisConfig);
-        cacheSettings.Add(redisInstance);
-
-        groups.Add(new SettingGroup
-        {
-            Name = _localizer["DistributedCache"],
-            Description = _localizer["DistributedCacheSettings"],
-            Icon = "bi-hdd-network",
-            Settings = cacheSettings
-        });
 
         return groups;
     }
 
-
-    private SettingItem CreateSettingItem(
-        string key,
-        string displayName,
-        string description,
-        SettingType type,
-        bool isRequired,
-        Dictionary<string, string> existingSettings,
-        Dictionary<string, (bool IsFromEnvironment, string? EnvironmentVariableName)> envInfo,
-        List<string>? options = null,
-        int? minValue = null,
-        int? maxValue = null)
+    private int GetCategoryOrder(string category)
     {
-        existingSettings.TryGetValue(key, out var value);
-        envInfo.TryGetValue(key, out var env);
+        return category switch
+        {
+            "General" => 1,
+            "Security" => 2,
+            "Content" => 3,
+            "Search" => 4,
+            "Performance" => 5,
+            _ => 99
+        };
+    }
 
-        // Deserialize JSON value if present
-        string displayValue = value ?? GetDefaultValue(key, type);
+    private string GetCategoryIcon(string category)
+    {
+        return category switch
+        {
+            "General" => "bi-gear",
+            "Security" => "bi-shield-lock",
+            "Content" => "bi-file-text",
+            "Search" => "bi-search",
+            "Performance" => "bi-hdd-network",
+            _ => "bi-gear"
+        };
+    }
+
+    private SettingItem CreateSettingItemFromMetadata(
+        ConfigurationProperty metadata,
+        Dictionary<string, string> existingSettings,
+        Dictionary<string, (bool IsFromEnvironment, string? EnvironmentVariableName)> envInfo)
+    {
+        existingSettings.TryGetValue(metadata.Key, out var value);
+        envInfo.TryGetValue(metadata.Key, out var env);
+
+        // Get the display value
+        string displayValue = value ?? metadata.DefaultValue?.ToString() ?? string.Empty;
         if (!string.IsNullOrEmpty(value))
         {
-            try
-            {
-                // Try to deserialize as JSON (values are stored as JSON in the database)
-                displayValue = System.Text.Json.JsonSerializer.Deserialize<string>(value) ?? value;
-            }
-            catch
-            {
-                // If deserialization fails, use the raw value
-                displayValue = value;
-            }
+            displayValue = DeserializeValue(value) ?? value;
+        }
+
+        // Determine the setting type
+        var settingType = GetSettingType(metadata.ValueType, metadata.Validation, metadata.Key);
+
+        // Get options for dropdown/enum types
+        List<string>? options = null;
+        if (metadata.Validation?.AllowedValues != null && metadata.Validation.AllowedValues.Length > 0)
+        {
+            options = metadata.Validation.AllowedValues.ToList();
+        }
+        else if (metadata.Key == "SQUIRREL_TIMEZONE")
+        {
+            options = _timezoneService.GetAvailableTimezoneIds().ToList();
         }
 
         return new SettingItem
         {
-            Key = key,
-            DisplayName = displayName,
-            Description = description,
+            Key = metadata.Key,
+            DisplayName = metadata.DisplayName,
+            Description = metadata.Description,
             Value = displayValue,
-            Type = type,
-            IsRequired = isRequired,
+            Type = settingType,
+            IsRequired = metadata.Validation != null,
             Options = options,
             IsFromEnvironment = env.IsFromEnvironment,
             EnvironmentVariableName = env.EnvironmentVariableName,
-            MinValue = minValue,
-            MaxValue = maxValue
+            MinValue = metadata.Validation?.MinValue,
+            MaxValue = metadata.Validation?.MaxValue
         };
     }
 
+    private SettingType GetSettingType(Type valueType, ValidationRules? validation, string? key = null)
+    {
+        if (valueType == typeof(bool))
+            return SettingType.Boolean;
+
+        if (valueType == typeof(int) || valueType == typeof(long) || valueType == typeof(double))
+            return SettingType.Number;
+
+        if (validation?.AllowedValues != null && validation.AllowedValues.Length > 0)
+            return SettingType.Dropdown;
+
+        // Special case: timezone setting should be a dropdown
+        if (key == "SQUIRREL_TIMEZONE")
+            return SettingType.Dropdown;
+
+        if (validation?.MustBeUrl == true)
+            return SettingType.Url;
+
+        // Check for multi-line text (template fields)
+        if (valueType == typeof(string) && (validation == null || string.IsNullOrEmpty(validation.RegexPattern)))
+        {
+            // Heuristic: if it's a template or has "template" in the key, use TextArea
+            return key?.Contains("TEMPLATE", StringComparison.OrdinalIgnoreCase) == true
+                ? SettingType.TextArea
+                : SettingType.Text;
+        }
+
+        return SettingType.Text;
+    }
+
+    private string? DeserializeValue(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return value;
+
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<string>(value);
+        }
+        catch
+        {
+            return value;
+        }
+    }
 
     private async Task<SettingItem?> GetSettingDefinitionAsync(string key)
     {
@@ -495,41 +503,6 @@ public class SettingsController : BaseController
         return allGroups
             .SelectMany(g => g.Settings)
             .FirstOrDefault(s => s.Key == key);
-    }
-
-    private string GetDefaultValue(string key, SettingType type)
-    {
-        return type switch
-        {
-            SettingType.Boolean => key switch
-            {
-                "CacheEnabled" => "true",
-                "EnableCaching" => "true",
-                _ => "false"
-            },
-            SettingType.Number => key switch
-            {
-                "SessionTimeoutMinutes" => "480",
-                "MaxLoginAttempts" => "5",
-                "AccountLockDurationMinutes" => "30",
-                "MaxPageTitleLength" => "200",
-                "SearchResultsPerPage" => "20",
-                "SearchMinimumLength" => "3",
-                "CacheDurationMinutes" => "60",
-                "CacheExpirationMinutes" => "30",
-                _ => "0"
-            },
-            _ => key switch
-            {
-                "SiteName" => "Squirrel Wiki",
-                "DefaultLanguage" => "en",
-                "TimeZone" => "UTC",
-                "CacheProvider" => "Memory",
-                "RedisConfiguration" => "localhost:6379",
-                "RedisInstanceName" => "Squirrel_",
-                _ => string.Empty
-            }
-        };
     }
 
     #endregion

@@ -15,6 +15,7 @@ using LuceneDirectory = Lucene.Net.Store.Directory;
 using IODirectory = System.IO.Directory;
 using Squirrel.Wiki.Core.Services.Content;
 using Squirrel.Wiki.Core.Services.Caching;
+using Squirrel.Wiki.Core.Events;
 
 namespace Squirrel.Wiki.Core.Services.Search;
 
@@ -34,10 +35,10 @@ public class LuceneSearchService : BaseService, ISearchService
         IMarkdownService markdownService,
         ILogger<LuceneSearchService> logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation,
+        IEventPublisher eventPublisher,
         IOptions<SearchSettings> searchSettings,
         IConfigurationService configuration)
-        : base(logger, cache, cacheInvalidation, null, configuration)
+        : base(logger, cache, eventPublisher, null, configuration)
     {
         _pageRepository = pageRepository;
         _markdownService = markdownService;

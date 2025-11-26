@@ -293,7 +293,7 @@ public static class ConfigurationMetadataRegistry
             new ConfigurationProperty
             {
                 Key = "SQUIRREL_CACHE_DURATION_MINUTES",
-                DisplayName = "Cache Duration (Minutes)",
+                DisplayName = "Memory Cache Duration (Minutes)",
                 Description = "How long cached items remain valid",
                 Category = "Performance",
                 ValueType = typeof(int),
@@ -306,6 +306,57 @@ public static class ConfigurationMetadataRegistry
                     MinValue = 1,
                     MaxValue = 1440 // 24 hours
                 }
+            }
+        },
+        {
+            "SQUIRREL_CACHE_PROVIDER",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_CACHE_PROVIDER",
+                DisplayName = "Memory Cache Provider",
+                Description = "The caching provider to use (Memory or Redis)",
+                Category = "Performance",
+                ValueType = typeof(string),
+                DefaultValue = "Memory",
+                EnvironmentVariable = "SQUIRREL_CACHE_PROVIDER",
+                IsSecret = false,
+                AllowRuntimeModification = false,
+                Validation = new ValidationRules
+                {
+                    AllowedValues = new[] { "Memory", "Redis" }
+                }
+            }
+        },
+        {
+            "SQUIRREL_REDIS_CONFIGURATION",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_REDIS_CONFIGURATION",
+                DisplayName = "Redis Configuration",
+                Description = "Redis connection string (e.g., localhost:6379)",
+                Category = "Performance",
+                ValueType = typeof(string),
+                DefaultValue = "localhost:6379",
+                EnvironmentVariable = "SQUIRREL_REDIS_CONFIGURATION",
+                IsSecret = false,
+                AllowRuntimeModification = false,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_REDIS_INSTANCE_NAME",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_REDIS_INSTANCE_NAME",
+                DisplayName = "Redis Instance Name",
+                Description = "Redis instance name prefix for cache keys",
+                Category = "Performance",
+                ValueType = typeof(string),
+                DefaultValue = "Squirrel_",
+                EnvironmentVariable = "SQUIRREL_REDIS_INSTANCE_NAME",
+                IsSecret = false,
+                AllowRuntimeModification = false,
+                Validation = new ValidationRules()
             }
         }
     };

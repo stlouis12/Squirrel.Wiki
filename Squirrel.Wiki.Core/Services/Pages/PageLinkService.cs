@@ -2,6 +2,8 @@ using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Events;
+using Squirrel.Wiki.Core.Events.Pages;
 using Squirrel.Wiki.Core.Services.Caching;
 using Squirrel.Wiki.Core.Services.Content;
 
@@ -20,9 +22,9 @@ public class PageLinkService : BaseService, IPageLinkService
         IMarkdownService markdownService,
         ILogger<PageLinkService> logger,
         ICacheService cacheService,
-        ICacheInvalidationService cacheInvalidation,
+        IEventPublisher eventPublisher,
         IConfigurationService configuration)
-        : base(logger, cacheService, cacheInvalidation, null, configuration)
+        : base(logger, cacheService, eventPublisher, null, configuration)
     {
         _pageRepository = pageRepository;
         _markdownService = markdownService;
@@ -58,7 +60,12 @@ public class PageLinkService : BaseService, IPageLinkService
                     };
 
                     await _pageRepository.AddContentVersionAsync(newVersion, cancellationToken);
-                    await CacheInvalidation.InvalidatePageAsync(page.Id, cancellationToken);
+                    
+                    // Publish page updated event
+                    var tags = page.PageTags?.Select(pt => pt.Tag.Name).ToList() ?? new List<string>();
+                    await EventPublisher.PublishAsync(
+                        new PageUpdatedEvent(page.Id, page.Title, page.CategoryId, tags),
+                        cancellationToken);
                 }
             }
         }

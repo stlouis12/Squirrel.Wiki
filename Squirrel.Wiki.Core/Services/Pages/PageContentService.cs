@@ -2,6 +2,8 @@ using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Events;
+using Squirrel.Wiki.Core.Events.Pages;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services.Caching;
@@ -22,9 +24,9 @@ public class PageContentService : BaseService, IPageContentService
         ISettingsService settingsService,
         ILogger<PageContentService> logger,
         ICacheService cacheService,
-        ICacheInvalidationService cacheInvalidation,
+        IEventPublisher eventPublisher,
         IConfigurationService configuration)
-        : base(logger, cacheService, cacheInvalidation, null, configuration)
+        : base(logger, cacheService, eventPublisher, null, configuration)
     {
         _pageRepository = pageRepository;
         _settingsService = settingsService;
@@ -84,7 +86,11 @@ public class PageContentService : BaseService, IPageContentService
         page.ModifiedBy = username;
         await _pageRepository.UpdateAsync(page, cancellationToken);
 
-        await CacheInvalidation.InvalidatePageAsync(pageId, cancellationToken);
+        // Publish page updated event
+        var tags = page.PageTags?.Select(pt => pt.Tag.Name).ToList() ?? new List<string>();
+        await EventPublisher.PublishAsync(
+            new PageUpdatedEvent(page.Id, page.Title, page.CategoryId, tags),
+            cancellationToken);
 
         LogInfo("Page reverted successfully: {PageId}", pageId);
 
@@ -126,7 +132,16 @@ public class PageContentService : BaseService, IPageContentService
         };
 
         await _pageRepository.AddContentVersionAsync(pageContent, cancellationToken);
-        await CacheInvalidation.InvalidatePageAsync(pageId, cancellationToken);
+
+        // Publish page updated event
+        var page = await _pageRepository.GetByIdAsync(pageId, cancellationToken);
+        if (page != null)
+        {
+            var tags = page.PageTags?.Select(pt => pt.Tag.Name).ToList() ?? new List<string>();
+            await EventPublisher.PublishAsync(
+                new PageUpdatedEvent(page.Id, page.Title, page.CategoryId, tags),
+                cancellationToken);
+        }
 
         LogDebug("Content version created for page {PageId}, version {Version}", pageId, pageContent.VersionNumber);
     }
@@ -163,7 +178,15 @@ public class PageContentService : BaseService, IPageContentService
             await _pageRepository.AddContentVersionAsync(pageContent, cancellationToken);
         }
 
-        await CacheInvalidation.InvalidatePageAsync(pageId, cancellationToken);
+        // Publish page updated event
+        var page = await _pageRepository.GetByIdAsync(pageId, cancellationToken);
+        if (page != null)
+        {
+            var tags = page.PageTags?.Select(pt => pt.Tag.Name).ToList() ?? new List<string>();
+            await EventPublisher.PublishAsync(
+                new PageUpdatedEvent(page.Id, page.Title, page.CategoryId, tags),
+                cancellationToken);
+        }
 
         LogDebug("Content version updated for page {PageId}", pageId);
     }

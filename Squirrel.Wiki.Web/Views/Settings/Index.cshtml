@@ -126,7 +126,7 @@
                                                                 @foreach (var option in setting.Options)
                                                                 {
                                                                     <option value="@option" selected="@(setting.Value == option)">
-                                                                        @if (setting.Key == "TimeZone" && Model.TimezoneDisplayNames.ContainsKey(option))
+                                                                        @if (setting.Key == "SQUIRREL_TIMEZONE" && Model.TimezoneDisplayNames.ContainsKey(option))
                                                                         {
                                                                             @Model.TimezoneDisplayNames[option]
                                                                         }
@@ -367,7 +367,7 @@
                     this.dataset.originalValue = value;
                     
                     // If CacheProvider changed to Redis, reload page to show Redis settings
-                    if (key === 'CacheProvider') {
+                    if (key === 'SQUIRREL_CACHE_PROVIDER') {
                         showToast('@Localizer["Success"]', 'Reloading page to update settings...', 'info');
                         setTimeout(() => {
                             window.location.reload();

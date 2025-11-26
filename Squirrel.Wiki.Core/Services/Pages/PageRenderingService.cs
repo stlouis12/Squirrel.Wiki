@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Events;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Services.Caching;
 using Squirrel.Wiki.Core.Services.Content;
@@ -20,9 +21,9 @@ public class PageRenderingService : BaseService, IPageRenderingService
         IMarkdownService markdownService,
         ILogger<PageRenderingService> logger,
         ICacheService cacheService,
-        ICacheInvalidationService cacheInvalidation,
+        IEventPublisher eventPublisher,
         IConfigurationService configuration)
-        : base(logger, cacheService, cacheInvalidation, null, configuration)
+        : base(logger, cacheService, eventPublisher, null, configuration)
     {
         _pageRepository = pageRepository;
         _markdownService = markdownService;

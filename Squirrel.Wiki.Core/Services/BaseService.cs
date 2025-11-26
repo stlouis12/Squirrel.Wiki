@@ -1,13 +1,14 @@
 using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
+using Squirrel.Wiki.Core.Events;
 using Squirrel.Wiki.Core.Services.Caching;
 
 namespace Squirrel.Wiki.Core.Services;
 
 /// <summary>
 /// Base service class providing common functionality for all services
-/// Includes logging, caching, cache invalidation, configuration access, and object mapping capabilities
+/// Includes logging, caching, event publishing, configuration access, and object mapping capabilities
 /// </summary>
 public abstract class BaseService
 {
@@ -22,9 +23,9 @@ public abstract class BaseService
     protected readonly ICacheService Cache;
 
     /// <summary>
-    /// Cache invalidation service for managing cache dependencies
+    /// Event publisher for publishing domain events
     /// </summary>
-    protected readonly ICacheInvalidationService CacheInvalidation;
+    protected readonly IEventPublisher EventPublisher;
 
     /// <summary>
     /// AutoMapper instance for entity-to-DTO mappings
@@ -42,19 +43,19 @@ public abstract class BaseService
     /// </summary>
     /// <param name="logger">Logger instance for the derived service</param>
     /// <param name="cache">Cache service for data caching</param>
-    /// <param name="cacheInvalidation">Cache invalidation service</param>
+    /// <param name="eventPublisher">Event publisher for domain events</param>
     /// <param name="mapper">AutoMapper instance for object mapping</param>
     /// <param name="configuration">Configuration service (optional to avoid circular dependencies)</param>
     protected BaseService(
         ILogger logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation,
+        IEventPublisher eventPublisher,
         IMapper mapper,
         IConfigurationService? configuration = null)
     {
         Logger = logger;
         Cache = cache;
-        CacheInvalidation = cacheInvalidation;
+        EventPublisher = eventPublisher;
         Mapper = mapper;
         Configuration = configuration;
     }

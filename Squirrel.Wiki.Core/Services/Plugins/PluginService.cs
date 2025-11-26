@@ -7,6 +7,7 @@ using Squirrel.Wiki.Core.Configuration;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Events;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services.Caching;
@@ -34,14 +35,14 @@ public class PluginService : BaseService, IPluginService
         IPluginLoader pluginLoader,
         ILogger<PluginService> logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation,
+        IEventPublisher eventPublisher,
         ISecretEncryptionService encryptionService,
         IPluginAuditService auditService,
         IUserContext userContext,
         IHttpContextAccessor httpContextAccessor,
         string pluginsPath,
         IConfigurationService configuration)
-        : base(logger, cache, cacheInvalidation, null, configuration)
+        : base(logger, cache, eventPublisher, null, configuration)
     {
         _context = context;
         _pluginLoader = pluginLoader;

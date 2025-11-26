@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Database.Entities;
+using Squirrel.Wiki.Core.Events;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services.Caching;
@@ -26,9 +27,9 @@ public class SettingsService : BaseService, ISettingsService
         IUserContext userContext,
         ILogger<SettingsService> logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation,
+        IEventPublisher eventPublisher,
         IConfigurationService configuration)
-        : base(logger, cache, cacheInvalidation, null, configuration)
+        : base(logger, cache, eventPublisher, null, configuration)
     {
         _dbContext = dbContext;
         _userContext = userContext;

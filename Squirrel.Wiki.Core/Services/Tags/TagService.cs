@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Events;
+using Squirrel.Wiki.Core.Events.Tags;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services.Caching;
@@ -31,9 +33,9 @@ public class TagService : BaseService, ITagService
         IMapper mapper,
         ILogger<TagService> logger,
         ICacheService cache,
-        ICacheInvalidationService cacheInvalidation,
+        IEventPublisher eventPublisher,
         IConfigurationService configuration)
-        : base(logger, cache, cacheInvalidation, mapper, configuration)
+        : base(logger, cache, eventPublisher, mapper, configuration)
     {
         _tagRepository = tagRepository;
         _pageRepository = pageRepository;
@@ -508,11 +510,13 @@ public class TagService : BaseService, ITagService
     #region Cache Invalidation Methods
 
     /// <summary>
-    /// Invalidates all tag-related caches
+    /// Invalidates all tag-related caches by publishing a tag changed event
     /// </summary>
     private async Task InvalidateAllTagCachesAsync(CancellationToken cancellationToken)
     {
-        await CacheInvalidation.InvalidateTagsAsync(cancellationToken);
+        await EventPublisher.PublishAsync(
+            new TagChangedEvent("*"),
+            cancellationToken);
     }
 
     /// <summary>
@@ -530,8 +534,9 @@ public class TagService : BaseService, ITagService
     /// </summary>
     public async Task InvalidateTagCountCachesAsync(CancellationToken cancellationToken = default)
     {
-        // Use centralized cache invalidation service
-        await CacheInvalidation.InvalidateTagsAsync(cancellationToken);
+        await EventPublisher.PublishAsync(
+            new TagChangedEvent("*"),
+            cancellationToken);
     }
 
     /// <summary>

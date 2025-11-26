@@ -8,6 +8,7 @@ using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Configuration;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Events;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services;
@@ -247,6 +248,25 @@ builder.Services.AddScoped<ICacheService, CacheService>();
 // Register cache invalidation service (must be before services that depend on it)
 builder.Services.AddScoped<ICacheInvalidationService, CacheInvalidationService>();
 
+// Register Event System
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventPublisher, Squirrel.Wiki.Core.Events.EventPublisher>();
+
+// Register Event Handlers for cache invalidation
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Pages.PageCreatedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.PageCacheInvalidationHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Pages.PageUpdatedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.PageCacheInvalidationHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Pages.PageDeletedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.PageCacheInvalidationHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Categories.CategoryChangedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.CategoryCacheInvalidationHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Tags.TagChangedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.TagCacheInvalidationHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Menus.MenuChangedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.MenuCacheInvalidationHandler>();
+
+Log.Information("Event-based cache invalidation system registered");
+
 // Register services that depend on cache services
 builder.Services.AddScoped<IMarkdownService, MarkdownService>();
 
@@ -299,13 +319,13 @@ builder.Services.AddScoped<IPluginService>(sp =>
     var pluginLoader = sp.GetRequiredService<Squirrel.Wiki.Plugins.IPluginLoader>();
     var logger = sp.GetRequiredService<ILogger<PluginService>>();
     var cache = sp.GetRequiredService<ICacheService>();
-    var cacheInvalidation = sp.GetRequiredService<ICacheInvalidationService>();
+    var eventPublisher = sp.GetRequiredService<IEventPublisher>();
     var encryptionService = sp.GetRequiredService<ISecretEncryptionService>();
     var auditService = sp.GetRequiredService<IPluginAuditService>();
     var userContext = sp.GetRequiredService<IUserContext>();
     var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
     var configuration = sp.GetRequiredService<IConfigurationService>();
-    return new PluginService(context, pluginLoader, logger, cache, cacheInvalidation, encryptionService, auditService, userContext, httpContextAccessor, pluginsPath, configuration);
+    return new PluginService(context, pluginLoader, logger, cache, eventPublisher, encryptionService, auditService, userContext, httpContextAccessor, pluginsPath, configuration);
 });
 
 // Add health checks
