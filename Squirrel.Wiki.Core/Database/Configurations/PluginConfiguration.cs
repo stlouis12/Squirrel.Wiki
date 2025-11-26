@@ -5,22 +5,19 @@ using Squirrel.Wiki.Core.Database.Entities;
 namespace Squirrel.Wiki.Core.Database.Configurations;
 
 /// <summary>
-/// Entity Framework configuration for AuthenticationPlugin
+/// Entity Framework configuration for Plugin
 /// </summary>
-public class AuthenticationPluginConfiguration : IEntityTypeConfiguration<AuthenticationPlugin>
+public class PluginConfiguration : IEntityTypeConfiguration<Plugin>
 {
-    public void Configure(EntityTypeBuilder<AuthenticationPlugin> builder)
+    public void Configure(EntityTypeBuilder<Plugin> builder)
     {
-        builder.ToTable("AuthenticationPlugins");
+        builder.ToTable("Plugins");
 
         builder.HasKey(p => p.Id);
 
         builder.Property(p => p.PluginId)
             .IsRequired()
             .HasMaxLength(100);
-
-        builder.HasIndex(p => p.PluginId)
-            .IsUnique();
 
         builder.Property(p => p.Name)
             .IsRequired()
@@ -30,27 +27,31 @@ public class AuthenticationPluginConfiguration : IEntityTypeConfiguration<Authen
             .IsRequired()
             .HasMaxLength(50);
 
-        builder.Property(p => p.IsEnabled)
+        builder.Property(p => p.PluginType)
             .IsRequired()
-            .HasDefaultValue(false);
+            .HasMaxLength(50);
+
+        builder.Property(p => p.IsEnabled)
+            .IsRequired();
 
         builder.Property(p => p.IsConfigured)
-            .IsRequired()
-            .HasDefaultValue(false);
+            .IsRequired();
 
         builder.Property(p => p.LoadOrder)
-            .IsRequired()
-            .HasDefaultValue(0);
+            .IsRequired();
 
         builder.Property(p => p.IsCorePlugin)
-            .IsRequired()
-            .HasDefaultValue(false);
+            .IsRequired();
 
         builder.Property(p => p.CreatedAt)
             .IsRequired();
 
         builder.Property(p => p.UpdatedAt)
             .IsRequired();
+
+        // Create unique index on PluginId
+        builder.HasIndex(p => p.PluginId)
+            .IsUnique();
 
         // Relationships
         builder.HasMany(p => p.Settings)

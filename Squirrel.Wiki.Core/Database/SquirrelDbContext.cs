@@ -33,8 +33,8 @@ public class SquirrelDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<PageTag> PageTags { get; set; } = null!;
     public DbSet<Menu> Menus { get; set; } = null!;
     public DbSet<SiteConfiguration> SiteConfigurations { get; set; } = null!;
-    public DbSet<AuthenticationPlugin> AuthenticationPlugins { get; set; } = null!;
-    public DbSet<AuthenticationPluginSetting> AuthenticationPluginSettings { get; set; } = null!;
+    public DbSet<Plugin> Plugins { get; set; } = null!;
+    public DbSet<PluginSetting> PluginSettings { get; set; } = null!;
     public DbSet<PluginAuditLog> PluginAuditLogs { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
@@ -108,8 +108,8 @@ public class SquirrelDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<PageTag>().ToTable("squirrel_page_tags");
         modelBuilder.Entity<Menu>().ToTable("squirrel_menus");
         modelBuilder.Entity<SiteConfiguration>().ToTable("squirrel_site_configurations");
-        modelBuilder.Entity<AuthenticationPlugin>().ToTable("squirrel_authentication_plugins");
-        modelBuilder.Entity<AuthenticationPluginSetting>().ToTable("squirrel_authentication_plugin_settings");
+        modelBuilder.Entity<Plugin>().ToTable("squirrel_plugins");
+        modelBuilder.Entity<PluginSetting>().ToTable("squirrel_plugin_settings");
         modelBuilder.Entity<PluginAuditLog>().ToTable("squirrel_plugin_audit_logs");
         modelBuilder.Entity<DataProtectionKey>().ToTable("squirrel_data_protection_keys");
     }

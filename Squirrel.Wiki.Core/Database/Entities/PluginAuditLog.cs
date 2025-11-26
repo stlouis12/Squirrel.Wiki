@@ -78,7 +78,7 @@ public class PluginAuditLog
     /// <summary>
     /// Navigation property to the plugin
     /// </summary>
-    public AuthenticationPlugin? Plugin { get; set; }
+    public Plugin? Plugin { get; set; }
 
     /// <summary>
     /// Navigation property to the user

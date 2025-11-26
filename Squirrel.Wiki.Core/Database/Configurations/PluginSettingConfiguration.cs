@@ -5,13 +5,13 @@ using Squirrel.Wiki.Core.Database.Entities;
 namespace Squirrel.Wiki.Core.Database.Configurations;
 
 /// <summary>
-/// Entity Framework configuration for AuthenticationPluginSetting
+/// Entity Framework configuration for PluginSetting
 /// </summary>
-public class AuthenticationPluginSettingConfiguration : IEntityTypeConfiguration<AuthenticationPluginSetting>
+public class PluginSettingConfiguration : IEntityTypeConfiguration<PluginSetting>
 {
-    public void Configure(EntityTypeBuilder<AuthenticationPluginSetting> builder)
+    public void Configure(EntityTypeBuilder<PluginSetting> builder)
     {
-        builder.ToTable("AuthenticationPluginSettings");
+        builder.ToTable("PluginSettings");
 
         builder.HasKey(s => s.Id);
 
@@ -20,21 +20,19 @@ public class AuthenticationPluginSettingConfiguration : IEntityTypeConfiguration
 
         builder.Property(s => s.Key)
             .IsRequired()
-            .HasMaxLength(100);
+            .HasMaxLength(200);
 
         builder.Property(s => s.Value)
-            .HasMaxLength(4000); // Allow large values
+            .HasMaxLength(4000);
 
         builder.Property(s => s.IsFromEnvironment)
-            .IsRequired()
-            .HasDefaultValue(false);
+            .IsRequired();
 
         builder.Property(s => s.EnvironmentVariableName)
             .HasMaxLength(200);
 
         builder.Property(s => s.IsSecret)
-            .IsRequired()
-            .HasDefaultValue(false);
+            .IsRequired();
 
         builder.Property(s => s.CreatedAt)
             .IsRequired();
@@ -42,10 +40,14 @@ public class AuthenticationPluginSettingConfiguration : IEntityTypeConfiguration
         builder.Property(s => s.UpdatedAt)
             .IsRequired();
 
-        // Indexes
-        builder.HasIndex(s => s.PluginId);
-
+        // Create composite unique index on PluginId + Key
         builder.HasIndex(s => new { s.PluginId, s.Key })
             .IsUnique();
+
+        // Relationships
+        builder.HasOne(s => s.Plugin)
+            .WithMany(p => p.Settings)
+            .HasForeignKey(s => s.PluginId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

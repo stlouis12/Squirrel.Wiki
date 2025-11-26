@@ -6,7 +6,6 @@ using Squirrel.Wiki.Contracts.Plugins;
 using Squirrel.Wiki.Core.Configuration;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Database.Entities;
-using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Events;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Security;
@@ -16,7 +15,7 @@ using Squirrel.Wiki.Plugins;
 namespace Squirrel.Wiki.Core.Services.Plugins;
 
 /// <summary>
-/// Service for managing authentication plugins
+/// Service for managing plugins
 /// </summary>
 public class PluginService : BaseService, IPluginService
 {
@@ -63,36 +62,50 @@ public class PluginService : BaseService, IPluginService
             return;
         }
 
-        LogInfo("Initializing plugin service");
+        LogInfo("Initializing plugin service from path: {PluginsPath}", _pluginsPath);
 
-        // Load all plugins from disk
-        var loadedPlugins = await _pluginLoader.LoadPluginsAsync(_pluginsPath, cancellationToken);
+        // Load all plugins from the plugins directory
+        await _pluginLoader.LoadPluginsAsync(_pluginsPath, cancellationToken);
 
-        // Register any new plugins in the database
+        var loadedPlugins = _pluginLoader.GetLoadedPlugins();
+        LogInfo("Loaded {Count} plugins", loadedPlugins.Count());
+
+        // Register or update plugins in database
         foreach (var plugin in loadedPlugins)
         {
-            var existingPlugin = await _context.AuthenticationPlugins
+            var existingPlugin = await _context.Plugins
                 .FirstOrDefaultAsync(p => p.PluginId == plugin.Metadata.Id, cancellationToken);
 
             if (existingPlugin == null)
             {
-                LogInfo("Registering new plugin: {PluginId}", plugin.Metadata.Id);
-                
-                var newPlugin = new AuthenticationPlugin
+                // Determine plugin type based on interfaces
+                string pluginType = "Unknown";
+                if (plugin is IAuthenticationPlugin)
+                {
+                    pluginType = "Authentication";
+                }
+                else if (plugin is ISearchPlugin)
+                {
+                    pluginType = "Search";
+                }
+
+                var newPlugin = new Plugin
                 {
                     Id = Guid.NewGuid(),
                     PluginId = plugin.Metadata.Id,
                     Name = plugin.Metadata.Name,
                     Version = plugin.Metadata.Version,
+                    PluginType = pluginType,
                     IsEnabled = false,
                     IsConfigured = false,
                     LoadOrder = 0,
-                    IsCorePlugin = plugin.Metadata.IsCorePlugin,
+                    IsCorePlugin = false,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
 
-                _context.AuthenticationPlugins.Add(newPlugin);
+                _context.Plugins.Add(newPlugin);
+                LogInfo("Registered new plugin: {PluginId} ({PluginType})", plugin.Metadata.Id, pluginType);
             }
             else if (existingPlugin.Version != plugin.Metadata.Version)
             {
@@ -114,10 +127,10 @@ public class PluginService : BaseService, IPluginService
     }
 
     /// <inheritdoc/>
-    public async Task<IEnumerable<AuthenticationPlugin>> GetAllPluginsAsync(
+    public async Task<IEnumerable<Plugin>> GetAllPluginsAsync(
         CancellationToken cancellationToken = default)
     {
-        return await _context.AuthenticationPlugins
+        return await _context.Plugins
             .Include(p => p.Settings)
             .OrderBy(p => p.LoadOrder)
             .ThenBy(p => p.Name)
@@ -125,30 +138,30 @@ public class PluginService : BaseService, IPluginService
     }
 
     /// <inheritdoc/>
-    public async Task<AuthenticationPlugin?> GetPluginAsync(
+    public async Task<Plugin?> GetPluginAsync(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        return await _context.AuthenticationPlugins
+        return await _context.Plugins
             .Include(p => p.Settings)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
     /// <inheritdoc/>
-    public async Task<AuthenticationPlugin?> GetPluginByPluginIdAsync(
+    public async Task<Plugin?> GetPluginByPluginIdAsync(
         string pluginId,
         CancellationToken cancellationToken = default)
     {
-        return await _context.AuthenticationPlugins
+        return await _context.Plugins
             .Include(p => p.Settings)
             .FirstOrDefaultAsync(p => p.PluginId == pluginId, cancellationToken);
     }
 
     /// <inheritdoc/>
-    public async Task<IEnumerable<AuthenticationPlugin>> GetEnabledPluginsAsync(
+    public async Task<IEnumerable<Plugin>> GetEnabledPluginsAsync(
         CancellationToken cancellationToken = default)
     {
-        return await _context.AuthenticationPlugins
+        return await _context.Plugins
             .Include(p => p.Settings)
             .Where(p => p.IsEnabled)
             .OrderBy(p => p.LoadOrder)
@@ -157,14 +170,15 @@ public class PluginService : BaseService, IPluginService
     }
 
     /// <inheritdoc/>
-    public async Task<AuthenticationPlugin> RegisterPluginAsync(
+    public async Task<Plugin> RegisterPluginAsync(
         string pluginId,
         string name,
         string version,
+        string pluginType,
         bool isCorePlugin = false,
         CancellationToken cancellationToken = default)
     {
-        var existingPlugin = await _context.AuthenticationPlugins
+        var existingPlugin = await _context.Plugins
             .FirstOrDefaultAsync(p => p.PluginId == pluginId, cancellationToken);
 
         if (existingPlugin != null)
@@ -175,12 +189,13 @@ public class PluginService : BaseService, IPluginService
             ).WithContext("PluginId", pluginId);
         }
 
-        var plugin = new AuthenticationPlugin
+        var plugin = new Plugin
         {
             Id = Guid.NewGuid(),
             PluginId = pluginId,
             Name = name,
             Version = version,
+            PluginType = pluginType,
             IsEnabled = false,
             IsConfigured = false,
             LoadOrder = 0,
@@ -189,10 +204,10 @@ public class PluginService : BaseService, IPluginService
             UpdatedAt = DateTime.UtcNow
         };
 
-        _context.AuthenticationPlugins.Add(plugin);
+        _context.Plugins.Add(plugin);
         await _context.SaveChangesAsync(cancellationToken);
 
-        LogInfo("Registered plugin: {PluginId}", pluginId);
+        LogInfo("Registered plugin: {PluginId} ({PluginType})", pluginId, pluginType);
 
         // Audit log
         await LogAuditAsync(
@@ -201,7 +216,7 @@ public class PluginService : BaseService, IPluginService
             name,
             PluginOperation.Register,
             true,
-            $"Registered plugin version {version}",
+            $"Registered {pluginType} plugin version {version}",
             cancellationToken);
 
         return plugin;
@@ -308,7 +323,7 @@ public class PluginService : BaseService, IPluginService
         }
 
         // Remove existing settings
-        _context.AuthenticationPluginSettings.RemoveRange(plugin.Settings);
+        _context.PluginSettings.RemoveRange(plugin.Settings);
 
         // Add new settings
         foreach (var kvp in configuration)
@@ -323,7 +338,7 @@ public class PluginService : BaseService, IPluginService
                 LogDebug("Encrypted secret value for key: {Key}", kvp.Key);
             }
 
-            var setting = new AuthenticationPluginSetting
+            var setting = new PluginSetting
             {
                 Id = Guid.NewGuid(),
                 PluginId = plugin.Id,
@@ -335,7 +350,7 @@ public class PluginService : BaseService, IPluginService
                 UpdatedAt = DateTime.UtcNow
             };
 
-            _context.AuthenticationPluginSettings.Add(setting);
+            _context.PluginSettings.Add(setting);
         }
 
         plugin.IsConfigured = configuration.Any();
@@ -524,7 +539,7 @@ public class PluginService : BaseService, IPluginService
         var pluginId = plugin.PluginId;
         var pluginName = plugin.Name;
 
-        _context.AuthenticationPlugins.Remove(plugin);
+        _context.Plugins.Remove(plugin);
         await _context.SaveChangesAsync(cancellationToken);
 
         LogInfo("Deleted plugin: {PluginId}", pluginId);

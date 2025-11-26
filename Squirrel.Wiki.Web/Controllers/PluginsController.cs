@@ -256,7 +256,7 @@ public class PluginsController : BaseController
     /// Configures a plugin with Result Pattern
     /// Encapsulates plugin configuration logic with validation
     /// </summary>
-    private async Task<Result<AuthenticationPlugin>> ConfigurePluginWithResult(Guid id, Dictionary<string, string> configuration)
+    private async Task<Result<Plugin>> ConfigurePluginWithResult(Guid id, Dictionary<string, string> configuration)
     {
         try
         {
@@ -264,7 +264,7 @@ public class PluginsController : BaseController
             
             if (plugin == null)
             {
-                return Result<AuthenticationPlugin>.Failure(
+                return Result<Plugin>.Failure(
                     "Plugin not found",
                     "PLUGIN_NOT_FOUND"
                 ).WithContext("PluginId", id);
@@ -279,17 +279,17 @@ public class PluginsController : BaseController
             
             // Get updated plugin
             var updatedPlugin = await _pluginService.GetPluginAsync(id);
-            return Result<AuthenticationPlugin>.Success(updatedPlugin!);
+            return Result<Plugin>.Success(updatedPlugin!);
         }
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(ex, "Validation error configuring plugin {PluginId}", id);
-            return Result<AuthenticationPlugin>.Failure(ex.Message, "PLUGIN_CONFIGURATION_ERROR");
+            return Result<Plugin>.Failure(ex.Message, "PLUGIN_CONFIGURATION_ERROR");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error configuring plugin {PluginId}", id);
-            return Result<AuthenticationPlugin>.Failure(
+            return Result<Plugin>.Failure(
                 $"Failed to save configuration: {ex.Message}",
                 "PLUGIN_CONFIGURATION_FAILED"
             );
@@ -300,7 +300,7 @@ public class PluginsController : BaseController
     /// Enables a plugin with Result Pattern
     /// Encapsulates plugin enable logic with validation
     /// </summary>
-    private async Task<Result<AuthenticationPlugin>> EnablePluginWithResult(Guid id)
+    private async Task<Result<Plugin>> EnablePluginWithResult(Guid id)
     {
         try
         {
@@ -308,7 +308,7 @@ public class PluginsController : BaseController
             
             if (plugin == null)
             {
-                return Result<AuthenticationPlugin>.Failure(
+                return Result<Plugin>.Failure(
                     "Plugin not found",
                     "PLUGIN_NOT_FOUND"
                 ).WithContext("PluginId", id);
@@ -318,17 +318,17 @@ public class PluginsController : BaseController
             
             // Get updated plugin
             var updatedPlugin = await _pluginService.GetPluginAsync(id);
-            return Result<AuthenticationPlugin>.Success(updatedPlugin!);
+            return Result<Plugin>.Success(updatedPlugin!);
         }
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(ex, "Validation error enabling plugin {PluginId}", id);
-            return Result<AuthenticationPlugin>.Failure(ex.Message, "PLUGIN_ENABLE_ERROR");
+            return Result<Plugin>.Failure(ex.Message, "PLUGIN_ENABLE_ERROR");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error enabling plugin {PluginId}", id);
-            return Result<AuthenticationPlugin>.Failure(
+            return Result<Plugin>.Failure(
                 $"Failed to enable plugin: {ex.Message}",
                 "PLUGIN_ENABLE_FAILED"
             );
@@ -339,7 +339,7 @@ public class PluginsController : BaseController
     /// Disables a plugin with Result Pattern
     /// Encapsulates plugin disable logic with validation
     /// </summary>
-    private async Task<Result<AuthenticationPlugin>> DisablePluginWithResult(Guid id)
+    private async Task<Result<Plugin>> DisablePluginWithResult(Guid id)
     {
         try
         {
@@ -347,7 +347,7 @@ public class PluginsController : BaseController
             
             if (plugin == null)
             {
-                return Result<AuthenticationPlugin>.Failure(
+                return Result<Plugin>.Failure(
                     "Plugin not found",
                     "PLUGIN_NOT_FOUND"
                 ).WithContext("PluginId", id);
@@ -357,17 +357,17 @@ public class PluginsController : BaseController
             
             // Get updated plugin
             var updatedPlugin = await _pluginService.GetPluginAsync(id);
-            return Result<AuthenticationPlugin>.Success(updatedPlugin!);
+            return Result<Plugin>.Success(updatedPlugin!);
         }
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(ex, "Validation error disabling plugin {PluginId}", id);
-            return Result<AuthenticationPlugin>.Failure(ex.Message, "PLUGIN_DISABLE_ERROR");
+            return Result<Plugin>.Failure(ex.Message, "PLUGIN_DISABLE_ERROR");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error disabling plugin {PluginId}", id);
-            return Result<AuthenticationPlugin>.Failure(
+            return Result<Plugin>.Failure(
                 $"Failed to disable plugin: {ex.Message}",
                 "PLUGIN_DISABLE_FAILED"
             );

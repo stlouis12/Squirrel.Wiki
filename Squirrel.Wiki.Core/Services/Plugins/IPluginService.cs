@@ -16,32 +16,33 @@ public interface IPluginService
     Task InitializeAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get all registered plugins from the database
+    /// Gets all registered plugins
     /// </summary>
-    Task<IEnumerable<AuthenticationPlugin>> GetAllPluginsAsync(CancellationToken cancellationToken = default);
+    Task<IEnumerable<Plugin>> GetAllPluginsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get a specific plugin by ID
+    /// Gets a plugin by its database ID
     /// </summary>
-    Task<AuthenticationPlugin?> GetPluginAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Plugin?> GetPluginAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get a specific plugin by plugin ID
+    /// Gets a plugin by its plugin ID string
     /// </summary>
-    Task<AuthenticationPlugin?> GetPluginByPluginIdAsync(string pluginId, CancellationToken cancellationToken = default);
+    Task<Plugin?> GetPluginByPluginIdAsync(string pluginId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get all enabled plugins
+    /// Gets all enabled plugins
     /// </summary>
-    Task<IEnumerable<AuthenticationPlugin>> GetEnabledPluginsAsync(CancellationToken cancellationToken = default);
+    Task<IEnumerable<Plugin>> GetEnabledPluginsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Register a new plugin in the database
+    /// Registers a new plugin in the database
     /// </summary>
-    Task<AuthenticationPlugin> RegisterPluginAsync(
+    Task<Plugin> RegisterPluginAsync(
         string pluginId,
         string name,
         string version,
+        string pluginType,
         bool isCorePlugin = false,
         CancellationToken cancellationToken = default);
 

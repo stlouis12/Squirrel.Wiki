@@ -1,9 +1,9 @@
 namespace Squirrel.Wiki.Core.Database.Entities;
 
 /// <summary>
-/// Represents a configuration setting for an authentication plugin
+/// Represents a configuration setting for a plugin
 /// </summary>
-public class AuthenticationPluginSetting
+public class PluginSetting
 {
     /// <summary>
     /// Unique identifier
@@ -53,5 +53,5 @@ public class AuthenticationPluginSetting
     /// <summary>
     /// Navigation property to the plugin
     /// </summary>
-    public AuthenticationPlugin Plugin { get; set; } = null!;
+    public Plugin Plugin { get; set; } = null!;
 }

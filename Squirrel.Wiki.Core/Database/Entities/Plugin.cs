@@ -1,9 +1,9 @@
 namespace Squirrel.Wiki.Core.Database.Entities;
 
 /// <summary>
-/// Represents an authentication plugin in the database
+/// Represents a plugin in the database
 /// </summary>
-public class AuthenticationPlugin
+public class Plugin
 {
     /// <summary>
     /// Unique identifier
@@ -11,7 +11,7 @@ public class AuthenticationPlugin
     public Guid Id { get; set; }
 
     /// <summary>
-    /// Plugin identifier (e.g., "oidc-auth", "github-auth")
+    /// Plugin identifier (e.g., "oidc-auth", "github-auth", "elasticsearch-search")
     /// </summary>
     public required string PluginId { get; set; }
 
@@ -24,6 +24,11 @@ public class AuthenticationPlugin
     /// Plugin version
     /// </summary>
     public required string Version { get; set; }
+
+    /// <summary>
+    /// Plugin type (e.g., "Authentication", "Search", "Storage")
+    /// </summary>
+    public required string PluginType { get; set; }
 
     /// <summary>
     /// Whether the plugin is enabled
@@ -58,5 +63,5 @@ public class AuthenticationPlugin
     /// <summary>
     /// Plugin settings
     /// </summary>
-    public ICollection<AuthenticationPluginSetting> Settings { get; set; } = new List<AuthenticationPluginSetting>();
+    public ICollection<PluginSetting> Settings { get; set; } = new List<PluginSetting>();
 }
