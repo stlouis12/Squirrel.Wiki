@@ -87,9 +87,8 @@ public class DynamicResponseCacheAttribute : ActionFilterAttribute
         else
         {
             // Read from settings (which handles environment variable overrides)
-            // Note: Settings are stored as JSON, so we need to deserialize properly
-            var enableCachingSetting = await settingsService.GetSettingAsync<bool?>("EnableCaching");
-            var cacheDurationSetting = await settingsService.GetSettingAsync<int?>("CacheDurationMinutes");
+            var enableCachingSetting = await settingsService.GetSettingAsync<bool?>("SQUIRREL_ENABLE_RESPONSE_CACHING");
+            var cacheDurationSetting = await settingsService.GetSettingAsync<int?>("SQUIRREL_RESPONSE_CACHE_DURATION_MINUTES");
 
             // Use settings with defaults
             enableCaching = enableCachingSetting ?? true;  // Default to true

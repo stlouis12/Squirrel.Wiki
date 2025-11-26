@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Squirrel.Wiki.Core.Configuration;
 using Squirrel.Wiki.Core.Database.Entities;
+using System.Text.Json;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -291,79 +293,73 @@ public static class DatabaseSeeder
 
     private static async Task SeedSiteConfigurationAsync(SquirrelDbContext context, ILogger logger)
     {
-        logger.LogInformation("Seeding site configuration...");
+        logger.LogInformation("Seeding site configuration from ConfigurationMetadataRegistry...");
         
         var now = DateTime.UtcNow;
-        var configs = new List<SiteConfiguration>
-        {
-            new SiteConfiguration
-            {
-                Key = "SiteName",
-                Value = "\"Squirrel Wiki\"",
-                ModifiedOn = now,
-                ModifiedBy = "system"
-            },
-            new SiteConfiguration
-            {
-                Key = "SiteUrl",
-                Value = "\"http://localhost:5000\"",
-                ModifiedOn = now,
-                ModifiedBy = "system"
-            },
-            new SiteConfiguration
-            {
-                Key = "Theme",
-                Value = "\"default\"",
-                ModifiedOn = now,
-                ModifiedBy = "system"
-            },
-            new SiteConfiguration
-            {
-                Key = "MarkupType",
-                Value = "\"Markdown\"",
-                ModifiedOn = now,
-                ModifiedBy = "system"
-            },
-            new SiteConfiguration
-            {
-                Key = "IsPublicSite",
-                Value = "true",
-                ModifiedOn = now,
-                ModifiedBy = "system"
-            },
-            new SiteConfiguration
-            {
-                Key = "AllowedFileTypes",
-                Value = "\".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip\"",
-                ModifiedOn = now,
-                ModifiedBy = "system"
-            },
-            new SiteConfiguration
-            {
-                Key = "MaxAttachmentSize",
-                Value = "10485760",
-                ModifiedOn = now,
-                ModifiedBy = "system"
-            },
-            new SiteConfiguration
-            {
-                Key = "UseHtmlWhiteList",
-                Value = "true",
-                ModifiedOn = now,
-                ModifiedBy = "system"
-            },
-            new SiteConfiguration
-            {
-                Key = "MenuMarkupEnabled",
-                Value = "true",
-                ModifiedOn = now,
-                ModifiedBy = "system"
-            }
-        };
+        var configs = new List<SiteConfiguration>();
 
-        await context.SiteConfigurations.AddRangeAsync(configs);
-        await context.SaveChangesAsync();
-        
-        logger.LogInformation("Seeded {Count} site configuration entries", configs.Count);
+        // Get all configuration metadata from the registry
+        var allMetadata = ConfigurationMetadataRegistry.GetAllMetadata();
+
+        // Get existing keys to avoid duplicates
+        var existingKeys = await context.SiteConfigurations
+            .Select(s => s.Key)
+            .ToListAsync();
+
+        foreach (var metadata in allMetadata)
+        {
+            // Skip if already exists (from YAML or previous seeding)
+            if (existingKeys.Contains(metadata.Key))
+            {
+                logger.LogDebug("Skipping {Key} - already exists in database", metadata.Key);
+                continue;
+            }
+
+            // Serialize the default value based on type
+            string serializedValue;
+            if (metadata.DefaultValue == null)
+            {
+                serializedValue = "null";
+            }
+            else if (metadata.ValueType == typeof(string))
+            {
+                serializedValue = JsonSerializer.Serialize(metadata.DefaultValue.ToString());
+            }
+            else if (metadata.ValueType == typeof(bool))
+            {
+                serializedValue = metadata.DefaultValue.ToString()!.ToLower();
+            }
+            else if (metadata.ValueType == typeof(int) || metadata.ValueType == typeof(long) || metadata.ValueType == typeof(double))
+            {
+                serializedValue = metadata.DefaultValue.ToString()!;
+            }
+            else
+            {
+                // For other types, use JSON serialization
+                serializedValue = JsonSerializer.Serialize(metadata.DefaultValue);
+            }
+
+            var config = new SiteConfiguration
+            {
+                Key = metadata.Key,
+                Value = serializedValue,
+                ModifiedOn = now,
+                ModifiedBy = "system",
+                IsFromEnvironment = false
+            };
+
+            configs.Add(config);
+        }
+
+        if (configs.Any())
+        {
+            await context.SiteConfigurations.AddRangeAsync(configs);
+            await context.SaveChangesAsync();
+            logger.LogInformation("Seeded {Count} configuration entries from registry", configs.Count);
+        }
+        else
+        {
+            logger.LogInformation("No new configuration entries to seed - all already exist");
+        }
     }
 }

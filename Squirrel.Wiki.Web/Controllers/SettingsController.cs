@@ -325,14 +325,17 @@ public class SettingsController : BaseController
 
     private async Task<List<SettingGroup>> GetSettingGroupsAsync(Dictionary<string, string> existingSettings)
     {
-        // Get environment info from database
-        var envInfo = await _dbContext.SiteConfigurations
-            .AsNoTracking()
-            .Where(s => s.IsFromEnvironment)
-            .ToDictionaryAsync(s => s.Key, s => (s.IsFromEnvironment, s.EnvironmentVariableName));
-
         // Get all configuration metadata
         var allMetadata = _configurationService.GetAllMetadata();
+        
+        // Build environment info by checking the actual source of each setting
+        var envInfo = new Dictionary<string, (bool IsFromEnvironment, string? EnvironmentVariableName)>();
+        foreach (var metadata in allMetadata)
+        {
+            var source = _configurationService.GetSource(metadata.Key);
+            var isFromEnv = source == Squirrel.Wiki.Contracts.Configuration.ConfigurationSource.EnvironmentVariable;
+            envInfo[metadata.Key] = (isFromEnv, isFromEnv ? metadata.EnvironmentVariable : null);
+        }
 
         // Group by category
         var categoryGroups = allMetadata

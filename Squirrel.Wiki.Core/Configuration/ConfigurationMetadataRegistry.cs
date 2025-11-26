@@ -271,17 +271,17 @@ public static class ConfigurationMetadataRegistry
             }
         },
 
-        // Performance Configuration
+        // Performance Configuration - Memory Cache
         {
             "SQUIRREL_ENABLE_CACHING",
             new ConfigurationProperty
             {
                 Key = "SQUIRREL_ENABLE_CACHING",
-                DisplayName = "Enable Caching",
-                Description = "Whether to enable caching for improved performance",
+                DisplayName = "Memory Cache",
+                Description = "Whether to enable in-memory caching for improved performance",
                 Category = "Performance",
                 ValueType = typeof(bool),
-                DefaultValue = false,
+                DefaultValue = true,
                 EnvironmentVariable = "SQUIRREL_ENABLE_CACHING",
                 IsSecret = false,
                 AllowRuntimeModification = true,
@@ -294,7 +294,7 @@ public static class ConfigurationMetadataRegistry
             {
                 Key = "SQUIRREL_CACHE_DURATION_MINUTES",
                 DisplayName = "Memory Cache Duration (Minutes)",
-                Description = "How long cached items remain valid",
+                Description = "How long cached items remain valid in memory",
                 Category = "Performance",
                 ValueType = typeof(int),
                 DefaultValue = 60,
@@ -308,6 +308,46 @@ public static class ConfigurationMetadataRegistry
                 }
             }
         },
+        
+        // Performance Configuration - Response Cache
+        {
+            "SQUIRREL_ENABLE_RESPONSE_CACHING",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_ENABLE_RESPONSE_CACHING",
+                DisplayName = "Response Caching",
+                Description = "Whether to enable HTTP response caching for pages",
+                Category = "Performance",
+                ValueType = typeof(bool),
+                DefaultValue = true,
+                EnvironmentVariable = "SQUIRREL_ENABLE_RESPONSE_CACHING",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_RESPONSE_CACHE_DURATION_MINUTES",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_RESPONSE_CACHE_DURATION_MINUTES",
+                DisplayName = "Response Cache Duration (Minutes)",
+                Description = "How long HTTP responses are cached by browsers and proxies",
+                Category = "Performance",
+                ValueType = typeof(int),
+                DefaultValue = 5,
+                EnvironmentVariable = "SQUIRREL_RESPONSE_CACHE_DURATION_MINUTES",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules
+                {
+                    MinValue = 1,
+                    MaxValue = 60
+                }
+            }
+        },
+        
+        // Performance Configuration - Cache Provider
         {
             "SQUIRREL_CACHE_PROVIDER",
             new ConfigurationProperty
