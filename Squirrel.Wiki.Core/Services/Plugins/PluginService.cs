@@ -25,6 +25,7 @@ public class PluginService : BaseService, IPluginService
     private readonly IPluginAuditService _auditService;
     private readonly IUserContext _userContext;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IServiceProvider _serviceProvider;
     private readonly PluginConfigurationValidator _validator;
     private readonly string _pluginsPath;
     private bool _initialized = false;
@@ -39,6 +40,7 @@ public class PluginService : BaseService, IPluginService
         IPluginAuditService auditService,
         IUserContext userContext,
         IHttpContextAccessor httpContextAccessor,
+        IServiceProvider serviceProvider,
         string pluginsPath,
         IConfigurationService configuration)
         : base(logger, cache, eventPublisher, null, configuration)
@@ -49,6 +51,7 @@ public class PluginService : BaseService, IPluginService
         _auditService = auditService;
         _userContext = userContext;
         _httpContextAccessor = httpContextAccessor;
+        _serviceProvider = serviceProvider;
         _validator = new PluginConfigurationValidator();
         _pluginsPath = pluginsPath;
     }
@@ -82,12 +85,16 @@ public class PluginService : BaseService, IPluginService
                 string pluginType = "Unknown";
                 if (plugin is IAuthenticationPlugin)
                 {
-                    pluginType = "Authentication";
+                    pluginType = PluginType.Authentication.ToString();
                 }
                 else if (plugin is ISearchPlugin)
                 {
-                    pluginType = "Search";
+                    pluginType = PluginType.SearchProvider.ToString();
                 }
+
+                // Check if plugin has any required configuration fields
+                var hasRequiredFields = plugin.GetConfigurationSchema()
+                    .Any(c => c.IsRequired);
 
                 var newPlugin = new Plugin
                 {
@@ -97,7 +104,7 @@ public class PluginService : BaseService, IPluginService
                     Version = plugin.Metadata.Version,
                     PluginType = pluginType,
                     IsEnabled = false,
-                    IsConfigured = false,
+                    IsConfigured = !hasRequiredFields, // Auto-configure if no required fields
                     LoadOrder = 0,
                     IsCorePlugin = false,
                     CreatedAt = DateTime.UtcNow,
@@ -105,7 +112,8 @@ public class PluginService : BaseService, IPluginService
                 };
 
                 _context.Plugins.Add(newPlugin);
-                LogInfo("Registered new plugin: {PluginId} ({PluginType})", plugin.Metadata.Id, pluginType);
+                LogInfo("Registered new plugin: {PluginId} ({PluginType}), IsConfigured: {IsConfigured}", 
+                    plugin.Metadata.Id, pluginType, newPlugin.IsConfigured);
             }
             else if (existingPlugin.Version != plugin.Metadata.Version)
             {
@@ -121,6 +129,34 @@ public class PluginService : BaseService, IPluginService
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Initialize all enabled plugins
+        var enabledPlugins = await _context.Plugins
+            .Where(p => p.IsEnabled && p.IsConfigured)
+            .ToListAsync(cancellationToken);
+
+        foreach (var dbPlugin in enabledPlugins)
+        {
+            var loadedPlugin = GetLoadedPlugin<IPlugin>(dbPlugin.PluginId);
+            if (loadedPlugin != null)
+            {
+                try
+                {
+                    LogInfo("Initializing enabled plugin: {PluginId}", dbPlugin.PluginId);
+                    await loadedPlugin.InitializeAsync(_serviceProvider, cancellationToken);
+                    LogInfo("Plugin initialized successfully: {PluginId}", dbPlugin.PluginId);
+                }
+                catch (Exception ex)
+                {
+                    LogError(ex, "Failed to initialize enabled plugin: {PluginId}", dbPlugin.PluginId);
+                    // Don't throw - continue initializing other plugins
+                }
+            }
+            else
+            {
+                LogWarning("Enabled plugin not loaded: {PluginId}", dbPlugin.PluginId);
+            }
+        }
 
         _initialized = true;
         LogInfo("Plugin service initialized successfully");
@@ -241,6 +277,34 @@ public class PluginService : BaseService, IPluginService
              .WithContext("PluginName", plugin.Name);
         }
 
+        // Get the loaded plugin instance
+        var loadedPlugin = GetLoadedPlugin<IPlugin>(plugin.PluginId);
+        if (loadedPlugin == null)
+        {
+            throw new ConfigurationException(
+                $"Plugin '{plugin.Name}' is not loaded.",
+                "PLUGIN_NOT_LOADED"
+            ).WithContext("PluginId", plugin.PluginId)
+             .WithContext("PluginName", plugin.Name);
+        }
+
+        // Initialize the plugin with the service provider
+        try
+        {
+            LogInfo("Initializing plugin: {PluginId}", plugin.PluginId);
+            await loadedPlugin.InitializeAsync(_serviceProvider, cancellationToken);
+            LogInfo("Plugin initialized successfully: {PluginId}", plugin.PluginId);
+        }
+        catch (Exception ex)
+        {
+            LogError(ex, "Failed to initialize plugin: {PluginId}", plugin.PluginId);
+            throw new ConfigurationException(
+                $"Failed to initialize plugin '{plugin.Name}': {ex.Message}",
+                "PLUGIN_INITIALIZATION_FAILED"
+            ).WithContext("PluginId", plugin.PluginId)
+             .WithContext("PluginName", plugin.Name);
+        }
+
         plugin.IsEnabled = true;
         plugin.UpdatedAt = DateTime.UtcNow;
 
@@ -255,7 +319,7 @@ public class PluginService : BaseService, IPluginService
             plugin.Name,
             PluginOperation.Enable,
             true,
-            "Plugin enabled",
+            "Plugin enabled and initialized",
             cancellationToken);
     }
 
@@ -312,7 +376,7 @@ public class PluginService : BaseService, IPluginService
         }
 
         // Get loaded plugin to check which fields are secrets
-        var loadedPlugin = GetLoadedPlugin(plugin.PluginId);
+        var loadedPlugin = GetLoadedPlugin<IPlugin>(plugin.PluginId);
         var secretKeys = new HashSet<string>();
         if (loadedPlugin != null)
         {
@@ -353,7 +417,14 @@ public class PluginService : BaseService, IPluginService
             _context.PluginSettings.Add(setting);
         }
 
-        plugin.IsConfigured = configuration.Any();
+        // Determine if plugin is configured
+        // A plugin is considered configured if:
+        // 1. It has configuration values saved, OR
+        // 2. It has no required configuration fields (all fields are optional)
+        var hasRequiredFields = loadedPlugin?.GetConfigurationSchema()
+            .Any(c => c.IsRequired) ?? false;
+        
+        plugin.IsConfigured = configuration.Any() || !hasRequiredFields;
         plugin.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -446,17 +517,17 @@ public class PluginService : BaseService, IPluginService
     }
 
     /// <inheritdoc/>
-    public IAuthenticationPlugin? GetLoadedPlugin(string pluginId)
+    public T? GetLoadedPlugin<T>(string pluginId) where T : class, IPlugin
     {
         var plugin = _pluginLoader.GetLoadedPlugin(pluginId);
-        return plugin as IAuthenticationPlugin;
+        return plugin as T;
     }
 
     /// <inheritdoc/>
-    public IEnumerable<IAuthenticationPlugin> GetLoadedPlugins()
+    public IEnumerable<T> GetLoadedPlugins<T>() where T : class, IPlugin
     {
         return _pluginLoader.GetLoadedPlugins()
-            .OfType<IAuthenticationPlugin>();
+            .OfType<T>();
     }
 
     /// <inheritdoc/>
@@ -492,7 +563,7 @@ public class PluginService : BaseService, IPluginService
         Dictionary<string, string> configuration,
         CancellationToken cancellationToken = default)
     {
-        var plugin = GetLoadedPlugin(pluginId);
+        var plugin = GetLoadedPlugin<IPlugin>(pluginId);
         
         if (plugin == null)
         {

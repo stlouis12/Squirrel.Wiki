@@ -22,6 +22,13 @@ public abstract class PluginBase : IPlugin
     public abstract IEnumerable<PluginConfigurationItem> GetConfigurationSchema();
 
     /// <inheritdoc/>
+    public virtual IEnumerable<IPluginAction> GetActions()
+    {
+        // Default implementation returns no actions
+        return Enumerable.Empty<IPluginAction>();
+    }
+
+    /// <inheritdoc/>
     public virtual async Task<bool> ValidateConfigurationAsync(
         Dictionary<string, string> config,
         CancellationToken cancellationToken = default)

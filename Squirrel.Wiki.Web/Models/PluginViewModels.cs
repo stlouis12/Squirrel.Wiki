@@ -46,11 +46,26 @@ public class PluginDetailsViewModel
     public bool IsCorePlugin { get; set; }
     public List<PluginConfigurationItemViewModel> ConfigurationSchema { get; set; } = new();
     public Dictionary<string, string> CurrentValues { get; set; } = new();
+    public List<PluginActionViewModel> Actions { get; set; } = new();
     
     // Computed properties
     public bool CanDelete => !IsCorePlugin;
     public bool CanEnable => IsConfigured && !IsEnabled;
     public bool CanDisable => IsEnabled;
+}
+
+/// <summary>
+/// View model for a plugin action
+/// </summary>
+public class PluginActionViewModel
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string? IconClass { get; set; }
+    public bool RequiresConfirmation { get; set; }
+    public string? ConfirmationMessage { get; set; }
+    public bool IsLongRunning { get; set; }
 }
 
 /// <summary>

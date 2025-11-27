@@ -39,4 +39,10 @@ public interface IPlugin
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
     Task ShutdownAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get custom actions exposed by this plugin
+    /// </summary>
+    /// <returns>Collection of plugin actions</returns>
+    IEnumerable<IPluginAction> GetActions();
 }

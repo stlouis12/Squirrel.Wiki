@@ -314,6 +314,28 @@ builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki
 
 Log.Information("Event-based cache invalidation system registered");
 
+// Register Event Handlers for search indexing
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Pages.PageCreatedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.PageSearchIndexHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Pages.PageUpdatedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.PageSearchIndexHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Pages.PageDeletedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.PageSearchIndexHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Search.PageIndexRequestedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.PageIndexRequestedEventHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Search.PagesIndexRequestedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.PagesIndexRequestedEventHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Search.PageRemovedFromIndexEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.PageRemovedFromIndexEventHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Search.IndexRebuildRequestedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.IndexRebuildRequestedEventHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Search.IndexOptimizationRequestedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.IndexOptimizationRequestedEventHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Search.IndexClearRequestedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.IndexClearRequestedEventHandler>();
+
+Log.Information("Event-based search indexing system registered");
+
 // Register services that depend on cache services
 builder.Services.AddScoped<IMarkdownService, MarkdownService>();
 
@@ -332,7 +354,12 @@ builder.Services.AddScoped<ICategoryTreeBuilder, CategoryTreeBuilder>();
 // Register TagService (now with integrated caching)
 builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<IMenuService, MenuService>();
-builder.Services.AddScoped<ISearchService, LuceneSearchService>();
+
+// Register Search Services
+builder.Services.AddScoped<Squirrel.Wiki.Core.Services.Search.DatabaseSearchStrategy>();
+builder.Services.AddScoped<ISearchService, Squirrel.Wiki.Core.Services.Search.SearchStrategyService>();
+Log.Information("Search services registered (DatabaseSearchStrategy, SearchStrategyService)");
+
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<ITimezoneService, TimezoneService>();
 builder.Services.AddScoped<IUrlTokenResolver, UrlTokenResolver>();
@@ -372,8 +399,9 @@ builder.Services.AddScoped<IPluginService>(sp =>
     var userContext = sp.GetRequiredService<IUserContext>();
     var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
     var configuration = sp.GetRequiredService<IConfigurationService>();
-    return new PluginService(context, pluginLoader, logger, cache, eventPublisher, encryptionService, auditService, userContext, httpContextAccessor, pluginsPath, configuration);
+    return new PluginService(context, pluginLoader, logger, cache, eventPublisher, encryptionService, auditService, userContext, httpContextAccessor, sp, pluginsPath, configuration);
 });
+
 
 // Add health checks
 builder.Services.AddHealthChecks();

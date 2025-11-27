@@ -66,4 +66,22 @@
     <Warning Text="OIDC plugin not found at $(OidcPluginSource)" Condition="!Exists('$(OidcPluginSource)')" />
   </Target>
 
+  <!-- Copy Lucene plugin to Plugins folder after build -->
+  <Target Name="CopyLucenePlugin" AfterTargets="Build">
+    <PropertyGroup>
+      <PluginsDir>$(OutputPath)Plugins</PluginsDir>
+      <LucenePluginDir>$(PluginsDir)\Squirrel.Wiki.Plugins.Lucene</LucenePluginDir>
+      <LucenePluginSource>..\Squirrel.Wiki.Plugins.Lucene\bin\$(Configuration)\net8.0\Squirrel.Wiki.Plugins.Lucene.dll</LucenePluginSource>
+    </PropertyGroup>
+    
+    <!-- Create plugin subdirectory -->
+    <MakeDir Directories="$(LucenePluginDir)" Condition="!Exists('$(LucenePluginDir)')" />
+    
+    <!-- Copy plugin DLL to its subdirectory -->
+    <Copy SourceFiles="$(LucenePluginSource)" DestinationFolder="$(LucenePluginDir)" SkipUnchangedFiles="true" Condition="Exists('$(LucenePluginSource)')" />
+    
+    <Message Text="Copied Lucene plugin to $(LucenePluginDir)" Importance="high" Condition="Exists('$(LucenePluginSource)')" />
+    <Warning Text="Lucene plugin not found at $(LucenePluginSource)" Condition="!Exists('$(LucenePluginSource)')" />
+  </Target>
+
 </Project>

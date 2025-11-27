@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Squirrel.Wiki.Contracts.Plugins;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services.Plugins;
@@ -35,13 +36,13 @@ public class PluginsController : BaseController
         {
             var plugins = await _pluginService.GetAllPluginsAsync();
             
-            var viewModel = new PluginListViewModel
-            {
-                Plugins = plugins.Select(p =>
+                var viewModel = new PluginListViewModel
                 {
-                    var loadedPlugin = _pluginService.GetLoadedPlugin(p.PluginId);
-                    
-                    return new PluginItemViewModel
+                    Plugins = plugins.Select(p =>
+                    {
+                        var loadedPlugin = _pluginService.GetLoadedPlugin<IPlugin>(p.PluginId);
+                        
+                        return new PluginItemViewModel
                     {
                         Id = p.Id,
                         PluginId = p.PluginId,
@@ -73,7 +74,7 @@ public class PluginsController : BaseController
             if (!ValidateEntityExists(plugin, "Plugin"))
                 return RedirectToAction(nameof(Index));
 
-            var loadedPlugin = _pluginService.GetLoadedPlugin(plugin.PluginId);
+            var loadedPlugin = _pluginService.GetLoadedPlugin<IPlugin>(plugin.PluginId);
             var currentConfig = await _pluginService.GetPluginConfigurationAsync(id);
 
             var viewModel = new PluginDetailsViewModel
@@ -98,7 +99,17 @@ public class PluginsController : BaseController
                     ValidationPattern = c.ValidationPattern ?? string.Empty,
                     ValidationMessage = c.ValidationErrorMessage ?? string.Empty
                 }).ToList() ?? new List<PluginConfigurationItemViewModel>(),
-                CurrentValues = currentConfig
+                CurrentValues = currentConfig,
+                Actions = loadedPlugin?.GetActions().Select(a => new PluginActionViewModel
+                {
+                    Id = a.Id,
+                    Name = a.Name,
+                    Description = a.Description,
+                    IconClass = a.IconClass,
+                    RequiresConfirmation = a.RequiresConfirmation,
+                    ConfirmationMessage = a.ConfirmationMessage,
+                    IsLongRunning = a.IsLongRunning
+                }).ToList() ?? new List<PluginActionViewModel>()
             };
 
             // Mask secret values in the display
@@ -127,7 +138,7 @@ public class PluginsController : BaseController
             if (!ValidateEntityExists(plugin, "Plugin"))
                 return RedirectToAction(nameof(Index));
 
-            var loadedPlugin = _pluginService.GetLoadedPlugin(plugin.PluginId);
+            var loadedPlugin = _pluginService.GetLoadedPlugin<IPlugin>(plugin.PluginId);
             var currentConfig = await _pluginService.GetPluginConfigurationAsync(id);
 
             var viewModel = new PluginConfigureViewModel
@@ -248,6 +259,61 @@ public class PluginsController : BaseController
             NotifyError(result.Error!);
             return RedirectToAction(nameof(Index));
         }
+    }
+
+    /// <summary>
+    /// Execute a plugin action
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ExecuteAction(Guid id, string actionId)
+    {
+        return await ExecuteAsync(async () =>
+        {
+            var plugin = await _pluginService.GetPluginAsync(id);
+            
+            if (!ValidateEntityExists(plugin, "Plugin"))
+                return RedirectToAction(nameof(Details), new { id });
+
+            var loadedPlugin = _pluginService.GetLoadedPlugin<IPlugin>(plugin.PluginId);
+            if (loadedPlugin == null)
+            {
+                NotifyError("Plugin not loaded");
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var action = loadedPlugin.GetActions().FirstOrDefault(a => a.Id == actionId);
+            if (action == null)
+            {
+                NotifyError($"Action '{actionId}' not found");
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            try
+            {
+                _logger.LogInformation("Executing plugin action '{ActionId}' for plugin '{PluginId}'", actionId, plugin.PluginId);
+                
+                var result = await action.ExecuteAsync(HttpContext.RequestServices);
+
+                if (result.Success)
+                {
+                    NotifySuccess(result.Message);
+                    _logger.LogInformation("Plugin action '{ActionId}' completed successfully: {Message}", actionId, result.Message);
+                }
+                else
+                {
+                    NotifyError($"{result.Message}{(result.ErrorDetails != null ? $": {result.ErrorDetails}" : "")}");
+                    _logger.LogWarning("Plugin action '{ActionId}' failed: {Message}", actionId, result.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing plugin action '{ActionId}'", actionId);
+                NotifyError($"Failed to execute action: {ex.Message}");
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
+        });
     }
 
     #region Helper Methods - Result Pattern

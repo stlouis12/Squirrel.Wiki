@@ -153,6 +153,53 @@
         </div>
 
         <div class="col-md-8">
+            @if (Model.Actions.Any() && Model.IsEnabled)
+            {
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-bolt"></i> Plugin Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Execute actions provided by this plugin.</p>
+                        <div class="list-group">
+                            @foreach (var action in Model.Actions)
+                            {
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">
+                                                @if (!string.IsNullOrEmpty(action.IconClass))
+                                                {
+                                                    <i class="@action.IconClass"></i>
+                                                }
+                                                @action.Name
+                                            </h6>
+                                            <p class="mb-2 text-muted small">@action.Description</p>
+                                            @if (action.IsLongRunning)
+                                            {
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="fas fa-clock"></i> Long Running
+                                                </span>
+                                            }
+                                        </div>
+                                        <div class="ms-3">
+                                            <form asp-action="ExecuteAction" asp-route-id="@Model.Id" asp-route-actionId="@action.Id" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" 
+                                                        class="btn btn-sm btn-primary"
+                                                        @(action.RequiresConfirmation ? $"onclick=\"return confirm('{action.ConfirmationMessage}');\"" : "")>
+                                                    <i class="fas fa-play"></i> Execute
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+            
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-sliders-h"></i> @Localizer["CurrentConfiguration"]</h5>

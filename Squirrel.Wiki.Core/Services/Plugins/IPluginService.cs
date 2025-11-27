@@ -72,14 +72,14 @@ public interface IPluginService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get the loaded plugin instance
+    /// Get the loaded plugin instance of a specific type
     /// </summary>
-    IAuthenticationPlugin? GetLoadedPlugin(string pluginId);
+    T? GetLoadedPlugin<T>(string pluginId) where T : class, IPlugin;
 
     /// <summary>
-    /// Get all loaded plugin instances
+    /// Get all loaded plugin instances of a specific type
     /// </summary>
-    IEnumerable<IAuthenticationPlugin> GetLoadedPlugins();
+    IEnumerable<T> GetLoadedPlugins<T>() where T : class, IPlugin;
 
     /// <summary>
     /// Reload a plugin (hot-reload)
