@@ -15,6 +15,11 @@ public abstract class PluginBase : IPlugin
     /// </summary>
     protected IConfigurationService? Configuration { get; private set; }
 
+    /// <summary>
+    /// Plugin-specific configuration values loaded from database or environment variables
+    /// </summary>
+    protected Dictionary<string, string>? PluginConfiguration { get; private set; }
+
     /// <inheritdoc/>
     public abstract PluginMetadata Metadata { get; }
 
@@ -105,6 +110,14 @@ public abstract class PluginBase : IPlugin
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Set the plugin configuration. Called by the plugin service before InitializeAsync.
+    /// </summary>
+    public virtual void SetPluginConfiguration(Dictionary<string, string> configuration)
+    {
+        PluginConfiguration = configuration;
     }
 
     /// <inheritdoc/>

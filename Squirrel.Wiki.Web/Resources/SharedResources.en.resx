@@ -2341,9 +2341,6 @@
   <data name="FieldsMarkedWithAsteriskRequired" xml:space="preserve">
     <value>Fields marked with * are required</value>
   </data>
-  <data name="SecretFieldsEncryptedAutomatically" xml:space="preserve">
-    <value>Secret fields are encrypted automatically</value>
-  </data>
   <data name="LeaveOptionalFieldsEmpty" xml:space="preserve">
     <value>Leave optional fields empty if not needed</value>
   </data>
@@ -2370,9 +2367,6 @@
   </data>
   <data name="VerifyCallbackURLInProviderSettings" xml:space="preserve">
     <value>Verify callback URL in provider settings</value>
-  </data>
-  <data name="AllSecretValuesEncryptedAES256" xml:space="preserve">
-    <value>All secret values are encrypted using AES-256 encryption and stored securely.</value>
   </data>
   <data name="Fields" xml:space="preserve">
     <value>Fields</value>

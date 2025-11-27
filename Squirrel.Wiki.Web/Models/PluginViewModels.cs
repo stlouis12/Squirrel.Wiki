@@ -22,11 +22,12 @@ public class PluginItemViewModel
     public bool IsEnabled { get; set; }
     public bool IsConfigured { get; set; }
     public bool IsCorePlugin { get; set; }
+    public bool IsEnabledLockedByEnvironment { get; set; }
     
     // Computed properties for UI logic
     public bool CanDelete => !IsCorePlugin;
-    public bool CanEnable => IsConfigured && !IsEnabled;
-    public bool CanDisable => IsEnabled;
+    public bool CanEnable => IsConfigured && !IsEnabled && !IsEnabledLockedByEnvironment;
+    public bool CanDisable => IsEnabled && !IsEnabledLockedByEnvironment;
     public bool CanConfigure => true;
 }
 
@@ -44,14 +45,15 @@ public class PluginDetailsViewModel
     public bool IsEnabled { get; set; }
     public bool IsConfigured { get; set; }
     public bool IsCorePlugin { get; set; }
+    public bool IsEnabledLockedByEnvironment { get; set; }
     public List<PluginConfigurationItemViewModel> ConfigurationSchema { get; set; } = new();
     public Dictionary<string, string> CurrentValues { get; set; } = new();
     public List<PluginActionViewModel> Actions { get; set; } = new();
     
     // Computed properties
     public bool CanDelete => !IsCorePlugin;
-    public bool CanEnable => IsConfigured && !IsEnabled;
-    public bool CanDisable => IsEnabled;
+    public bool CanEnable => IsConfigured && !IsEnabled && !IsEnabledLockedByEnvironment;
+    public bool CanDisable => IsEnabled && !IsEnabledLockedByEnvironment;
 }
 
 /// <summary>

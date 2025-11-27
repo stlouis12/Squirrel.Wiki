@@ -36,7 +36,7 @@ public class PluginsController : BaseController
         {
             var plugins = await _pluginService.GetAllPluginsAsync();
             
-                var viewModel = new PluginListViewModel
+            var viewModel = new PluginListViewModel
                 {
                     Plugins = plugins.Select(p =>
                     {
@@ -52,7 +52,8 @@ public class PluginsController : BaseController
                         Author = loadedPlugin?.Metadata.Author ?? "Unknown",
                         IsEnabled = p.IsEnabled,
                         IsConfigured = p.IsConfigured,
-                        IsCorePlugin = p.IsCorePlugin
+                        IsCorePlugin = p.IsCorePlugin,
+                        IsEnabledLockedByEnvironment = IsPluginEnabledLockedByEnvironment(p.PluginId)
                     };
                 }).ToList()
             };
@@ -88,6 +89,7 @@ public class PluginsController : BaseController
                 IsEnabled = plugin.IsEnabled,
                 IsConfigured = plugin.IsConfigured,
                 IsCorePlugin = plugin.IsCorePlugin,
+                IsEnabledLockedByEnvironment = IsPluginEnabledLockedByEnvironment(plugin.PluginId),
                 ConfigurationSchema = loadedPlugin?.Metadata.Configuration.Select(c => new PluginConfigurationItemViewModel
                 {
                     Key = c.Key,
@@ -485,6 +487,29 @@ public class PluginsController : BaseController
                 "PLUGIN_DELETE_FAILED"
             );
         }
+    }
+
+    #endregion
+
+    #region Helper Methods - Environment Variable Checking
+
+    /// <summary>
+    /// Checks if a plugin's enabled state is locked by an environment variable
+    /// </summary>
+    /// <param name="pluginId">The plugin ID to check</param>
+    /// <returns>True if the ENABLED environment variable is set for this plugin, false otherwise</returns>
+    private bool IsPluginEnabledLockedByEnvironment(string pluginId)
+    {
+        var envPrefix = $"PLUGIN_{pluginId.ToUpperInvariant().Replace("-", "_").Replace(".", "_")}_";
+        var enabledEnvVar = $"{envPrefix}ENABLED";
+        var enabledValue = Environment.GetEnvironmentVariable(enabledEnvVar);
+        
+        // Debug logging
+        _logger.LogDebug("Checking lock for plugin {PluginId}: Looking for env var {EnvVar}, Found: {Found}", 
+            pluginId, enabledEnvVar, !string.IsNullOrEmpty(enabledValue));
+        
+        // If the ENABLED environment variable is set (to any value), the plugin is locked
+        return !string.IsNullOrEmpty(enabledValue);
     }
 
     #endregion

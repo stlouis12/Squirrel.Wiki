@@ -43,8 +43,20 @@ public class LuceneSearchPlugin : PluginBase, ISearchPlugin
         Author = "Squirrel Wiki",
         Type = PluginType.SearchProvider,
         IsCorePlugin = true,
-        RequiresConfiguration = false,
-        Configuration = Array.Empty<PluginConfigurationItem>()
+        RequiresConfiguration = true,
+        Configuration = new[]
+        {
+            new PluginConfigurationItem
+            {
+                Key = "IndexPath",
+                DisplayName = "Index Path",
+                Description = "Path to the Lucene search index directory (relative to App_Data or absolute path). If not specified, defaults to 'SearchIndex' within App_Data.",
+                Type = PluginConfigType.Text,
+                IsRequired = false,
+                DefaultValue = "SearchIndex",
+                IsSecret = false
+            }
+        }
     };
 
     public override IEnumerable<PluginConfigurationItem> GetConfigurationSchema()
@@ -68,25 +80,31 @@ public class LuceneSearchPlugin : PluginBase, ISearchPlugin
 
         try
         {
-            // Get index path from SQUIRREL_APP_DATA_PATH
-            var appDataPath = Configuration != null
-                ? await Configuration.GetValueAsync<string>("SQUIRREL_APP_DATA_PATH")
-                : null;
+            // Get index path from plugin configuration
+            var indexPath = PluginConfiguration != null && PluginConfiguration.TryGetValue("IndexPath", out var configuredPath)
+                ? configuredPath
+                : "SearchIndex";
             
-            if (string.IsNullOrWhiteSpace(appDataPath))
+            // If path is not absolute, make it relative to App_Data
+            if (!Path.IsPathRooted(indexPath))
             {
-                appDataPath = "App_Data";
-                _logger.LogWarning("SQUIRREL_APP_DATA_PATH not configured, using default: {AppDataPath}", appDataPath);
+                var appDataPath = Configuration != null
+                    ? await Configuration.GetValueAsync<string>("SQUIRREL_APP_DATA_PATH")
+                    : null;
+                
+                if (string.IsNullOrWhiteSpace(appDataPath))
+                {
+                    appDataPath = "App_Data";
+                }
+                
+                // Make the app data path absolute if it's relative
+                if (!Path.IsPathRooted(appDataPath))
+                {
+                    appDataPath = Path.Combine(AppContext.BaseDirectory, appDataPath);
+                }
+                
+                indexPath = Path.Combine(appDataPath, indexPath);
             }
-            
-            // Make the path absolute if it's relative
-            // Use AppContext.BaseDirectory (bin/Debug/net8.0) instead of ContentRootPath (project directory)
-            if (!Path.IsPathRooted(appDataPath))
-            {
-                appDataPath = Path.Combine(AppContext.BaseDirectory, appDataPath);
-            }
-            
-            var indexPath = Path.Combine(appDataPath, "SearchIndex");
             _logger.LogInformation("Using index path: {IndexPath}", indexPath);
 
             // Ensure the directory exists

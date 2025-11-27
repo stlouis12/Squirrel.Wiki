@@ -130,6 +130,9 @@ public class PluginService : BaseService, IPluginService
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        // Check for environment variable configuration and auto-configure plugins
+        await AutoConfigurePluginsFromEnvironmentAsync(cancellationToken);
+
         // Initialize all enabled plugins
         var enabledPlugins = await _context.Plugins
             .Where(p => p.IsEnabled && p.IsConfigured)
@@ -143,6 +146,14 @@ public class PluginService : BaseService, IPluginService
                 try
                 {
                     LogInfo("Initializing enabled plugin: {PluginId}", dbPlugin.PluginId);
+                    
+                    // Load and set plugin configuration before initialization
+                    var pluginConfig = await GetPluginConfigurationAsync(dbPlugin.Id, cancellationToken);
+                    if (loadedPlugin is Squirrel.Wiki.Plugins.PluginBase pluginBase)
+                    {
+                        pluginBase.SetPluginConfiguration(pluginConfig);
+                    }
+                    
                     await loadedPlugin.InitializeAsync(_serviceProvider, cancellationToken);
                     LogInfo("Plugin initialized successfully: {PluginId}", dbPlugin.PluginId);
                 }
@@ -268,6 +279,16 @@ public class PluginService : BaseService, IPluginService
             throw new EntityNotFoundException("Plugin", id);
         }
 
+        // Check if plugin enable/disable is locked by environment variable
+        if (IsPluginEnabledLockedByEnvironment(plugin.PluginId))
+        {
+            throw new BusinessRuleException(
+                $"Plugin '{plugin.Name}' enable/disable state is controlled by environment variable and cannot be changed via UI.",
+                "PLUGIN_ENABLED_LOCKED"
+            ).WithContext("PluginId", plugin.PluginId)
+             .WithContext("PluginName", plugin.Name);
+        }
+
         if (!plugin.IsConfigured)
         {
             throw new BusinessRuleException(
@@ -286,6 +307,16 @@ public class PluginService : BaseService, IPluginService
                 "PLUGIN_NOT_LOADED"
             ).WithContext("PluginId", plugin.PluginId)
              .WithContext("PluginName", plugin.Name);
+        }
+
+        // Ensure plugin settings are populated in database for visibility
+        await EnsurePluginSettingsPopulatedAsync(plugin, loadedPlugin, cancellationToken);
+
+        // Load and set plugin configuration before initialization
+        var pluginConfig = await GetPluginConfigurationAsync(plugin.Id, cancellationToken);
+        if (loadedPlugin is Squirrel.Wiki.Plugins.PluginBase pluginBase)
+        {
+            pluginBase.SetPluginConfiguration(pluginConfig);
         }
 
         // Initialize the plugin with the service provider
@@ -331,6 +362,16 @@ public class PluginService : BaseService, IPluginService
         if (plugin == null)
         {
             throw new EntityNotFoundException("Plugin", id);
+        }
+
+        // Check if plugin enable/disable is locked by environment variable
+        if (IsPluginEnabledLockedByEnvironment(plugin.PluginId))
+        {
+            throw new BusinessRuleException(
+                $"Plugin '{plugin.Name}' enable/disable state is controlled by environment variable and cannot be changed via UI.",
+                "PLUGIN_ENABLED_LOCKED"
+            ).WithContext("PluginId", plugin.PluginId)
+             .WithContext("PluginName", plugin.Name);
         }
 
         plugin.IsEnabled = false;
@@ -624,6 +665,386 @@ public class PluginService : BaseService, IPluginService
             true,
             "Plugin deleted",
             cancellationToken);
+    }
+
+    /// <summary>
+    /// Auto-configure plugins from environment variables
+    /// </summary>
+    /// <remarks>
+    /// Checks for environment variables using the pattern: PLUGIN_{PLUGINID}_{CONFIGKEY}
+    /// For example: PLUGIN_SQUIRREL_WIKI_PLUGINS_LUCENE_INDEXPATH
+    /// 
+    /// Process:
+    /// 1. Check for PLUGIN_{PLUGINID}_ENABLED=true environment variable
+    /// 2. If ENABLED=true, check if plugin has all required configuration
+    /// 3. If configuration is available via environment variables, create PluginSetting records
+    /// 4. Mark plugin as configured if all requirements are met
+    /// 5. Enable the plugin if ENABLED=true and plugin is configured
+    /// </remarks>
+    private async Task AutoConfigurePluginsFromEnvironmentAsync(CancellationToken cancellationToken = default)
+    {
+        LogInfo("Checking for plugin configuration from environment variables");
+
+        var allPlugins = await _context.Plugins
+            .Include(p => p.Settings)
+            .ToListAsync(cancellationToken);
+
+        foreach (var dbPlugin in allPlugins)
+        {
+            var loadedPlugin = GetLoadedPlugin<IPlugin>(dbPlugin.PluginId);
+            if (loadedPlugin == null)
+            {
+                continue;
+            }
+
+            // Build environment variable prefix: PLUGIN_{PLUGINID}_
+            // Replace both hyphens and dots with underscores for environment variable compatibility
+            var envPrefix = $"PLUGIN_{dbPlugin.PluginId.ToUpperInvariant().Replace("-", "_").Replace(".", "_")}_";
+            
+            // STEP 1: Check if plugin should be enabled/disabled via environment variable
+            // Read directly from environment to avoid configuration registry warnings
+            var enabledEnvVar = $"{envPrefix}ENABLED";
+            bool? shouldEnable = null; // null = not set, true = enable, false = disable
+            
+            var enabledValue = Environment.GetEnvironmentVariable(enabledEnvVar);
+            if (!string.IsNullOrEmpty(enabledValue))
+            {
+                if (enabledValue.Equals("true", StringComparison.OrdinalIgnoreCase) || 
+                    enabledValue.Equals("1", StringComparison.OrdinalIgnoreCase))
+                {
+                    shouldEnable = true;
+                    LogInfo("Found {EnvVar}=true for plugin {PluginId}", enabledEnvVar, dbPlugin.PluginId);
+                }
+                else if (enabledValue.Equals("false", StringComparison.OrdinalIgnoreCase) || 
+                         enabledValue.Equals("0", StringComparison.OrdinalIgnoreCase))
+                {
+                    shouldEnable = false;
+                    LogInfo("Found {EnvVar}=false for plugin {PluginId}", enabledEnvVar, dbPlugin.PluginId);
+                }
+            }
+
+            // Handle explicit disable
+            if (shouldEnable == false)
+            {
+                if (dbPlugin.IsEnabled)
+                {
+                    dbPlugin.IsEnabled = false;
+                    dbPlugin.UpdatedAt = DateTime.UtcNow;
+                    LogInfo("Plugin {PluginId} disabled via environment variable {EnvVar}", 
+                        dbPlugin.PluginId, enabledEnvVar);
+                }
+                continue;
+            }
+
+            // If not marked for enabling, skip configuration check
+            if (shouldEnable != true)
+            {
+                continue;
+            }
+
+            // STEP 2: Check configuration requirements
+            var schema = loadedPlugin.GetConfigurationSchema().ToList();
+            
+            // Check if all required configuration is available via environment variables
+            var envConfig = new Dictionary<string, string>();
+            var envVarNames = new Dictionary<string, string>();
+            var allRequiredPresent = true;
+
+            foreach (var configItem in schema)
+            {
+                var envVarName = $"{envPrefix}{configItem.Key.ToUpperInvariant()}";
+                
+                // Read directly from environment to avoid configuration registry warnings
+                var value = Environment.GetEnvironmentVariable(envVarName);
+                
+                if (!string.IsNullOrEmpty(value))
+                {
+                    envConfig[configItem.Key] = value;
+                    envVarNames[configItem.Key] = envVarName;
+                    LogInfo("Found environment variable {EnvVar} for plugin {PluginId}", envVarName, dbPlugin.PluginId);
+                }
+                else if (configItem.IsRequired)
+                {
+                    allRequiredPresent = false;
+                    LogWarning("Required environment variable {EnvVar} not found for plugin {PluginId}", envVarName, dbPlugin.PluginId);
+                }
+            }
+
+            // STEP 3: Set up configuration from environment variables if present
+            if (envConfig.Any())
+            {
+                // Validate the configuration
+                var isValid = await ValidatePluginConfigurationAsync(dbPlugin.PluginId, envConfig, cancellationToken);
+                
+                if (!isValid)
+                {
+                    LogWarning("Environment variable configuration for plugin {PluginId} is invalid, cannot enable", dbPlugin.PluginId);
+                    continue;
+                }
+
+                // Remove ALL existing settings (environment variables take precedence)
+                _context.PluginSettings.RemoveRange(dbPlugin.Settings);
+
+                // Create settings pointing to environment variables
+                var secretKeys = schema.Where(c => c.IsSecret).Select(c => c.Key).ToHashSet();
+                
+                foreach (var kvp in envConfig)
+                {
+                    var setting = new PluginSetting
+                    {
+                        Id = Guid.NewGuid(),
+                        PluginId = dbPlugin.Id,
+                        Key = kvp.Key,
+                        Value = null, // Value comes from environment
+                        IsFromEnvironment = true,
+                        EnvironmentVariableName = envVarNames[kvp.Key],
+                        IsSecret = secretKeys.Contains(kvp.Key),
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    _context.PluginSettings.Add(setting);
+                }
+
+                LogInfo("Plugin {PluginId} configured from environment variables", dbPlugin.PluginId);
+            }
+
+            // STEP 4: Ensure plugin settings are populated in database (including defaults)
+            await EnsurePluginSettingsPopulatedAsync(dbPlugin, loadedPlugin, cancellationToken);
+            
+            // STEP 5: Mark as configured if all required fields are present (or no required fields exist)
+            if (allRequiredPresent)
+            {
+                if (!dbPlugin.IsConfigured)
+                {
+                    dbPlugin.IsConfigured = true;
+                    dbPlugin.UpdatedAt = DateTime.UtcNow;
+                    LogInfo("Plugin {PluginId} marked as configured", dbPlugin.PluginId);
+                }
+                
+                // STEP 6: Enable the plugin
+                dbPlugin.IsEnabled = true;
+                dbPlugin.UpdatedAt = DateTime.UtcNow;
+                LogInfo("Plugin {PluginId} auto-enabled via environment variable {EnvVar}", 
+                    dbPlugin.PluginId, enabledEnvVar);
+            }
+            else
+            {
+                LogWarning("Cannot enable plugin {PluginId}: missing required configuration fields", dbPlugin.PluginId);
+            }
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        LogInfo("Completed environment variable configuration check");
+    }
+
+    /// <summary>
+    /// Checks if a plugin's enabled state is locked by an environment variable
+    /// </summary>
+    /// <param name="pluginId">The plugin ID to check</param>
+    /// <returns>True if the ENABLED environment variable is set for this plugin, false otherwise</returns>
+    private bool IsPluginEnabledLockedByEnvironment(string pluginId)
+    {
+        var envPrefix = $"PLUGIN_{pluginId.ToUpperInvariant().Replace("-", "_").Replace(".", "_")}_";
+        var enabledEnvVar = $"{envPrefix}ENABLED";
+        var enabledValue = Environment.GetEnvironmentVariable(enabledEnvVar);
+        
+        // If the ENABLED environment variable is set (to any value), the plugin is locked
+        return !string.IsNullOrEmpty(enabledValue);
+    }
+
+    /// <summary>
+    /// Ensures plugin settings are populated in the database for visibility and synced with environment variables
+    /// </summary>
+    /// <remarks>
+    /// This method populates/updates the plugin settings table with:
+    /// 1. Environment variable references (if configured via env vars) - marked as IsFromEnvironment=true
+    /// 2. Default values (if no env vars and no existing settings) - stored as regular database values
+    /// 
+    /// This method ALWAYS syncs with current environment variable state:
+    /// - If an env var is detected, the setting is updated to IsFromEnvironment=true
+    /// - If an env var is removed, the setting is updated to IsFromEnvironment=false (preserving existing value)
+    /// 
+    /// This ensures operators can see what configuration is being used, even if it comes from environment variables.
+    /// Settings from environment variables are locked in the UI (similar to main wiki settings).
+    /// </remarks>
+    private async Task EnsurePluginSettingsPopulatedAsync(
+        Plugin plugin,
+        IPlugin loadedPlugin,
+        CancellationToken cancellationToken = default)
+    {
+        var schema = loadedPlugin.GetConfigurationSchema().ToList();
+        if (!schema.Any())
+        {
+            LogDebug("Plugin {PluginId} has no configuration schema", plugin.PluginId);
+            return;
+        }
+
+        // Build environment variable prefix
+        var envPrefix = $"PLUGIN_{plugin.PluginId.ToUpperInvariant().Replace("-", "_").Replace(".", "_")}_";
+        
+        // Check which settings come from environment variables
+        var envVarNames = new Dictionary<string, string>();
+        var defaultValues = new Dictionary<string, string>();
+        
+        foreach (var configItem in schema)
+        {
+            var envVarName = $"{envPrefix}{configItem.Key.ToUpperInvariant()}";
+            var envValue = Environment.GetEnvironmentVariable(envVarName);
+            
+            if (!string.IsNullOrEmpty(envValue))
+            {
+                // Setting comes from environment variable
+                envVarNames[configItem.Key] = envVarName;
+                LogDebug("Plugin {PluginId} setting {Key} will use environment variable {EnvVar}", 
+                    plugin.PluginId, configItem.Key, envVarName);
+            }
+            else if (!string.IsNullOrEmpty(configItem.DefaultValue))
+            {
+                // Use default value
+                defaultValues[configItem.Key] = configItem.DefaultValue;
+                LogDebug("Plugin {PluginId} setting {Key} will use default value", 
+                    plugin.PluginId, configItem.Key);
+            }
+        }
+
+        var secretKeys = schema.Where(c => c.IsSecret).Select(c => c.Key).ToHashSet();
+        var existingSettings = plugin.Settings.ToDictionary(s => s.Key, s => s);
+        var settingsToUpdate = new List<PluginSetting>();
+        var settingsToAdd = new List<PluginSetting>();
+        
+        foreach (var configItem in schema)
+        {
+            var hasEnvVar = envVarNames.ContainsKey(configItem.Key);
+            var existingSetting = existingSettings.GetValueOrDefault(configItem.Key);
+            
+            if (existingSetting != null)
+            {
+                // Setting exists - sync with environment variable state
+                var needsUpdate = false;
+                
+                if (hasEnvVar && !existingSetting.IsFromEnvironment)
+                {
+                    // Environment variable was added - switch to env var mode
+                    existingSetting.IsFromEnvironment = true;
+                    existingSetting.EnvironmentVariableName = envVarNames[configItem.Key];
+                    existingSetting.Value = null; // Value comes from environment
+                    existingSetting.UpdatedAt = DateTime.UtcNow;
+                    needsUpdate = true;
+                    LogInfo("Plugin {PluginId} setting {Key} switched to environment variable {EnvVar}", 
+                        plugin.PluginId, configItem.Key, envVarNames[configItem.Key]);
+                }
+                else if (!hasEnvVar && existingSetting.IsFromEnvironment)
+                {
+                    // Environment variable was removed - switch to database mode
+                    existingSetting.IsFromEnvironment = false;
+                    existingSetting.EnvironmentVariableName = null;
+                    // Keep existing value or use default
+                    if (string.IsNullOrEmpty(existingSetting.Value) && defaultValues.ContainsKey(configItem.Key))
+                    {
+                        var value = defaultValues[configItem.Key];
+                        if (secretKeys.Contains(configItem.Key) && !string.IsNullOrEmpty(value))
+                        {
+                            value = _encryptionService.EncryptIfNeeded(value);
+                        }
+                        existingSetting.Value = value;
+                    }
+                    existingSetting.UpdatedAt = DateTime.UtcNow;
+                    needsUpdate = true;
+                    LogInfo("Plugin {PluginId} setting {Key} switched from environment variable to database", 
+                        plugin.PluginId, configItem.Key);
+                }
+                else if (hasEnvVar && existingSetting.IsFromEnvironment)
+                {
+                    // Still using env var - ensure env var name is correct
+                    if (existingSetting.EnvironmentVariableName != envVarNames[configItem.Key])
+                    {
+                        existingSetting.EnvironmentVariableName = envVarNames[configItem.Key];
+                        existingSetting.UpdatedAt = DateTime.UtcNow;
+                        needsUpdate = true;
+                    }
+                }
+                
+                if (needsUpdate)
+                {
+                    settingsToUpdate.Add(existingSetting);
+                }
+            }
+            else
+            {
+                // Setting doesn't exist - create it
+                PluginSetting setting;
+                
+                if (hasEnvVar)
+                {
+                    // Setting from environment variable
+                    setting = new PluginSetting
+                    {
+                        Id = Guid.NewGuid(),
+                        PluginId = plugin.Id,
+                        Key = configItem.Key,
+                        Value = null, // Value comes from environment
+                        IsFromEnvironment = true,
+                        EnvironmentVariableName = envVarNames[configItem.Key],
+                        IsSecret = secretKeys.Contains(configItem.Key),
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                }
+                else if (defaultValues.ContainsKey(configItem.Key))
+                {
+                    // Setting with default value
+                    var value = defaultValues[configItem.Key];
+                    
+                    // Encrypt secret values
+                    if (secretKeys.Contains(configItem.Key) && !string.IsNullOrEmpty(value))
+                    {
+                        value = _encryptionService.EncryptIfNeeded(value);
+                    }
+                    
+                    setting = new PluginSetting
+                    {
+                        Id = Guid.NewGuid(),
+                        PluginId = plugin.Id,
+                        Key = configItem.Key,
+                        Value = value,
+                        IsFromEnvironment = false,
+                        IsSecret = secretKeys.Contains(configItem.Key),
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                }
+                else
+                {
+                    // No value available, but create record for visibility
+                    setting = new PluginSetting
+                    {
+                        Id = Guid.NewGuid(),
+                        PluginId = plugin.Id,
+                        Key = configItem.Key,
+                        Value = string.Empty,
+                        IsFromEnvironment = false,
+                        IsSecret = secretKeys.Contains(configItem.Key),
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                }
+                
+                settingsToAdd.Add(setting);
+                _context.PluginSettings.Add(setting);
+            }
+        }
+
+        if (settingsToAdd.Any() || settingsToUpdate.Any())
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+            LogInfo("Synced {AddCount} new and {UpdateCount} updated settings for plugin {PluginId}", 
+                settingsToAdd.Count, settingsToUpdate.Count, plugin.PluginId);
+        }
+        else
+        {
+            LogDebug("Plugin {PluginId} settings already in sync", plugin.PluginId);
+        }
     }
 
     /// <summary>

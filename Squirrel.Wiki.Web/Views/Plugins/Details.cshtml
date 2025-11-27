@@ -134,7 +134,7 @@
                             </form>
                         }
 
-                        @if (Model.CanDelete)
+                        @if (Model.CanDelete && !Model.IsEnabledLockedByEnvironment)
                         {
                             <form asp-action="Delete" asp-route-id="@Model.Id" method="post">
                                 @Html.AntiForgeryToken()
@@ -226,7 +226,6 @@
                                     <tr>
                                         <th>@Localizer["Setting"]</th>
                                         <th>@Localizer["Value"]</th>
-                                        <th>@Localizer["Required"]</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -235,10 +234,17 @@
                                         <tr>
                                             <td>
                                                 <strong>@item.DisplayName</strong>
+                                                @if (item.IsRequired)
+                                                {
+                                                    <span class="badge bg-danger ms-1">@Localizer["Required"]</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary ms-1">@Localizer["Optional"]</span>
+                                                }
                                                 @if (item.IsSecret)
                                                 {
-                                                    <br />
-                                                    <span class="badge bg-warning text-dark">
+                                                    <span class="badge bg-warning text-dark ms-1">
                                                         <i class="fas fa-lock"></i> @Localizer["Secret"]
                                                     </span>
                                                 }
@@ -263,16 +269,6 @@
                                                 else
                                                 {
                                                     <span class="text-muted">@Localizer["NotSet"]</span>
-                                                }
-                                            </td>
-                                            <td>
-                                                @if (item.IsRequired)
-                                                {
-                                                    <span class="badge bg-danger">@Localizer["Required"]</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="badge bg-secondary">@Localizer["Optional"]</span>
                                                 }
                                             </td>
                                         </tr>

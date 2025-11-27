@@ -104,11 +104,6 @@
                                 </div>
                             }
 
-                            <div class="alert alert-info">
-                                <i class="fas fa-info-circle"></i> 
-                                <strong>@Localizer["Note"]:</strong> @Localizer["SecretValuesWillBeEncrypted"]
-                            </div>
-
                             <div class="d-flex gap-2">
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fas fa-save"></i> @Localizer["SaveConfiguration"]
@@ -132,7 +127,6 @@
                     <h6>@Localizer["ConfigurationTips"]</h6>
                     <ul class="small">
                         <li>@Localizer["FieldsMarkedWithAsteriskRequired"]</li>
-                        <li>@Localizer["SecretFieldsEncryptedAutomatically"]</li>
                         <li>@Localizer["LeaveOptionalFieldsEmpty"]</li>
                         <li>@Localizer["ConfigurationMustBeSavedBeforeEnable"]</li>
                     </ul>
@@ -145,13 +139,6 @@
                         <li><strong>@Localizer["AuthenticationFails"]:</strong> @Localizer["DoubleCheckClientIDAndSecret"]</li>
                         <li><strong>@Localizer["CallbackErrors"]:</strong> @Localizer["VerifyCallbackURLInProviderSettings"]</li>
                     </ul>
-
-                    <hr />
-
-                    <h6>@Localizer["Security"]</h6>
-                    <p class="small mb-0">
-                        @Localizer["AllSecretValuesEncryptedAES256"]
-                    </p>
                 </div>
             </div>
 
