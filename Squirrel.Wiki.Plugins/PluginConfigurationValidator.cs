@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Squirrel.Wiki.Contracts.Plugins;
 
-namespace Squirrel.Wiki.Core.Security;
+namespace Squirrel.Wiki.Plugins;
 
 /// <summary>
 /// Validates plugin configuration values based on their schema
@@ -13,7 +13,7 @@ public class PluginConfigurationValidator
     /// </summary>
     public ValidationResult Validate(
         Dictionary<string, string> configuration,
-        List<PluginConfigurationItem> schema)
+        IEnumerable<PluginConfigurationItem> schema)
     {
         var result = new ValidationResult();
 

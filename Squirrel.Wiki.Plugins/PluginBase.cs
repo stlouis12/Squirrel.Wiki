@@ -38,60 +38,31 @@ public abstract class PluginBase : IPlugin
         Dictionary<string, string> config,
         CancellationToken cancellationToken = default)
     {
-        var schema = GetConfigurationSchema();
-
-        foreach (var item in schema)
+        // Use the centralized validator for schema-based validation
+        var validator = new PluginConfigurationValidator();
+        var schema = GetConfigurationSchema().ToList();
+        var result = validator.Validate(config, schema);
+        
+        if (!result.IsValid)
         {
-            // Check required fields
-            if (item.IsRequired && (!config.ContainsKey(item.Key) || string.IsNullOrWhiteSpace(config[item.Key])))
-            {
-                return false;
-            }
-
-            // Validate against pattern if provided
-            if (config.ContainsKey(item.Key) && !string.IsNullOrWhiteSpace(item.ValidationPattern))
-            {
-                var value = config[item.Key];
-                if (!string.IsNullOrWhiteSpace(value) && !Regex.IsMatch(value, item.ValidationPattern))
-                {
-                    return false;
-                }
-            }
-
-            // Type-specific validation
-            if (config.ContainsKey(item.Key))
-            {
-                var value = config[item.Key];
-                if (!string.IsNullOrWhiteSpace(value))
-                {
-                    switch (item.Type)
-                    {
-                        case PluginConfigType.Url:
-                            if (!Uri.TryCreate(value, UriKind.Absolute, out _))
-                            {
-                                return false;
-                            }
-                            break;
-
-                        case PluginConfigType.Number:
-                            if (!int.TryParse(value, out _))
-                            {
-                                return false;
-                            }
-                            break;
-
-                        case PluginConfigType.Boolean:
-                            if (!bool.TryParse(value, out _))
-                            {
-                                return false;
-                            }
-                            break;
-                    }
-                }
-            }
+            return false;
         }
+        
+        // Allow plugins to add custom validation
+        return await ValidateConfigurationCustomAsync(config, cancellationToken);
+    }
 
-        return await Task.FromResult(true);
+    /// <summary>
+    /// Override this method to add custom validation logic beyond schema validation
+    /// </summary>
+    /// <param name="config">The configuration to validate</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if configuration is valid, false otherwise</returns>
+    protected virtual Task<bool> ValidateConfigurationCustomAsync(
+        Dictionary<string, string> config,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(true);
     }
 
     /// <inheritdoc/>

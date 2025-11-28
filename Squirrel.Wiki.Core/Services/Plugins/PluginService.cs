@@ -11,6 +11,8 @@ using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services.Caching;
 using Squirrel.Wiki.Plugins;
+using PluginConfigurationValidator = Squirrel.Wiki.Plugins.PluginConfigurationValidator;
+using ValidationResult = Squirrel.Wiki.Plugins.ValidationResult;
 
 namespace Squirrel.Wiki.Core.Services.Plugins;
 
@@ -838,19 +840,83 @@ public class PluginService : BaseService, IPluginService
         LogInfo("Completed environment variable configuration check");
     }
 
-    /// <summary>
-    /// Checks if a plugin's enabled state is locked by an environment variable
-    /// </summary>
-    /// <param name="pluginId">The plugin ID to check</param>
-    /// <returns>True if the ENABLED environment variable is set for this plugin, false otherwise</returns>
-    private bool IsPluginEnabledLockedByEnvironment(string pluginId)
+    /// <inheritdoc/>
+    public bool IsPluginEnabledLockedByEnvironment(string pluginId)
     {
-        var envPrefix = $"PLUGIN_{pluginId.ToUpperInvariant().Replace("-", "_").Replace(".", "_")}_";
-        var enabledEnvVar = $"{envPrefix}ENABLED";
-        var enabledValue = Environment.GetEnvironmentVariable(enabledEnvVar);
+        try
+        {
+            return PluginEnvironmentHelper.IsEnabledLockedByEnvironment(pluginId, Configuration);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Error checking environment lock for plugin {PluginId}", pluginId);
+            return false;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<Plugin> TogglePluginAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var plugin = await GetPluginAsync(id, cancellationToken);
         
-        // If the ENABLED environment variable is set (to any value), the plugin is locked
-        return !string.IsNullOrEmpty(enabledValue);
+        if (plugin == null)
+        {
+            throw new EntityNotFoundException("Plugin", id);
+        }
+
+        // Check if plugin enable/disable is locked by environment variable
+        if (IsPluginEnabledLockedByEnvironment(plugin.PluginId))
+        {
+            throw new BusinessRuleException(
+                $"Plugin '{plugin.Name}' enable/disable state is controlled by environment variable and cannot be changed via UI.",
+                "PLUGIN_ENABLED_LOCKED"
+            ).WithContext("PluginId", plugin.PluginId)
+             .WithContext("PluginName", plugin.Name);
+        }
+
+        // Toggle based on current state
+        if (plugin.IsEnabled)
+        {
+            await DisablePluginAsync(id, cancellationToken);
+        }
+        else
+        {
+            await EnablePluginAsync(id, cancellationToken);
+        }
+
+        // Return updated plugin
+        var updatedPlugin = await GetPluginAsync(id, cancellationToken);
+        return updatedPlugin!;
+    }
+
+    /// <inheritdoc/>
+    public async Task<Dictionary<string, string>> GetPluginConfigurationWithDefaultsAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var plugin = await GetPluginAsync(id, cancellationToken);
+        
+        if (plugin == null)
+        {
+            throw new EntityNotFoundException("Plugin", id);
+        }
+
+        // Get current configuration
+        var currentConfig = await GetPluginConfigurationAsync(id, cancellationToken);
+
+        // Get loaded plugin to access schema
+        var loadedPlugin = GetLoadedPlugin<IPlugin>(plugin.PluginId);
+        if (loadedPlugin == null)
+        {
+            // If plugin not loaded, just return current config
+            return currentConfig;
+        }
+
+        // Get schema with defaults
+        var schema = loadedPlugin.GetConfigurationSchema().ToList();
+
+        // Use PluginConfigurationHelper to merge with defaults
+        return Squirrel.Wiki.Plugins.PluginConfigurationHelper.MergeWithDefaults(currentConfig, schema);
     }
 
     /// <summary>

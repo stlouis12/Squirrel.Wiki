@@ -83,6 +83,16 @@
                                     <i class="fas fa-times-circle"></i> @Localizer["Disabled"]
                                 </span>
                             }
+                            @if (Model.IsEnabledLockedByEnvironment)
+                            {
+                                <br />
+                                <span class="badge bg-info mt-1" 
+                                      data-bs-toggle="tooltip" 
+                                      data-bs-placement="top" 
+                                      title="@Localizer["PluginConfiguredViaEnvironment"]">
+                                    <i class="bi bi-lock-fill"></i> @Localizer["Environment"]
+                                </span>
+                            }
                         </dd>
 
                         <dt class="col-sm-4">@Localizer["Configuration"]:</dt>
@@ -288,3 +298,13 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    </script>
+}

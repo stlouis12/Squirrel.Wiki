@@ -631,5 +631,5 @@ menus:
     description: Two-zone footer displayed at the bottom of every page
     isEnabled: true
     displayOrder: 3
-    footerLeftZone: "© 2025 Squirrel Wiki - Built with [[.NET 8.0|https://dotnet.microsoft.com]]"
-    footerRightZone: "Inspired by and based on [[RoadKill Wiki|https://github.com/roadkillwiki/roadkill]]"
+    footerLeftZone: "2025 Squirrel Wiki - Built with [[.NET 8.0|https://dotnet.microsoft.com]]"
+    footerRightZone: "[[View on Github|https://github.com/stlouis12/Squirrel.Wiki]]"

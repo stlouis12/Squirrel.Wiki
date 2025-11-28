@@ -11,7 +11,6 @@ using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Events;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Security;
-using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Core.Services.Caching;
 using Squirrel.Wiki.Core.Services.Categories;
 using Squirrel.Wiki.Core.Services.Configuration;
@@ -386,6 +385,7 @@ builder.Services.AddScoped<Squirrel.Wiki.Core.Security.IAuthorizationService, Sq
 var pluginsPath = Path.Combine(AppContext.BaseDirectory, "Plugins");
 Log.Information("Plugins path configured: {PluginsPath}", pluginsPath);
 builder.Services.AddSingleton<Squirrel.Wiki.Plugins.IPluginLoader, Squirrel.Wiki.Plugins.PluginLoader>();
+builder.Services.AddScoped<Squirrel.Wiki.Plugins.IPluginLifecycleManager, Squirrel.Wiki.Plugins.PluginLifecycleManager>();
 builder.Services.AddScoped<IPluginAuditService, PluginAuditService>();
 builder.Services.AddScoped<IPluginService>(sp =>
 {

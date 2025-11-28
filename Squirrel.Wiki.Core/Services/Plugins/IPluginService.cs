@@ -98,4 +98,29 @@ public interface IPluginService
     /// Delete a plugin (only if not a core plugin)
     /// </summary>
     Task DeletePluginAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Toggle a plugin's enabled state (enable if disabled, disable if enabled)
+    /// </summary>
+    /// <param name="id">The plugin database ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The updated plugin entity</returns>
+    Task<Plugin> TogglePluginAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Check if a plugin's enabled state is locked by an environment variable
+    /// </summary>
+    /// <param name="pluginId">The plugin ID string</param>
+    /// <returns>True if locked by environment variable, false otherwise</returns>
+    bool IsPluginEnabledLockedByEnvironment(string pluginId);
+
+    /// <summary>
+    /// Get plugin configuration merged with default values from schema
+    /// </summary>
+    /// <param name="id">The plugin database ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Configuration dictionary with defaults applied</returns>
+    Task<Dictionary<string, string>> GetPluginConfigurationWithDefaultsAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
 }

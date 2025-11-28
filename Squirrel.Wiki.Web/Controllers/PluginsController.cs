@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Contracts.Plugins;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services.Plugins;
+using Squirrel.Wiki.Plugins;
 using Squirrel.Wiki.Web.Models;
 using Squirrel.Wiki.Web.Services;
 
@@ -16,14 +18,17 @@ namespace Squirrel.Wiki.Web.Controllers;
 public class PluginsController : BaseController
 {
     private readonly IPluginService _pluginService;
+    private readonly IConfigurationService _configurationService;
 
     public PluginsController(
         IPluginService pluginService,
+        IConfigurationService configurationService,
         ILogger<PluginsController> logger,
         INotificationService notifications)
         : base(logger, notifications)
     {
         _pluginService = pluginService;
+        _configurationService = configurationService;
     }
 
     /// <summary>
@@ -53,7 +58,7 @@ public class PluginsController : BaseController
                         IsEnabled = p.IsEnabled,
                         IsConfigured = p.IsConfigured,
                         IsCorePlugin = p.IsCorePlugin,
-                        IsEnabledLockedByEnvironment = IsPluginEnabledLockedByEnvironment(p.PluginId)
+                        IsEnabledLockedByEnvironment = _pluginService.IsPluginEnabledLockedByEnvironment(p.PluginId)
                     };
                 }).ToList()
             };
@@ -89,7 +94,7 @@ public class PluginsController : BaseController
                 IsEnabled = plugin.IsEnabled,
                 IsConfigured = plugin.IsConfigured,
                 IsCorePlugin = plugin.IsCorePlugin,
-                IsEnabledLockedByEnvironment = IsPluginEnabledLockedByEnvironment(plugin.PluginId),
+                IsEnabledLockedByEnvironment = _pluginService.IsPluginEnabledLockedByEnvironment(plugin.PluginId),
                 ConfigurationSchema = loadedPlugin?.Metadata.Configuration.Select(c => new PluginConfigurationItemViewModel
                 {
                     Key = c.Key,
@@ -491,26 +496,4 @@ public class PluginsController : BaseController
 
     #endregion
 
-    #region Helper Methods - Environment Variable Checking
-
-    /// <summary>
-    /// Checks if a plugin's enabled state is locked by an environment variable
-    /// </summary>
-    /// <param name="pluginId">The plugin ID to check</param>
-    /// <returns>True if the ENABLED environment variable is set for this plugin, false otherwise</returns>
-    private bool IsPluginEnabledLockedByEnvironment(string pluginId)
-    {
-        var envPrefix = $"PLUGIN_{pluginId.ToUpperInvariant().Replace("-", "_").Replace(".", "_")}_";
-        var enabledEnvVar = $"{envPrefix}ENABLED";
-        var enabledValue = Environment.GetEnvironmentVariable(enabledEnvVar);
-        
-        // Debug logging
-        _logger.LogDebug("Checking lock for plugin {PluginId}: Looking for env var {EnvVar}, Found: {Found}", 
-            pluginId, enabledEnvVar, !string.IsNullOrEmpty(enabledValue));
-        
-        // If the ENABLED environment variable is set (to any value), the plugin is locked
-        return !string.IsNullOrEmpty(enabledValue);
-    }
-
-    #endregion
 }

@@ -24,15 +24,13 @@ public class EnvironmentVariableConfigurationProvider : IConfigurationProvider
         try
         {
             // Check if this key has metadata (is a known configuration key)
-            if (!ConfigurationMetadataRegistry.HasMetadata(key))
-            {
-                return Task.FromResult<ConfigurationValue?>(null);
-            }
-
-            var metadata = ConfigurationMetadataRegistry.GetMetadata(key);
+            bool hasMetadata = ConfigurationMetadataRegistry.HasMetadata(key);
+            ConfigurationProperty? metadata = hasMetadata ? ConfigurationMetadataRegistry.GetMetadata(key) : null;
             
-            // Get the environment variable name (should match the key)
-            var envVarName = metadata.EnvironmentVariable ?? key;
+            // Get the environment variable name
+            // For registered keys, use the metadata's environment variable name
+            // For unregistered keys (like plugin config), use the key directly
+            var envVarName = metadata?.EnvironmentVariable ?? key;
             
             // Try to read from environment
             var envValue = Environment.GetEnvironmentVariable(envVarName);
@@ -46,12 +44,15 @@ public class EnvironmentVariableConfigurationProvider : IConfigurationProvider
             object typedValue;
             try
             {
-                typedValue = ConvertValue(envValue, metadata.ValueType);
+                // If we have metadata, use its type information
+                // Otherwise, return as string (for dynamic/plugin keys)
+                var targetType = metadata?.ValueType ?? typeof(string);
+                typedValue = ConvertValue(envValue, targetType);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to convert environment variable {EnvVar} value '{Value}' to type {Type}", 
-                    envVarName, envValue, metadata.ValueType.Name);
+                    envVarName, envValue, metadata?.ValueType.Name ?? "string");
                 return Task.FromResult<ConfigurationValue?>(null);
             }
 
@@ -64,9 +65,10 @@ public class EnvironmentVariableConfigurationProvider : IConfigurationProvider
                 ModifiedBy = null
             };
 
-            // Log the value (mask if secret)
-            var displayValue = metadata.IsSecret ? "***" : typedValue.ToString();
-            _logger.LogInformation("Loaded configuration from environment variable {EnvVar}: {Value}", 
+            // Log the value (mask if secret or if it looks like a plugin key)
+            var isPluginKey = key.StartsWith("PLUGIN_", StringComparison.OrdinalIgnoreCase);
+            var displayValue = (metadata?.IsSecret == true || isPluginKey) ? "***" : typedValue.ToString();
+            _logger.LogDebug("Loaded configuration from environment variable {EnvVar}: {Value}", 
                 envVarName, displayValue);
 
             return Task.FromResult<ConfigurationValue?>(configValue);
