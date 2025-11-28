@@ -74,7 +74,7 @@ public class AdminController : BaseController
             },
             Application = new
             {
-                Version = "3.0.0",
+                Version = "1.0.0",
                 Framework = ".NET 8.0",
                 StartTime = Process.GetCurrentProcess().StartTime,
                 Uptime = DateTime.Now - Process.GetCurrentProcess().StartTime
@@ -82,52 +82,6 @@ public class AdminController : BaseController
         };
 
         return View(model);
-    }
-
-    /// <summary>
-    /// Clear all caches - Refactored with Result Pattern
-    /// </summary>
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public IActionResult ClearCache()
-    {
-        var result = ClearCacheWithResult();
-
-        return result.Match<IActionResult>(
-            onSuccess: _ =>
-            {
-                NotifyLocalizedSuccess("Notification_CacheCleared");
-                return RedirectToAction(nameof(Index));
-            },
-            onFailure: (error, code) =>
-            {
-                NotifyError($"Error clearing cache: {error}");
-                return RedirectToAction(nameof(Index));
-            }
-        );
-    }
-
-    /// <summary>
-    /// Rebuild search index - Refactored with Result Pattern
-    /// </summary>
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RebuildSearchIndex()
-    {
-        var result = await RebuildSearchIndexWithResult();
-
-        return result.Match<IActionResult>(
-            onSuccess: _ =>
-            {
-                NotifyLocalizedSuccess("Notification_SearchIndexRebuilt");
-                return RedirectToAction(nameof(Index));
-            },
-            onFailure: (error, code) =>
-            {
-                NotifyError($"Error rebuilding search index: {error}");
-                return RedirectToAction(nameof(Index));
-            }
-        );
     }
 
     #region Helper Methods - Result Pattern

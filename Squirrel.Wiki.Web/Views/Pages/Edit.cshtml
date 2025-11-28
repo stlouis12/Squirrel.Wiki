@@ -92,12 +92,16 @@
                         <span><i class="bi bi-eye"></i> @Localizer["Preview"]</span>
                         <button type="button" class="btn-close" onclick="hidePreview()"></button>
                     </div>
-                    <div class="card-body" id="previewContent">
-                        <div class="text-center text-muted">
-                            <div class="spinner-border spinner-border-sm" role="status">
-                                <span class="visually-hidden">@Localizer["Loading"]</span>
+                    <div class="card-body">
+                        <div class="wiki-page">
+                            <div class="page-content" id="previewContent">
+                                <div class="text-center text-muted">
+                                    <div class="spinner-border spinner-border-sm" role="status">
+                                        <span class="visually-hidden">@Localizer["Loading"]</span>
+                                    </div>
+                                    @Localizer["LoadingPreview"]
+                                </div>
                             </div>
-                            @Localizer["LoadingPreview"]
                         </div>
                     </div>
                 </div>
@@ -219,6 +223,22 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     
+    <script type="module">
+        // Import Mermaid for diagram rendering in preview
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+        
+        // Initialize Mermaid with configuration
+        mermaid.initialize({ 
+            startOnLoad: false, // We'll manually trigger rendering
+            theme: 'default',
+            securityLevel: 'loose',
+            fontFamily: 'inherit'
+        });
+        
+        // Make mermaid available globally for the preview function
+        window.mermaidRenderer = mermaid;
+    </script>
+    
     <script>
         // Markdown editor helper functions
         function insertMarkdown(before, after) {
@@ -257,6 +277,18 @@
                 if (response.ok) {
                     const html = await response.text();
                     previewContent.innerHTML = html || '<div class="text-muted">@Localizer["NoContentToPreview"]</div>';
+                    
+                    // Render Mermaid diagrams in the preview
+                    if (window.mermaidRenderer) {
+                        try {
+                            // Markdig renders mermaid blocks as <div class="mermaid">
+                            await window.mermaidRenderer.run({
+                                querySelector: '#previewContent .mermaid'
+                            });
+                        } catch (mermaidError) {
+                            console.error('Mermaid rendering error:', mermaidError);
+                        }
+                    }
                 } else {
                     const errorText = await response.text();
                     console.error('Preview error:', errorText);

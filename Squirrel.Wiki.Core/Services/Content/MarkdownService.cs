@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using Squirrel.Wiki.Contracts.Configuration;
+using Squirrel.Wiki.Contracts.Plugins;
 using Squirrel.Wiki.Core.Services.Caching;
 using Squirrel.Wiki.Core.Events;
 
@@ -14,13 +15,16 @@ namespace Squirrel.Wiki.Core.Services.Content;
 /// </summary>
 public class MarkdownService : BaseService, IMarkdownService
 {
-    private readonly MarkdownPipeline _pipeline;
+    private MarkdownPipeline _pipeline;
     private readonly ISlugGenerator _slugGenerator;
+    private readonly IServiceProvider _serviceProvider;
+    private List<IMarkdownExtensionPlugin> _extensionPlugins = new();
     private static readonly Regex WikiLinkRegex = new(@"\[\[([^\]]+)\]\]", RegexOptions.Compiled);
     private static readonly Regex MarkdownLinkRegex = new(@"\[([^\]]+)\]\(([^\)]+)\)", RegexOptions.Compiled);
 
     public MarkdownService(
         ISlugGenerator slugGenerator,
+        IServiceProvider serviceProvider,
         ILogger<MarkdownService> logger,
         ICacheService cache,
         IEventPublisher eventPublisher,
@@ -28,9 +32,23 @@ public class MarkdownService : BaseService, IMarkdownService
         : base(logger, cache, eventPublisher, null, configuration)
     {
         _slugGenerator = slugGenerator;
+        _serviceProvider = serviceProvider;
         
+        // Load plugins synchronously during construction
+        // This ensures each scoped instance has the current set of enabled plugins
+        LoadExtensionPluginsSync();
+        
+        // Build initial pipeline
+        _pipeline = BuildPipeline();
+    }
+
+    /// <summary>
+    /// Builds the Markdig pipeline with base extensions and plugin extensions
+    /// </summary>
+    private MarkdownPipeline BuildPipeline()
+    {
         // Configure Markdig pipeline with common extensions
-        _pipeline = new MarkdownPipelineBuilder()
+        var builder = new MarkdownPipelineBuilder()
             .UseAdvancedExtensions()
             .UseAutoLinks()
             .UseTaskLists()
@@ -38,8 +56,67 @@ public class MarkdownService : BaseService, IMarkdownService
             .UsePipeTables()
             .UseGridTables()
             .UseFootnotes()
-            .UseAutoIdentifiers()
-            .Build();
+            .UseAutoIdentifiers();
+
+        // Apply plugin extensions
+        foreach (var plugin in _extensionPlugins)
+        {
+            try
+            {
+                LogDebug("Applying Markdown extension from plugin: {PluginId}", plugin.Metadata.Id);
+                plugin.ConfigurePipeline(builder);
+            }
+            catch (Exception ex)
+            {
+                LogError(ex, "Failed to apply Markdown extension from plugin: {PluginId}", plugin.Metadata.Id);
+            }
+        }
+
+        return builder.Build();
+    }
+
+    /// <summary>
+    /// Loads Markdown extension plugins synchronously during construction
+    /// </summary>
+    private void LoadExtensionPluginsSync()
+    {
+        try
+        {
+            // Get plugin service from DI
+            var pluginService = _serviceProvider.GetService(typeof(Squirrel.Wiki.Core.Services.Plugins.IPluginService)) 
+                as Squirrel.Wiki.Core.Services.Plugins.IPluginService;
+
+            if (pluginService == null)
+            {
+                LogDebug("Plugin service not available during MarkdownService construction");
+                return;
+            }
+
+            // Get all loaded Markdown extension plugins
+            var loadedPlugins = pluginService.GetLoadedPlugins<IMarkdownExtensionPlugin>().ToList();
+            
+            // Get enabled plugins from database synchronously
+            var enabledPlugins = pluginService.GetEnabledPluginsAsync().GetAwaiter().GetResult();
+            var enabledPluginIds = new HashSet<string>(enabledPlugins.Select(p => p.PluginId));
+            
+            // Filter to only enabled plugins
+            var plugins = loadedPlugins.Where(p => enabledPluginIds.Contains(p.Metadata.Id)).ToList();
+            
+            LogDebug("Loading {Count} enabled Markdown extension plugins (out of {Total} loaded)", 
+                plugins.Count, loadedPlugins.Count);
+            
+            // Register enabled plugins
+            _extensionPlugins.Clear();
+            foreach (var plugin in plugins)
+            {
+                _extensionPlugins.Add(plugin);
+                LogDebug("Loaded Markdown extension plugin: {PluginId}", plugin.Metadata.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            LogError(ex, "Failed to load Markdown extension plugins during construction");
+        }
     }
 
     public async Task<string> ToHtmlAsync(string markdown, CancellationToken cancellationToken = default)
@@ -47,8 +124,10 @@ public class MarkdownService : BaseService, IMarkdownService
         if (string.IsNullOrWhiteSpace(markdown))
             return string.Empty;
 
-        // Generate cache key based on markdown content hash
-        var cacheKey = $"markdown:html:{GenerateContentHash(markdown)}";
+        // Generate cache key based on markdown content hash AND enabled plugins
+        // This ensures cache is invalidated when plugins change
+        var pluginIds = string.Join(",", _extensionPlugins.Select(p => p.Metadata.Id).OrderBy(id => id));
+        var cacheKey = $"markdown:html:{GenerateContentHash(markdown)}:{GenerateContentHash(pluginIds)}";
 
         // Try to get from cache
         var cachedHtml = await Cache.GetAsync<string>(cacheKey, cancellationToken);
@@ -58,15 +137,42 @@ public class MarkdownService : BaseService, IMarkdownService
             return cachedHtml;
         }
 
+        // Pre-process markdown with plugins
+        foreach (var plugin in _extensionPlugins)
+        {
+            try
+            {
+                markdown = await plugin.PreProcessMarkdownAsync(markdown, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                LogError(ex, "Failed to pre-process markdown with plugin: {PluginId}", plugin.Metadata.Id);
+            }
+        }
+
         // Convert wiki-style links [[Page Title]] to markdown links
         markdown = ConvertWikiLinksToMarkdown(markdown);
 
         // Convert to HTML using Markdig
         var html = Markdown.ToHtml(markdown, _pipeline);
 
+        // Post-process HTML with plugins
+        foreach (var plugin in _extensionPlugins)
+        {
+            try
+            {
+                LogDebug("Post-processing HTML with plugin: {PluginId}", plugin.Metadata.Id);
+                html = await plugin.PostProcessHtmlAsync(html, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                LogError(ex, "Failed to post-process HTML with plugin: {PluginId}", plugin.Metadata.Id);
+            }
+        }
+
         // Cache the result using the configured cache expiration setting
         await Cache.SetAsync(cacheKey, html, null, cancellationToken);
-        LogDebug("Markdown HTML cached");
+        LogDebug("Markdown HTML cached with {PluginCount} plugins", _extensionPlugins.Count);
 
         return html;
     }

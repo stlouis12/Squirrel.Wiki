@@ -85,6 +85,39 @@ public abstract class BaseController : Controller
     }
 
     /// <summary>
+    /// Adds a localized success toast notification (non-blocking).
+    /// </summary>
+    protected void NotifyLocalizedSuccessToast(string localizationKey, params object[] args)
+    {
+        // Use the notification service's internal method to create a localized toast
+        var notification = new Notification
+        {
+            Type = NotificationType.Success,
+            IsLocalized = true,
+            LocalizationKey = localizationKey,
+            LocalizationArgs = args,
+            IsToast = true,
+            AutoDismissMs = 5000,
+            Dismissible = true
+        };
+        
+        // We need to add this through the service - let's use a workaround
+        // by getting the localized message first if localizer is available
+        if (_localizer != null)
+        {
+            var message = args.Length > 0 
+                ? _localizer[localizationKey, args].Value 
+                : _localizer[localizationKey].Value;
+            _notifications.AddSuccess(message, isToast: true, autoDismissMs: 5000);
+        }
+        else
+        {
+            // Fallback to non-localized if localizer not available
+            _notifications.AddSuccess(localizationKey, isToast: true, autoDismissMs: 5000);
+        }
+    }
+
+    /// <summary>
     /// Adds an error notification to be displayed to the user.
     /// </summary>
     protected void NotifyError(string message)
@@ -106,6 +139,24 @@ public abstract class BaseController : Controller
     protected void NotifyLocalizedError(string localizationKey, params object[] args)
     {
         _notifications.AddLocalizedError(localizationKey, args);
+    }
+
+    /// <summary>
+    /// Adds a localized error toast notification (non-blocking).
+    /// </summary>
+    protected void NotifyLocalizedErrorToast(string localizationKey, params object[] args)
+    {
+        if (_localizer != null)
+        {
+            var message = args.Length > 0 
+                ? _localizer[localizationKey, args].Value 
+                : _localizer[localizationKey].Value;
+            _notifications.AddError(message, isToast: true, autoDismissMs: 7000);
+        }
+        else
+        {
+            _notifications.AddError(localizationKey, isToast: true, autoDismissMs: 7000);
+        }
     }
 
     /// <summary>

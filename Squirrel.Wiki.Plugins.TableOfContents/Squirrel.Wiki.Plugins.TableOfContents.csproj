@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Squirrel.Wiki.Contracts\Squirrel.Wiki.Contracts.csproj" />
+    <ProjectReference Include="..\Squirrel.Wiki.Plugins\Squirrel.Wiki.Plugins.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Markdig is provided by the host application, so we reference it without copying -->
+    <PackageReference Include="Markdig" Version="0.44.0">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

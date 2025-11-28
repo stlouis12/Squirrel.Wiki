@@ -93,6 +93,10 @@ public class PluginService : BaseService, IPluginService
                 {
                     pluginType = PluginType.SearchProvider.ToString();
                 }
+                else if (plugin is IMarkdownExtensionPlugin)
+                {
+                    pluginType = PluginType.MarkdownExtension.ToString();
+                }
 
                 // Check if plugin has any required configuration fields
                 var hasRequiredFields = plugin.GetConfigurationSchema()
@@ -345,6 +349,21 @@ public class PluginService : BaseService, IPluginService
 
         LogInfo("Enabled plugin: {PluginId}", plugin.PluginId);
 
+        // If this is a Markdown extension plugin, clear markdown cache
+        // The next request will automatically load the enabled plugin via LoadExtensionPluginsSync()
+        if (loadedPlugin is IMarkdownExtensionPlugin)
+        {
+            try
+            {
+                LogInfo("Clearing markdown cache after enabling Markdown extension plugin {PluginId}", plugin.PluginId);
+                await Cache.RemoveByPatternAsync("markdown:html:*", cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                LogError(ex, "Failed to clear markdown cache after enabling {PluginId}", plugin.PluginId);
+            }
+        }
+
         // Audit log
         await LogAuditAsync(
             plugin.Id,
@@ -382,6 +401,22 @@ public class PluginService : BaseService, IPluginService
         await _context.SaveChangesAsync(cancellationToken);
 
         LogInfo("Disabled plugin: {PluginId}", plugin.PluginId);
+
+        // If this is a Markdown extension plugin, clear markdown cache
+        // The next request will automatically load the enabled plugin via LoadExtensionPluginsSync()
+        var loadedPlugin = GetLoadedPlugin<IPlugin>(plugin.PluginId);
+        if (loadedPlugin is IMarkdownExtensionPlugin)
+        {
+            try
+            {
+                LogInfo("Clearing markdown cache after disabling Markdown extension plugin {PluginId}", plugin.PluginId);
+                await Cache.RemoveByPatternAsync("markdown:html:*", cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                LogError(ex, "Failed to clear markdown cache after disabling {PluginId}", plugin.PluginId);
+            }
+        }
 
         // Audit log
         await LogAuditAsync(

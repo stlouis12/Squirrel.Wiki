@@ -4,18 +4,12 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Version>1.0.0</Version>
-    <Authors>Squirrel Wiki Team</Authors>
-    <Description>Contracts and interfaces for Squirrel Wiki plugins and services</Description>
-    <PackageProjectUrl>https://github.com/stlouis12/Squirrel.Wiki</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/stlouis12/Squirrel.Wiki</RepositoryUrl>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- Minimal dependencies - only abstractions -->
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Markdig" Version="0.44.0" />
   </ItemGroup>
 
 </Project>

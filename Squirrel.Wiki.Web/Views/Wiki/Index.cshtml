@@ -158,7 +158,18 @@
 }
 
 @section Scripts {
-    <script>
+    <script type="module">
+        // Import Mermaid for diagram rendering
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+        
+        // Initialize Mermaid with configuration
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            fontFamily: 'inherit'
+        });
+        
         // Add syntax highlighting if code blocks are present
         document.querySelectorAll('pre code').forEach((block) => {
             block.classList.add('language-auto');

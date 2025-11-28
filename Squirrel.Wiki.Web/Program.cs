@@ -550,7 +550,7 @@ app.MapHealthChecks("/health");
 
 try
 {
-    Log.Information("Starting Squirrel Wiki v3.0");
+    Log.Information("Starting Squirrel Wiki v1.0");
     app.Run();
 }
 catch (Exception ex)

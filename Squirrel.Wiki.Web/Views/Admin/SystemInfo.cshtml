@@ -199,10 +199,6 @@
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th>@Localizer["ContentRootPath"]</th>
-                                    <td><code>@env.ContentRootPath</code></td>
-                                </tr>
-                                <tr>
                                     <th>@Localizer["WebRootPath"]</th>
                                     <td><code>@env.WebRootPath</code></td>
                                 </tr>
@@ -230,10 +226,6 @@
                         <table class="table table-hover">
                             <tbody>
                                 <tr>
-                                    <th style="width: 30%;">@Localizer["RequestURL"]</th>
-                                    <td><code>@Context.Request.Scheme://@Context.Request.Host@Context.Request.Path@Context.Request.QueryString</code></td>
-                                </tr>
-                                <tr>
                                     <th>@Localizer["RequestMethod"]</th>
                                     <td><span class="badge bg-primary">@Context.Request.Method</span></td>
                                 </tr>
@@ -255,41 +247,6 @@
                                 </tr>
                             </tbody>
                         </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Links -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-link-45deg"></i> @Localizer["QuickLinks"]</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3 mb-2">
-                            <a href="/health" class="btn btn-outline-primary w-100" target="_blank">
-                                <i class="bi bi-heart-pulse"></i> @Localizer["HealthChecks"]
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <a href="/swagger" class="btn btn-outline-primary w-100" target="_blank">
-                                <i class="bi bi-code-square"></i> @Localizer["APIDocumentation"]
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <a asp-action="Index" class="btn btn-outline-secondary w-100">
-                                <i class="bi bi-speedometer2"></i> @Localizer["Dashboard"]
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <a asp-controller="Settings" asp-action="Index" class="btn btn-outline-secondary w-100">
-                                <i class="bi bi-sliders"></i> @Localizer["Settings"]
-                            </a>
-                        </div>
                     </div>
                 </div>
             </div>

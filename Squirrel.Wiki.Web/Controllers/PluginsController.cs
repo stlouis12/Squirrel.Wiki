@@ -186,7 +186,7 @@ public class PluginsController : BaseController
             _logger.LogInformation("Configured plugin '{PluginName}' (ID: {PluginId})", 
                 result.Value!.Name, result.Value.Id);
             
-            NotifyLocalizedSuccess("Notification_PluginConfigured", result.Value.Name);
+            NotifyLocalizedSuccessToast("Notification_PluginConfigured", result.Value.Name);
             return RedirectToAction(nameof(Details), new { id });
         }
         else
@@ -210,7 +210,7 @@ public class PluginsController : BaseController
             _logger.LogInformation("Enabled plugin '{PluginName}' (ID: {PluginId})", 
                 result.Value!.Name, result.Value.Id);
             
-            NotifyLocalizedSuccess("Notification_PluginEnabled", result.Value.Name);
+            NotifyLocalizedSuccessToast("Notification_PluginEnabled", result.Value.Name);
             return RedirectToAction(nameof(Index));
         }
         else
@@ -234,7 +234,7 @@ public class PluginsController : BaseController
             _logger.LogInformation("Disabled plugin '{PluginName}' (ID: {PluginId})", 
                 result.Value!.Name, result.Value.Id);
             
-            NotifyLocalizedSuccess("Notification_PluginDisabled", result.Value.Name);
+            NotifyLocalizedSuccessToast("Notification_PluginDisabled", result.Value.Name);
             return RedirectToAction(nameof(Index));
         }
         else
@@ -258,7 +258,7 @@ public class PluginsController : BaseController
             _logger.LogInformation("Deleted plugin '{PluginName}' (ID: {PluginId})", 
                 result.Value!, id);
             
-            NotifyLocalizedSuccess("Notification_PluginDeleted", result.Value);
+            NotifyLocalizedSuccessToast("Notification_PluginDeleted", result.Value);
             return RedirectToAction(nameof(Index));
         }
         else

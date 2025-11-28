@@ -84,4 +84,22 @@
     <Warning Text="Lucene plugin not found at $(LucenePluginSource)" Condition="!Exists('$(LucenePluginSource)')" />
   </Target>
 
+  <!-- Copy Table of Contents plugin to Plugins folder after build -->
+  <Target Name="CopyTableOfContentsPlugin" AfterTargets="Build">
+    <PropertyGroup>
+      <PluginsDir>$(OutputPath)Plugins</PluginsDir>
+      <TocPluginDir>$(PluginsDir)\Squirrel.Wiki.Plugins.TableOfContents</TocPluginDir>
+      <TocPluginSource>..\Squirrel.Wiki.Plugins.TableOfContents\bin\$(Configuration)\net8.0\Squirrel.Wiki.Plugins.TableOfContents.dll</TocPluginSource>
+    </PropertyGroup>
+    
+    <!-- Create plugin subdirectory -->
+    <MakeDir Directories="$(TocPluginDir)" Condition="!Exists('$(TocPluginDir)')" />
+    
+    <!-- Copy plugin DLL to its subdirectory -->
+    <Copy SourceFiles="$(TocPluginSource)" DestinationFolder="$(TocPluginDir)" SkipUnchangedFiles="true" Condition="Exists('$(TocPluginSource)')" />
+    
+    <Message Text="Copied Table of Contents plugin to $(TocPluginDir)" Importance="high" Condition="Exists('$(TocPluginSource)')" />
+    <Warning Text="Table of Contents plugin not found at $(TocPluginSource)" Condition="!Exists('$(TocPluginSource)')" />
+  </Target>
+
 </Project>

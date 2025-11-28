@@ -348,7 +348,7 @@
   </data>
   <!-- Home Page -->
   <data name="WelcomeToSquirrelWiki" xml:space="preserve">
-    <value>Welcome to Squirrel Wiki v3.0</value>
+    <value>Welcome to Squirrel Wiki v1.0</value>
   </data>
   <data name="ModernWikiApplication" xml:space="preserve">
     <value>A modern, .NET 8.0 LTS wiki application</value>
@@ -392,9 +392,6 @@
   <data name="DevelopmentInProgress" xml:space="preserve">
     <value>Development in Progress</value>
   </data>
-  <data name="DevelopmentInProgressMessage" xml:space="preserve">
-    <value>Squirrel Wiki v3.0 is currently under active development. This is a migration from Roadkill v2.0 to .NET 8.0 LTS.</value>
-  </data>
   <data name="CheckGitHubRepository" xml:space="preserve">
     <value>Check the GitHub repository for the latest updates and documentation.</value>
   </data>
@@ -420,26 +417,8 @@
   <data name="RecentActivity" xml:space="preserve">
     <value>Recent Activity</value>
   </data>
-  <data name="Edits24Hours" xml:space="preserve">
-    <value>Edits (24h)</value>
-  </data>
-  <data name="Edits7Days" xml:space="preserve">
-    <value>Edits (7d)</value>
-  </data>
   <data name="QuickActions" xml:space="preserve">
     <value>Quick Actions</value>
-  </data>
-  <data name="ClearCache" xml:space="preserve">
-    <value>Clear Cache</value>
-  </data>
-  <data name="RebuildSearchIndex" xml:space="preserve">
-    <value>Rebuild Search Index</value>
-  </data>
-  <data name="ConfirmClearCache" xml:space="preserve">
-    <value>Are you sure you want to clear the cache?</value>
-  </data>
-  <data name="ConfirmRebuildIndex" xml:space="preserve">
-    <value>This may take a while. Continue?</value>
   </data>
   <data name="SystemHealth" xml:space="preserve">
     <value>System Health</value>
@@ -449,9 +428,6 @@
   </data>
   <data name="Cache" xml:space="preserve">
     <value>Cache</value>
-  </data>
-  <data name="SearchIndex" xml:space="preserve">
-    <value>Search Index</value>
   </data>
   <data name="DiskSpace" xml:space="preserve">
     <value>Disk Space</value>
@@ -1618,9 +1594,6 @@
   <data name="CurrentRequest" xml:space="preserve">
     <value>Current Request</value>
   </data>
-  <data name="RequestURL" xml:space="preserve">
-    <value>Request URL</value>
-  </data>
   <data name="RequestMethod" xml:space="preserve">
     <value>Request Method</value>
   </data>
@@ -1629,6 +1602,12 @@
   </data>
   <data name="ContentType" xml:space="preserve">
     <value>Content Type</value>
+  </data>
+  <data name="ConfirmEnablePluginMessage" xml:space="preserve">
+    <value>Enable the following plugin?</value>
+  </data>
+  <data name="ConfirmDisablePluginMessage" xml:space="preserve">
+    <value>Disable the following plugin?</value>
   </data>
   <data name="RemoteIPAddress" xml:space="preserve">
     <value>Remote IP Address</value>
@@ -2453,6 +2432,15 @@
   </data>
   <data name="Notification_ErrorDeletingPlugin" xml:space="preserve">
     <value>An error occurred while deleting the plugin.</value>
+  </data>
+  <data name="DisablePluginWarning" xml:space="preserve">
+    <value>Disabling this plugin will stop it from functioning. You can re-enable it at any time.</value>
+  </data>
+  <data name="DeletePluginWarning" xml:space="preserve">
+    <value>This action cannot be undone. All plugin data and configuration will be permanently removed.</value>
+  </data>
+  <data name="PluginConfiguredViaEnvironment" xml:space="preserve">
+    <value>This plugin is configured via environment variables and cannot be modified through the UI.</value>
   </data>
   <!-- Notification Messages - Category Management -->
   <data name="Notification_CategoryCreated" xml:space="preserve">

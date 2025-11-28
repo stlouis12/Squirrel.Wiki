@@ -95,43 +95,50 @@
         </div>
     </div>
 
-    <!-- Activity Stats -->
+    <!-- Admin Links -->
     <div class="row mb-4">
-        <div class="col-md-6 mb-3">
+        <div class="col-12">
             <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title"><i class="bi bi-activity"></i> @Localizer["RecentActivity"]</h5>
-                    <div class="row text-center mt-3">
-                        <div class="col-6">
-                            <h3 class="text-primary">@Model.Statistics.RecentEdits24Hours</h3>
-                            <p class="text-muted mb-0">@Localizer["Edits24Hours"]</p>
-                        </div>
-                        <div class="col-6">
-                            <h3 class="text-info">@Model.Statistics.RecentEdits7Days</h3>
-                            <p class="text-muted mb-0">@Localizer["Edits7Days"]</p>
-                        </div>
-                    </div>
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> @Localizer["Administration"]</h5>
                 </div>
-            </div>
-        </div>
-
-        <div class="col-md-6 mb-3">
-            <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title"><i class="bi bi-tools"></i> @Localizer["QuickActions"]</h5>
-                    <div class="d-grid gap-2 mt-3">
-                        <form asp-action="ClearCache" method="post" class="d-inline">
-                            @Html.AntiForgeryToken()
-                            <button type="submit" class="btn btn-outline-warning w-100" onclick="return confirm('@Localizer["ConfirmClearCache"]')">
-                                <i class="bi bi-trash"></i> @Localizer["ClearCache"]
-                            </button>
-                        </form>
-                        <form asp-action="RebuildSearchIndex" method="post" class="d-inline">
-                            @Html.AntiForgeryToken()
-                            <button type="submit" class="btn btn-outline-info w-100" onclick="return confirm('@Localizer["ConfirmRebuildIndex"]')">
-                                <i class="bi bi-arrow-clockwise"></i> @Localizer["RebuildSearchIndex"]
-                            </button>
-                        </form>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Settings")" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-sliders"></i> @Localizer["SiteSettings"]
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Menus")" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-palette"></i> @Localizer["SiteCustomization"]
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Categories")" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-folder-fill"></i> @Localizer["ManageCategories"]
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Users")" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-people"></i> @Localizer["ManageUsers"]
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Plugins")" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-plug"></i> @Localizer["Plugins"]
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("SystemInfo", "Admin")" class="btn btn-outline-secondary w-100">
+                                <i class="bi bi-info-circle"></i> @Localizer["SystemInformation"]
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="/health" class="btn btn-outline-secondary w-100" target="_blank">
+                                <i class="bi bi-heart-pulse"></i> @Localizer["HealthChecks"]
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -160,28 +167,6 @@
 
                         <div class="col-md-4 mb-3">
                             <div class="d-flex align-items-center">
-                                <i class="bi @Model.Health.Cache.StatusIcon text-@Model.Health.Cache.StatusClass me-2" style="font-size: 1.5rem;"></i>
-                                <div>
-                                    <strong>@Localizer["Cache"]</strong>
-                                    <br>
-                                    <small class="text-muted">@Model.Health.Cache.Message</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4 mb-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi @Model.Health.SearchIndex.StatusIcon text-@Model.Health.SearchIndex.StatusClass me-2" style="font-size: 1.5rem;"></i>
-                                <div>
-                                    <strong>@Localizer["SearchIndex"]</strong>
-                                    <br>
-                                    <small class="text-muted">@Model.Health.SearchIndex.Message</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-6 mb-3">
-                            <div class="d-flex align-items-center">
                                 <i class="bi @Model.Health.DiskSpace.StatusIcon text-@Model.Health.DiskSpace.StatusClass me-2" style="font-size: 1.5rem;"></i>
                                 <div>
                                     <strong>@Localizer["DiskSpace"]</strong>
@@ -191,7 +176,7 @@
                             </div>
                         </div>
 
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <div class="d-flex align-items-center">
                                 <i class="bi @Model.Health.Memory.StatusIcon text-@Model.Health.Memory.StatusClass me-2" style="font-size: 1.5rem;"></i>
                                 <div>
@@ -254,61 +239,6 @@
                     {
                         <p class="text-muted mb-0">@Localizer["NoRecentActivities"]</p>
                     }
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Admin Links -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-gear"></i> @Localizer["Administration"]</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <a href="@Url.Action("Index", "Settings")" class="btn btn-outline-primary w-100">
-                                <i class="bi bi-sliders"></i> @Localizer["SiteSettings"]
-                            </a>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <a href="@Url.Action("Index", "Menus")" class="btn btn-outline-primary w-100">
-                                <i class="bi bi-palette"></i> @Localizer["SiteCustomization"]
-                            </a>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <a href="@Url.Action("Index", "Categories")" class="btn btn-outline-primary w-100">
-                                <i class="bi bi-folder-fill"></i> @Localizer["ManageCategories"]
-                            </a>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <a href="@Url.Action("Index", "Users")" class="btn btn-outline-primary w-100">
-                                <i class="bi bi-people"></i> @Localizer["ManageUsers"]
-                            </a>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <a href="@Url.Action("Index", "Plugins")" class="btn btn-outline-primary w-100">
-                                <i class="fas fa-plug"></i> @Localizer["Plugins"]
-                            </a>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <a href="@Url.Action("SystemInfo", "Admin")" class="btn btn-outline-secondary w-100">
-                                <i class="bi bi-info-circle"></i> @Localizer["SystemInformation"]
-                            </a>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <a href="/health" class="btn btn-outline-secondary w-100" target="_blank">
-                                <i class="bi bi-heart-pulse"></i> @Localizer["HealthChecks"]
-                            </a>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <a href="/swagger" class="btn btn-outline-secondary w-100" target="_blank">
-                                <i class="bi bi-code-square"></i> @Localizer["APIDocumentation"]
-                            </a>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

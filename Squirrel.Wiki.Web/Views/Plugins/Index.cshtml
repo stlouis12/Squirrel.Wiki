@@ -13,22 +13,6 @@
         </div>
     </div>
 
-    @if (TempData["Success"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="fas fa-check-circle"></i> @TempData["Success"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="@Localizer["Close"]"></button>
-        </div>
-    }
-
-    @if (TempData["Error"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-circle"></i> @TempData["Error"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="@Localizer["Close"]"></button>
-        </div>
-    }
-
     @if (!Model.Plugins.Any())
     {
         <div class="alert alert-info">
@@ -112,52 +96,50 @@
                                         }
                                     </td>
                                     <td class="text-end">
-                                        <div class="btn-group" role="group">
+                                        <div class="btn-group btn-group-sm" role="group">
                                             <a asp-action="Details" asp-route-id="@plugin.Id" 
                                                class="btn btn-sm btn-outline-primary" 
                                                title="@Localizer["ViewDetails"]">
-                                                <i class="fas fa-info-circle"></i> @Localizer["Details"]
+                                                <i class="bi bi-eye"></i>
                                             </a>
                                             
                                             <a asp-action="Configure" asp-route-id="@plugin.Id" 
-                                               class="btn btn-sm btn-outline-secondary" 
+                                               class="btn btn-sm btn-outline-primary" 
                                                title="@Localizer["ConfigurePlugin"]">
-                                                <i class="fas fa-cog"></i> @Localizer["Configure"]
+                                               <i class="bi bi-pencil"></i>
                                             </a>
                                             
                                             @if (plugin.CanEnable)
                                             {
                                                 <button type="button" 
-                                                        class="btn btn-sm btn-success" 
+                                                        class="btn btn-sm btn-outline-success" 
                                                         title="@Localizer["EnablePlugin"]"
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#enableModal-@plugin.Id">
-                                                    <i class="fas fa-toggle-on"></i> @Localizer["Enable"]
+                                                    <i class="bi bi-arrow-up-square"></i>
                                                 </button>
                                             }
                                             
                                             @if (plugin.CanDisable)
                                             {
                                                 <button type="button" 
-                                                        class="btn btn-sm btn-warning" 
+                                                        class="btn btn-sm btn-outline-warning" 
                                                         title="@Localizer["DisablePlugin"]"
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#disableModal-@plugin.Id">
-                                                    <i class="fas fa-toggle-off"></i> @Localizer["Disable"]
+                                                    <i class="bi bi-arrow-down-square"></i>
                                                 </button>
                                             }
                                             
                                             @if (plugin.CanDelete && !plugin.IsEnabledLockedByEnvironment)
                                             {
-                                                <form asp-action="Delete" asp-route-id="@plugin.Id" method="post" class="d-inline">
-                                                    @Html.AntiForgeryToken()
-                                                    <button type="submit" 
-                                                            class="btn btn-sm btn-danger" 
-                                                            title="@Localizer["DeletePlugin"]"
-                                                            onclick="return confirm('@Localizer["ConfirmDeletePlugin", plugin.Name]');">
-                                                        <i class="fas fa-trash"></i> @Localizer["Delete"]
-                                                    </button>
-                                                </form>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-danger" 
+                                                        title="@Localizer["DeletePlugin"]"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#deleteModal-@plugin.Id">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
                                             }
                                         </div>
                                     </td>
@@ -195,7 +177,7 @@
                                 <p>@Localizer["ConfirmEnablePluginMessage", plugin.Name]</p>
                                 <div class="alert alert-info mb-0">
                                     <i class="fas fa-info-circle"></i>
-                                    <strong>@plugin.Name</strong> v@plugin.Version
+                                    <strong>@plugin.Name</strong> v@(plugin.Version)
                                     <br />
                                     <small>@plugin.Description</small>
                                 </div>
@@ -232,7 +214,7 @@
                                 <p>@Localizer["ConfirmDisablePluginMessage", plugin.Name]</p>
                                 <div class="alert alert-warning mb-0">
                                     <i class="fas fa-exclamation-triangle"></i>
-                                    <strong>@plugin.Name</strong> v@plugin.Version
+                                    <strong>@plugin.Name</strong> v@(plugin.Version)
                                     <br />
                                     <small>@Localizer["DisablePluginWarning"]</small>
                                 </div>
@@ -245,6 +227,43 @@
                                     @Html.AntiForgeryToken()
                                     <button type="submit" class="btn btn-warning">
                                         <i class="fas fa-toggle-off"></i> @Localizer["DisablePlugin"]
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* Delete Modal *@
+            @if (plugin.CanDelete && !plugin.IsEnabledLockedByEnvironment)
+            {
+                <div class="modal fade" id="deleteModal-@plugin.Id" tabindex="-1" aria-labelledby="deleteModalLabel-@plugin.Id" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-danger text-white">
+                                <h5 class="modal-title" id="deleteModalLabel-@plugin.Id">
+                                    <i class="fas fa-trash"></i> @Localizer["DeletePlugin"]
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>@Localizer["ConfirmDeletePlugin", plugin.Name]</p>
+                                <div class="alert alert-danger mb-0">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <strong>@plugin.Name</strong> v@(plugin.Version)
+                                    <br />
+                                    <small>@Localizer["DeletePluginWarning"]</small>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                    <i class="fas fa-times"></i> @Localizer["Cancel"]
+                                </button>
+                                <form asp-action="Delete" asp-route-id="@plugin.Id" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-danger">
+                                        <i class="fas fa-trash"></i> @Localizer["DeletePlugin"]
                                     </button>
                                 </form>
                             </div>
