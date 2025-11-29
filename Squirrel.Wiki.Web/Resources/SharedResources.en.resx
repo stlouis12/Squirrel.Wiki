@@ -359,35 +359,17 @@
   <data name="ModernStackDescription" xml:space="preserve">
     <value>Built on .NET 8.0 LTS with ASP.NET Core, Entity Framework Core, and Bootstrap 5.</value>
   </data>
-  <data name="SecureAuthentication" xml:space="preserve">
-    <value>Secure Authentication</value>
-  </data>
-  <data name="SecureAuthenticationDescription" xml:space="preserve">
-    <value>OpenID Connect integration with any OIDC provider for modern, secure authentication.</value>
-  </data>
   <data name="MarkdownSupport" xml:space="preserve">
     <value>Markdown Support</value>
   </data>
   <data name="MarkdownSupportDescription" xml:space="preserve">
     <value>CommonMark-compliant Markdown with extensions powered by Markdig.</value>
   </data>
-  <data name="FullTextSearch" xml:space="preserve">
-    <value>Full-Text Search</value>
-  </data>
-  <data name="FullTextSearchDescription" xml:space="preserve">
-    <value>Powerful search capabilities using Lucene.NET 4.8+.</value>
-  </data>
   <data name="ContainerReady" xml:space="preserve">
     <value>Container Ready</value>
   </data>
   <data name="ContainerReadyDescription" xml:space="preserve">
     <value>Docker and Kubernetes support for easy deployment and scaling.</value>
-  </data>
-  <data name="Observability" xml:space="preserve">
-    <value>Observability</value>
-  </data>
-  <data name="ObservabilityDescription" xml:space="preserve">
-    <value>Structured logging with Serilog and metrics with OpenTelemetry.</value>
   </data>
   <data name="DevelopmentInProgress" xml:space="preserve">
     <value>Development in Progress</value>
