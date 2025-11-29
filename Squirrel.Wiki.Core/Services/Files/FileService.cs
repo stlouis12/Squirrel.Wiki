@@ -8,6 +8,7 @@ using Squirrel.Wiki.Core.Events;
 using Squirrel.Wiki.Core.Events.Files;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Models;
+using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services.Caching;
 using Squirrel.Wiki.Core.Services.Infrastructure;
 using FileEntity = Squirrel.Wiki.Core.Database.Entities.File;
@@ -23,6 +24,7 @@ public class FileService : BaseService, IFileService
     private readonly IFolderRepository _folderRepository;
     private readonly IFileStorageStrategy _storageStrategy;
     private readonly IConfigurationService _configurationService;
+    private readonly IUserContext _userContext;
     private const string CacheKeyPrefix = "file:";
 
     public FileService(
@@ -33,13 +35,15 @@ public class FileService : BaseService, IFileService
         ILogger<FileService> logger,
         IEventPublisher eventPublisher,
         IMapper mapper,
-        IConfigurationService configurationService)
+        IConfigurationService configurationService,
+        IUserContext userContext)
         : base(logger, cacheService, eventPublisher, mapper, configurationService)
     {
         _fileRepository = fileRepository;
         _folderRepository = folderRepository;
         _storageStrategy = storageStrategy;
         _configurationService = configurationService;
+        _userContext = userContext;
     }
 
     public async Task<Result<FileDto>> UploadFileAsync(FileUploadDto uploadDto, CancellationToken cancellationToken = default)
@@ -153,7 +157,7 @@ public class FileService : BaseService, IFileService
                     FolderId = uploadDto.FolderId,
                     StorageProvider = _storageStrategy.ProviderId,
                     Visibility = uploadDto.Visibility,
-                    UploadedBy = "system", // TODO: Get from user context
+                    UploadedBy = _userContext.Username ?? "system",
                     UploadedOn = DateTime.UtcNow,
                     CurrentVersion = 1,
                     IsDeleted = false
@@ -296,16 +300,13 @@ public class FileService : BaseService, IFileService
                 Description = file.Description,
                 FolderId = file.FolderId,
                 FolderName = file.Folder?.Name,
-                FolderPath = null, // TODO: Build folder path from folder hierarchy
+                FolderPath = await BuildFolderPathAsync(file.FolderId, cancellationToken),
                 StorageProvider = file.StorageProvider,
                 UploadedBy = file.UploadedBy,
                 UploadedOn = file.UploadedOn,
-                ModifiedBy = file.UploadedBy, // TODO: Track actual modifier
-                ModifiedOn = file.UploadedOn, // TODO: Track actual modification date
                 Visibility = file.Visibility,
                 DownloadUrl = $"/files/download/{file.Id}",
-                CurrentVersion = file.CurrentVersion,
-                Versions = new List<FileVersionDto>() // TODO: Implement version history
+                CurrentVersion = file.CurrentVersion
             };
 
             return Result<FileDetailsDto>.Success(dto);
@@ -697,8 +698,33 @@ public class FileService : BaseService, IFileService
     {
         var dto = Mapper.Map<FileDto>(file);
         dto.DownloadUrl = $"/files/download/{file.Id}";
-        dto.ThumbnailUrl = null; // TODO: Implement thumbnail generation
         return dto;
+    }
+
+    private async Task<string?> BuildFolderPathAsync(int? folderId, CancellationToken cancellationToken)
+    {
+        if (!folderId.HasValue)
+        {
+            return null;
+        }
+
+        var pathParts = new List<string>();
+        var currentFolderId = folderId;
+
+        // Walk up the folder hierarchy to build the full path
+        while (currentFolderId.HasValue)
+        {
+            var folder = await _folderRepository.GetByIdAsync(currentFolderId.Value, cancellationToken);
+            if (folder == null)
+            {
+                break;
+            }
+
+            pathParts.Insert(0, folder.Name);
+            currentFolderId = folder.ParentFolderId;
+        }
+
+        return pathParts.Count > 0 ? string.Join(" / ", pathParts) : null;
     }
 
     private async Task InvalidateCacheAsync(CancellationToken cancellationToken)

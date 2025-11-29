@@ -635,42 +635,6 @@ public static class ConfigurationMetadataRegistry
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules()
             }
-        },
-        {
-            "SQUIRREL_FILE_ENABLE_VERSIONING",
-            new ConfigurationProperty
-            {
-                Key = "SQUIRREL_FILE_ENABLE_VERSIONING",
-                DisplayName = "Enable File Versioning",
-                Description = "Whether to keep historical versions of uploaded files",
-                Category = "Files",
-                ValueType = typeof(bool),
-                DefaultValue = true,
-                EnvironmentVariable = "SQUIRREL_FILE_ENABLE_VERSIONING",
-                IsSecret = false,
-                AllowRuntimeModification = true,
-                Validation = new ValidationRules()
-            }
-        },
-        {
-            "SQUIRREL_FILE_MAX_VERSIONS",
-            new ConfigurationProperty
-            {
-                Key = "SQUIRREL_FILE_MAX_VERSIONS",
-                DisplayName = "Maximum File Versions",
-                Description = "Maximum number of versions to keep per file (0 = unlimited)",
-                Category = "Files",
-                ValueType = typeof(int),
-                DefaultValue = 10,
-                EnvironmentVariable = "SQUIRREL_FILE_MAX_VERSIONS",
-                IsSecret = false,
-                AllowRuntimeModification = true,
-                Validation = new ValidationRules
-                {
-                    MinValue = 0,
-                    MaxValue = 100
-                }
-            }
         }
     };
 

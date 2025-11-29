@@ -325,9 +325,6 @@ public class FilesController : BaseController
 
             var file = result.Value;
             var uploadedOnStr = await file.UploadedOn.ToLocalTimeStringAsync(_timezoneService, "F");
-            var modifiedOnStr = file.ModifiedOn != default(DateTime) 
-                ? await file.ModifiedOn.ToLocalTimeStringAsync(_timezoneService, "F") 
-                : null;
             
             // Generate markdown embed code based on file type
             var isImage = file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
@@ -358,10 +355,6 @@ public class FilesController : BaseController
                     
                     <dt class='col-sm-3'>Uploaded On</dt>
                     <dd class='col-sm-9'>{uploadedOnStr}</dd>
-                    
-                    {(modifiedOnStr != null ? $@"
-                    <dt class='col-sm-3'>Last Modified</dt>
-                    <dd class='col-sm-9'>{modifiedOnStr} by {file.ModifiedBy}</dd>" : "")}
                     
                     <dt class='col-sm-3'>Version</dt>
                     <dd class='col-sm-9'>{file.CurrentVersion}</dd>

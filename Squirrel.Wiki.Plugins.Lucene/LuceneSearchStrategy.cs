@@ -143,25 +143,11 @@ public class LuceneSearchStrategy : ISearchStrategy
             // Apply filters
             var filter = BuildFilter(request);
             
-            _logger.LogDebug("Lucene query: {Query}, Filter: {HasFilter}, DocumentTypes: {DocumentTypes}, SearchFields: {SearchFields}", 
-                query.ToString(), filter != null, 
-                request.DocumentTypes != null ? string.Join(",", request.DocumentTypes) : "none",
-                string.Join(",", searchFields));
+            _logger.LogDebug("Lucene query: {Query}, Filter: {HasFilter}", query.ToString(), filter != null);
             
             var topDocs = filter != null 
                 ? searcher.Search(query, filter, 1000)
                 : searcher.Search(query, 1000);
-
-            _logger.LogDebug("Lucene search returned {TotalHits} hits before processing", topDocs.TotalHits);
-            
-            // Log first few documents for debugging
-            if (topDocs.TotalHits > 0)
-            {
-                _logger.LogDebug("First document details:");
-                var firstDoc = searcher.Doc(topDocs.ScoreDocs[0].Doc);
-                _logger.LogDebug("  ID: {Id}, Title: {Title}, DocumentType: {DocType}, FileName: {FileName}", 
-                    firstDoc.Get("id"), firstDoc.Get("title"), firstDoc.Get("documenttype"), firstDoc.Get("filename"));
-            }
 
             var results = new List<SearchResult>();
 
@@ -601,11 +587,6 @@ public class LuceneSearchStrategy : ISearchStrategy
     {
         var doc = new Document();
         
-        // Log what we're indexing
-        var docType = document.Metadata.TryGetValue("DocumentType", out var dt) ? dt : "unknown";
-        _logger.LogDebug("Creating Lucene document - ID: {Id}, Title: {Title}, DocType: {DocType}", 
-            document.Id, document.Title, docType);
-        
         // Stored and indexed fields
         doc.Add(new StringField("id", document.Id, Field.Store.YES));
         doc.Add(new TextField("title", document.Title ?? string.Empty, Field.Store.YES));
@@ -637,13 +618,11 @@ public class LuceneSearchStrategy : ISearchStrategy
         
         if (document.Metadata.TryGetValue("FileName", out var fileName))
         {
-            _logger.LogDebug("  Adding filename field: {FileName}, Title: {Title}", fileName, document.Title);
             // Index as both 'filename' (for searching) and 'title' (for display/boosting)
             doc.Add(new TextField("filename", fileName, Field.Store.YES));
             // Also add to title field if not already set for files
             if (string.IsNullOrEmpty(document.Title) || document.Title == fileName)
             {
-                _logger.LogDebug("  Also adding to title field");
                 doc.Add(new TextField("title", fileName, Field.Store.YES));
             }
         }

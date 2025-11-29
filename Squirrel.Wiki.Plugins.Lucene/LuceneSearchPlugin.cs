@@ -5,6 +5,7 @@ using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Contracts.Plugins;
 using Squirrel.Wiki.Contracts.Search;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Services.Infrastructure;
 using Squirrel.Wiki.Plugins;
 
 namespace Squirrel.Wiki.Plugins.Lucene;
@@ -85,30 +86,15 @@ public class LuceneSearchPlugin : PluginBase, ISearchPlugin
                 ? configuredPath
                 : "SearchIndex";
             
-            // If path is not absolute, make it relative to App_Data
-            if (!Path.IsPathRooted(indexPath))
-            {
-                var appDataPath = Configuration != null
-                    ? await Configuration.GetValueAsync<string>("SQUIRREL_APP_DATA_PATH")
-                    : null;
-                
-                if (string.IsNullOrWhiteSpace(appDataPath))
-                {
-                    appDataPath = "App_Data";
-                }
-                
-                // Make the app data path absolute if it's relative
-                if (!Path.IsPathRooted(appDataPath))
-                {
-                    appDataPath = Path.Combine(AppContext.BaseDirectory, appDataPath);
-                }
-                
-                indexPath = Path.Combine(appDataPath, indexPath);
-            }
+            // Get App_Data path from configuration
+            var appDataPath = Configuration != null
+                ? await Configuration.GetValueAsync<string>("SQUIRREL_APP_DATA_PATH")
+                : null;
+            
+            // Resolve and ensure the index path exists using PathHelper
+            indexPath = PathHelper.ResolveAndEnsurePath(indexPath, appDataPath);
+            
             _logger.LogInformation("Using index path: {IndexPath}", indexPath);
-
-            // Ensure the directory exists
-            Directory.CreateDirectory(indexPath);
 
             // Initialize the search strategy
             var config = new SearchConfiguration

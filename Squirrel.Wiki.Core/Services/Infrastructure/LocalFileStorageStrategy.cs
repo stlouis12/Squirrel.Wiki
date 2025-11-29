@@ -27,43 +27,12 @@ public class LocalFileStorageStrategy : IFileStorageStrategy
         
         // Get base path from configuration service (synchronously in constructor)
         var configuredPath = _configurationService.GetValueAsync<string>("SQUIRREL_FILE_STORAGE_PATH").GetAwaiter().GetResult();
+        var appDataPath = _configurationService.GetValueAsync<string>("SQUIRREL_APP_DATA_PATH").GetAwaiter().GetResult();
         
-        // Resolve relative paths to absolute paths based on the application's base directory
-        if (Path.IsPathRooted(configuredPath))
-        {
-            _basePath = configuredPath;
-        }
-        else
-        {
-            // For relative paths starting with "App_Data/", resolve relative to the executable directory
-            if (configuredPath.StartsWith("App_Data/", StringComparison.OrdinalIgnoreCase) ||
-                configuredPath.StartsWith("App_Data\\", StringComparison.OrdinalIgnoreCase))
-            {
-                // Get the App_Data path from configuration
-                var appDataPath = _configurationService.GetValueAsync<string>("SQUIRREL_APP_DATA_PATH").GetAwaiter().GetResult();
-                var resolvedAppDataPath = Path.IsPathRooted(appDataPath)
-                    ? appDataPath
-                    : Path.Combine(AppContext.BaseDirectory, appDataPath);
-                
-                // Replace App_Data with the resolved app data path
-                var relativePath = configuredPath.Substring("App_Data/".Length);
-                _basePath = Path.Combine(resolvedAppDataPath, relativePath);
-            }
-            else
-            {
-                // For other relative paths, make them relative to the executable directory
-                _basePath = Path.Combine(AppContext.BaseDirectory, configuredPath);
-            }
-        }
+        // Resolve and ensure the path exists using PathHelper
+        _basePath = PathHelper.ResolveAndEnsurePath(configuredPath, appDataPath);
         
         _logger.LogInformation("File storage path resolved to: {Path}", _basePath);
-        
-        // Ensure base directory exists
-        if (!Directory.Exists(_basePath))
-        {
-            Directory.CreateDirectory(_basePath);
-            _logger.LogInformation("Created file storage directory: {Path}", _basePath);
-        }
     }
     
     public async Task<string> SaveFileAsync(

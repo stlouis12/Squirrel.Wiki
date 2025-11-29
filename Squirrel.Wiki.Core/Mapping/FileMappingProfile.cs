@@ -18,8 +18,6 @@ public class FileMappingProfile : Profile
                 opt => opt.MapFrom(src => src.Folder != null ? src.Folder.Name : null))
             .ForMember(dest => dest.DownloadUrl, 
                 opt => opt.Ignore()) // Set by service layer
-            .ForMember(dest => dest.ThumbnailUrl, 
-                opt => opt.Ignore()) // Set by service layer
             .ForMember(dest => dest.CurrentVersion,
                 opt => opt.MapFrom(src => src.CurrentVersion));
             

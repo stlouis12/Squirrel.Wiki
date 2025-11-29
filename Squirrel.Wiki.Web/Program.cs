@@ -21,6 +21,7 @@ using Squirrel.Wiki.Core.Services.Menus;
 using Squirrel.Wiki.Core.Services.Pages;
 using Squirrel.Wiki.Core.Services.Plugins;
 using Squirrel.Wiki.Core.Services.Search;
+using PathHelper = Squirrel.Wiki.Core.Services.Infrastructure.PathHelper;
 using Squirrel.Wiki.Core.Services.Tags;
 using Squirrel.Wiki.Core.Services.Users;
 using Squirrel.Wiki.Web.Middleware;
@@ -74,20 +75,11 @@ var minimalConfig = new MinimalConfigurationService(startupLogger);
 
 // Get application data path (useful for containerized deployments)
 var appDataPath = minimalConfig.GetValue("SQUIRREL_APP_DATA_PATH", "App_Data");
-var resolvedAppDataPath = Path.IsPathRooted(appDataPath) 
-    ? appDataPath 
-    : Path.Combine(AppContext.BaseDirectory, appDataPath);
+var resolvedAppDataPath = PathHelper.ResolveAndEnsurePath(appDataPath);
 
 Log.Information("Application data path: {AppDataPath} (from {Source})", 
     resolvedAppDataPath, 
     minimalConfig.GetSource("SQUIRREL_APP_DATA_PATH"));
-
-// Ensure App_Data directory exists
-if (!Directory.Exists(resolvedAppDataPath))
-{
-    Directory.CreateDirectory(resolvedAppDataPath);
-    Log.Information("Created application data directory: {Directory}", resolvedAppDataPath);
-}
 
 // Configure database
 // Priority: Environment Variables → defaults from ConfigurationMetadataRegistry
@@ -106,47 +98,23 @@ if (databaseProvider.Equals("SQLite", StringComparison.OrdinalIgnoreCase) &&
     var builder2 = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString);
     var dataSource = builder2.DataSource;
     
-    // If the path is relative (doesn't start with / or contain :), make it relative to app data path
+    // If the path is relative (doesn't start with / or contain :), resolve it using PathHelper
     if (!string.IsNullOrEmpty(dataSource) && 
         !Path.IsPathRooted(dataSource))
     {
-        // If the data source starts with "App_Data/", use the resolved app data path
-        if (dataSource.StartsWith("App_Data/", StringComparison.OrdinalIgnoreCase) ||
-            dataSource.StartsWith("App_Data\\", StringComparison.OrdinalIgnoreCase))
+        var absolutePath = PathHelper.ResolvePath(dataSource, appDataPath);
+        
+        // Ensure the directory exists
+        var directory = Path.GetDirectoryName(absolutePath);
+        if (!string.IsNullOrEmpty(directory))
         {
-            // Replace App_Data with the resolved app data path
-            var relativePath = dataSource.Substring("App_Data/".Length);
-            var absolutePath = Path.Combine(resolvedAppDataPath, relativePath);
-            
-            // Ensure the directory exists
-            var directory = Path.GetDirectoryName(absolutePath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-                Log.Information("Created database directory: {Directory}", directory);
-            }
-            
-            builder2.DataSource = absolutePath;
-            connectionString = builder2.ConnectionString;
-            Log.Information("SQLite database path resolved to: {Path}", absolutePath);
+            PathHelper.EnsureDirectoryExists(directory);
+            Log.Information("Ensured database directory exists: {Directory}", directory);
         }
-        else
-        {
-            // For other relative paths, make them relative to the executable directory
-            var absolutePath = Path.Combine(AppContext.BaseDirectory, dataSource);
-            
-            // Ensure the directory exists
-            var directory = Path.GetDirectoryName(absolutePath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-                Log.Information("Created database directory: {Directory}", directory);
-            }
-            
-            builder2.DataSource = absolutePath;
-            connectionString = builder2.ConnectionString;
-            Log.Information("SQLite database path resolved to: {Path}", absolutePath);
-        }
+        
+        builder2.DataSource = absolutePath;
+        connectionString = builder2.ConnectionString;
+        Log.Information("SQLite database path resolved to: {Path}", absolutePath);
     }
 }
 
@@ -465,10 +433,8 @@ using (var scope = app.Services.CreateScope())
             
             if (!string.IsNullOrEmpty(customSeedDataPath))
             {
-                // Resolve relative paths
-                var resolvedSeedDataPath = Path.IsPathRooted(customSeedDataPath)
-                    ? customSeedDataPath
-                    : Path.Combine(AppContext.BaseDirectory, customSeedDataPath);
+                // Resolve relative paths using PathHelper
+                var resolvedSeedDataPath = PathHelper.ResolvePath(customSeedDataPath, appDataPath);
                 
                 if (File.Exists(resolvedSeedDataPath))
                 {

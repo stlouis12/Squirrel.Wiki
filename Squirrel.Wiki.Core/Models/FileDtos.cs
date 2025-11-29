@@ -19,7 +19,6 @@ public class FileDto
     public DateTime UploadedOn { get; set; }
     public FileVisibility Visibility { get; set; }
     public string DownloadUrl { get; set; } = string.Empty;
-    public string? ThumbnailUrl { get; set; }
     public int CurrentVersion { get; set; }
     
     /// <summary>
@@ -136,14 +135,11 @@ public class FolderTreeDto
 }
 
 /// <summary>
-/// DTO for detailed file information including version history
+/// DTO for detailed file information
 /// </summary>
 public class FileDetailsDto : FileDto
 {
     public string? FolderPath { get; set; }
-    public string ModifiedBy { get; set; } = string.Empty;
-    public DateTime ModifiedOn { get; set; }
-    public List<FileVersionDto> Versions { get; set; } = new();
 }
 
 /// <summary>
