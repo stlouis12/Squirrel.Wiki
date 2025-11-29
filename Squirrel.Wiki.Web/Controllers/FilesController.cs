@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services.Files;
+using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Web.Services;
 
 namespace Squirrel.Wiki.Web.Controllers;
@@ -16,11 +17,15 @@ public class FilesController : BaseController
     private readonly IFileService _fileService;
     private readonly IFolderService _folderService;
     private readonly IUserContext _userContext;
+    private readonly Squirrel.Wiki.Core.Security.IAuthorizationService _authorizationService;
+    private readonly IFileRepository _fileRepository;
 
     public FilesController(
         IFileService fileService,
         IFolderService folderService,
         IUserContext userContext,
+        Squirrel.Wiki.Core.Security.IAuthorizationService authorizationService,
+        IFileRepository fileRepository,
         ILogger<FilesController> logger,
         INotificationService notificationService)
         : base(logger, notificationService)
@@ -28,6 +33,8 @@ public class FilesController : BaseController
         _fileService = fileService;
         _folderService = folderService;
         _userContext = userContext;
+        _authorizationService = authorizationService;
+        _fileRepository = fileRepository;
     }
 
     /// <summary>
@@ -59,15 +66,53 @@ public class FilesController : BaseController
             // Get files in current location
             var filesResult = await _fileService.GetFilesByFolderAsync(folderId);
 
+            // Filter files by visibility using batch authorization
+            var visibleFiles = new List<FileDto>();
+            IEnumerable<Core.Database.Entities.File> fileEntities = new List<Core.Database.Entities.File>();
+            
+            if (filesResult.IsSuccess && filesResult.Value.Any())
+            {
+                // Get file entities for authorization check
+                var fileIds = filesResult.Value.Select(f => f.Id).ToList();
+                fileEntities = await _fileRepository.GetByIdsAsync(fileIds);
+                
+                // Perform batch authorization check
+                var viewPermissions = await _authorizationService.CanViewFilesAsync(fileEntities);
+                
+                // Filter files based on permissions
+                visibleFiles = filesResult.Value
+                    .Where(f => viewPermissions.GetValueOrDefault(f.Id, false))
+                    .ToList();
+                
+                _logger.LogDebug(
+                    "File list filtered by visibility for user {Username}: {VisibleCount}/{TotalCount} files visible",
+                    _userContext.Username ?? "Anonymous",
+                    visibleFiles.Count,
+                    filesResult.Value.Count);
+            }
+
             ViewBag.CurrentFolder = currentFolder;
             ViewBag.Folders = foldersResult.IsSuccess ? foldersResult.Value : new List<FolderDto>();
-            ViewBag.Files = filesResult.IsSuccess ? filesResult.Value : new List<FileDto>();
+            ViewBag.Files = visibleFiles;
 
             // Get breadcrumb if in a folder
             if (folderId.HasValue)
             {
                 var breadcrumbResult = await _folderService.GetFolderBreadcrumbAsync(folderId.Value);
                 ViewBag.Breadcrumb = breadcrumbResult.IsSuccess ? breadcrumbResult.Value : new List<FolderDto>();
+            }
+
+            // Pass authorization flags to view
+            ViewBag.CanUpload = await _authorizationService.CanUploadFileAsync();
+            ViewBag.CanManageFolders = await _authorizationService.CanManageFoldersAsync();
+
+            // For files, pass edit/delete permissions
+            if (visibleFiles.Any())
+            {
+                var canEditPermissions = await _authorizationService.CanEditFilesAsync(fileEntities);
+                var canDeletePermissions = await _authorizationService.CanDeleteFilesAsync(fileEntities);
+                ViewBag.CanEditFiles = canEditPermissions;
+                ViewBag.CanDeleteFiles = canDeletePermissions;
             }
 
             return View();
@@ -88,6 +133,15 @@ public class FilesController : BaseController
     {
         try
         {
+            // Check authorization before uploading
+            if (!await _authorizationService.CanUploadFileAsync())
+            {
+                _logger.LogWarning("User {Username} attempted to upload files without permission", 
+                    _userContext.Username ?? "Anonymous");
+                NotifyError("You don't have permission to upload files");
+                return RedirectToAction(nameof(Index), new { folderId });
+            }
+
             if (files == null || files.Count == 0)
             {
                 NotifyError("No files selected for upload");
@@ -146,6 +200,22 @@ public class FilesController : BaseController
     {
         try
         {
+            // Check authorization before downloading
+            var fileEntity = await _fileRepository.GetByIdAsync(id);
+            if (fileEntity == null)
+            {
+                NotifyError("File not found");
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (!await _authorizationService.CanViewFileAsync(fileEntity))
+            {
+                _logger.LogWarning("User {Username} attempted to download file {FileId} without permission", 
+                    _userContext.Username ?? "Anonymous", id);
+                NotifyError("You don't have permission to download this file");
+                return RedirectToAction(nameof(Index));
+            }
+
             var result = await _fileService.DownloadFileAsync(id);
 
             if (!result.IsSuccess)
@@ -172,6 +242,22 @@ public class FilesController : BaseController
     {
         try
         {
+            // Check authorization before showing details
+            var fileEntity = await _fileRepository.GetByIdAsync(id);
+            if (fileEntity == null)
+            {
+                NotifyError("File not found");
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (!await _authorizationService.CanViewFileAsync(fileEntity))
+            {
+                _logger.LogWarning("User {Username} attempted to view file {FileId} details without permission", 
+                    _userContext.Username ?? "Anonymous", id);
+                NotifyError("You don't have permission to view this file");
+                return RedirectToAction(nameof(Index));
+            }
+
             var result = await _fileService.GetFileByIdAsync(id);
 
             if (!result.IsSuccess)
@@ -198,6 +284,22 @@ public class FilesController : BaseController
     {
         try
         {
+            // Check authorization before showing edit form
+            var fileEntity = await _fileRepository.GetByIdAsync(id);
+            if (fileEntity == null)
+            {
+                NotifyError("File not found");
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (!await _authorizationService.CanEditFileAsync(fileEntity))
+            {
+                _logger.LogWarning("User {Username} attempted to edit file {FileId} without permission", 
+                    _userContext.Username ?? "Anonymous", id);
+                NotifyError("You don't have permission to edit this file");
+                return RedirectToAction(nameof(Index));
+            }
+
             var result = await _fileService.GetFileByIdAsync(id);
 
             if (!result.IsSuccess)
@@ -225,6 +327,22 @@ public class FilesController : BaseController
     {
         try
         {
+            // Check authorization before updating
+            var fileEntity = await _fileRepository.GetByIdAsync(id);
+            if (fileEntity == null)
+            {
+                NotifyError("File not found");
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (!await _authorizationService.CanEditFileAsync(fileEntity))
+            {
+                _logger.LogWarning("User {Username} attempted to update file {FileId} without permission", 
+                    _userContext.Username ?? "Anonymous", id);
+                NotifyError("You don't have permission to edit this file");
+                return RedirectToAction(nameof(Index));
+            }
+
             if (!ModelState.IsValid)
             {
                 NotifyError("Invalid file data");
@@ -291,6 +409,22 @@ public class FilesController : BaseController
     {
         try
         {
+            // Check authorization before deleting
+            var fileEntity = await _fileRepository.GetByIdAsync(id);
+            if (fileEntity == null)
+            {
+                NotifyError("File not found");
+                return RedirectToAction(nameof(Index), new { folderId });
+            }
+
+            if (!await _authorizationService.CanDeleteFileAsync(fileEntity))
+            {
+                _logger.LogWarning("User {Username} attempted to delete file {FileId} without permission", 
+                    _userContext.Username ?? "Anonymous", id);
+                NotifyError("You don't have permission to delete this file");
+                return RedirectToAction(nameof(Index), new { folderId });
+            }
+
             var username = _userContext.Username ?? "system";
             var result = await _fileService.DeleteFileAsync(id, username);
 
@@ -337,6 +471,93 @@ public class FilesController : BaseController
         catch (Exception ex)
         {
             NotifyError($"Error searching files: {ex.Message}");
+            return View();
+        }
+    }
+
+    /// <summary>
+    /// Public-facing file browser (read-only)
+    /// </summary>
+    [HttpGet]
+    [AllowAnonymous]
+    public async Task<IActionResult> Browse(int? folderId = null, string? search = null)
+    {
+        try
+        {
+            // Get current folder if specified
+            FolderDto? currentFolder = null;
+            if (folderId.HasValue)
+            {
+                var folderResult = await _folderService.GetFolderByIdAsync(folderId.Value);
+                if (folderResult.IsSuccess)
+                {
+                    currentFolder = folderResult.Value;
+                }
+            }
+
+            // Get folders in current location
+            var foldersResult = folderId.HasValue
+                ? await _folderService.GetChildFoldersAsync(folderId.Value)
+                : await _folderService.GetRootFoldersAsync();
+
+            // Get files - with visibility filtering
+            IEnumerable<FileDto> visibleFiles;
+            
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                // Search files
+                var searchDto = new FileSearchDto
+                {
+                    SearchTerm = search,
+                    FolderId = folderId
+                };
+                var searchResult = await _fileService.SearchFilesAsync(searchDto);
+                visibleFiles = searchResult.IsSuccess ? searchResult.Value : new List<FileDto>();
+            }
+            else
+            {
+                // Browse by folder with visibility filtering
+                var filesResult = await _fileService.GetFilesByFolderAsync(folderId);
+                
+                if (filesResult.IsSuccess && filesResult.Value.Any())
+                {
+                    // Get file entities for authorization check
+                    var fileIds = filesResult.Value.Select(f => f.Id).ToList();
+                    var fileEntities = await _fileRepository.GetByIdsAsync(fileIds);
+                    
+                    // Perform batch authorization check
+                    var viewPermissions = await _authorizationService.CanViewFilesAsync(fileEntities);
+                    
+                    // Filter files based on permissions
+                    visibleFiles = filesResult.Value
+                        .Where(f => viewPermissions.GetValueOrDefault(f.Id, false))
+                        .ToList();
+                }
+                else
+                {
+                    visibleFiles = new List<FileDto>();
+                }
+            }
+
+            // Get breadcrumb if in a folder
+            List<FolderDto> breadcrumb = new List<FolderDto>();
+            if (folderId.HasValue)
+            {
+                var breadcrumbResult = await _folderService.GetFolderBreadcrumbAsync(folderId.Value);
+                breadcrumb = breadcrumbResult.IsSuccess ? breadcrumbResult.Value : new List<FolderDto>();
+            }
+
+            ViewBag.CurrentFolder = currentFolder;
+            ViewBag.Folders = foldersResult.IsSuccess ? foldersResult.Value : new List<FolderDto>();
+            ViewBag.Files = visibleFiles;
+            ViewBag.Breadcrumb = breadcrumb;
+            ViewBag.SearchQuery = search;
+
+            return View();
+        }
+        catch (Exception ex)
+        {
+            NotifyError($"Error loading file browser: {ex.Message}");
             return View();
         }
     }
@@ -477,6 +698,61 @@ public class FilesController : BaseController
         {
             NotifyError($"Error deleting folder: {ex.Message}");
             return RedirectToAction(nameof(Index));
+        }
+    }
+
+    /// <summary>
+    /// Move folder to different parent
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,Editor")]
+    public async Task<IActionResult> MoveFolder(int id, int? newParentFolderId)
+    {
+        try
+        {
+            var username = _userContext.Username ?? "system";
+            var result = await _folderService.MoveFolderAsync(id, newParentFolderId, username);
+
+            if (result.IsSuccess)
+            {
+                NotifySuccess("Folder moved successfully");
+            }
+            else
+            {
+                NotifyError($"Error moving folder: {result.Error}");
+            }
+
+            return RedirectToAction(nameof(Index), new { folderId = newParentFolderId });
+        }
+        catch (Exception ex)
+        {
+            NotifyError($"Error moving folder: {ex.Message}");
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    /// <summary>
+    /// Get folder tree for navigation
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> GetFolderTree()
+    {
+        try
+        {
+            var result = await _folderService.GetFolderTreeAsync();
+
+            if (result.IsSuccess)
+            {
+                return Json(result.Value);
+            }
+
+            return Json(new List<FolderTreeDto>());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting folder tree");
+            return Json(new List<FolderTreeDto>());
         }
     }
 

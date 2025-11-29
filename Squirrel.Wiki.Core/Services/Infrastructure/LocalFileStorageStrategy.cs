@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Contracts.Storage;
 using Squirrel.Wiki.Core.Exceptions;
 
@@ -13,19 +13,20 @@ public class LocalFileStorageStrategy : IFileStorageStrategy
 {
     private readonly string _basePath;
     private readonly ILogger<LocalFileStorageStrategy> _logger;
+    private readonly IConfigurationService _configurationService;
     
     public string ProviderId => "Local";
     public string ProviderName => "Local File System";
     
     public LocalFileStorageStrategy(
-        IConfiguration configuration,
+        IConfigurationService configurationService,
         ILogger<LocalFileStorageStrategy> logger)
     {
         _logger = logger;
+        _configurationService = configurationService;
         
-        // Get base path from configuration, default to wwwroot/uploads
-        _basePath = configuration["FileStorage:LocalPath"] 
-            ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+        // Get base path from configuration service (synchronously in constructor)
+        _basePath = _configurationService.GetValueAsync<string>("SQUIRREL_FILE_STORAGE_PATH").GetAwaiter().GetResult();
         
         // Ensure base directory exists
         if (!Directory.Exists(_basePath))

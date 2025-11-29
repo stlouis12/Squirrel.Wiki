@@ -166,4 +166,200 @@ public class AuthorizationService : IAuthorizationService
         // Otherwise, admins and editors can delete
         return Task.FromResult(userRole == "Admin" || userRole == "Editor");
     }
+
+    public async Task<bool> CanViewFileAsync(Database.Entities.File file, CancellationToken cancellationToken = default)
+    {
+        // Deleted files cannot be viewed
+        if (file.IsDeleted)
+        {
+            _logger.LogDebug("File {FileId} is deleted, denying access", file.Id);
+            return false;
+        }
+
+        // Check file-specific visibility
+        switch (file.Visibility)
+        {
+            case Database.Entities.FileVisibility.Public:
+                // Public files are always viewable
+                _logger.LogDebug("File {FileId} is public, allowing access", file.Id);
+                return true;
+
+            case Database.Entities.FileVisibility.Private:
+                // Private files require authentication
+                var isAuthenticatedForPrivate = IsAuthenticated();
+                _logger.LogDebug("File {FileId} is private, authenticated: {IsAuthenticated}", 
+                    file.Id, isAuthenticatedForPrivate);
+                return isAuthenticatedForPrivate;
+
+            case Database.Entities.FileVisibility.Inherit:
+            default:
+                // Inherit from global setting
+                var allowAnonymousReading = await _settingsService.GetSettingAsync<bool>(
+                    "SQUIRREL_ALLOW_ANONYMOUS_READING", cancellationToken);
+                
+                if (allowAnonymousReading)
+                {
+                    _logger.LogDebug("File {FileId} inherits global setting (anonymous allowed), allowing access", 
+                        file.Id);
+                    return true;
+                }
+                else
+                {
+                    var isAuthenticatedForInherit = IsAuthenticated();
+                    _logger.LogDebug("File {FileId} inherits global setting (authentication required), authenticated: {IsAuthenticated}", 
+                        file.Id, isAuthenticatedForInherit);
+                    return isAuthenticatedForInherit;
+                }
+        }
+    }
+
+    public Task<bool> CanUploadFileAsync(CancellationToken cancellationToken = default)
+    {
+        // Only authenticated users with Admin or Editor role can upload files
+        var canUpload = IsAuthenticated() && (_userContext.IsAdmin || _userContext.IsEditor);
+        _logger.LogDebug("Can upload file: {CanUpload} (IsAuthenticated: {IsAuthenticated}, IsAdmin: {IsAdmin}, IsEditor: {IsEditor})", 
+            canUpload, IsAuthenticated(), _userContext.IsAdmin, _userContext.IsEditor);
+        return Task.FromResult(canUpload);
+    }
+
+    public Task<bool> CanEditFileAsync(Database.Entities.File file, CancellationToken cancellationToken = default)
+    {
+        // Deleted files cannot be edited
+        if (file.IsDeleted)
+        {
+            _logger.LogDebug("File {FileId} is deleted, denying edit access", file.Id);
+            return Task.FromResult(false);
+        }
+
+        // Only authenticated users with Admin or Editor role can edit files
+        var canEdit = IsAuthenticated() && (_userContext.IsAdmin || _userContext.IsEditor);
+        _logger.LogDebug("Can edit file {FileId}: {CanEdit}", file.Id, canEdit);
+        return Task.FromResult(canEdit);
+    }
+
+    public Task<bool> CanDeleteFileAsync(Database.Entities.File file, CancellationToken cancellationToken = default)
+    {
+        // Deleted files cannot be deleted again
+        if (file.IsDeleted)
+        {
+            _logger.LogDebug("File {FileId} is already deleted, denying delete access", file.Id);
+            return Task.FromResult(false);
+        }
+
+        // Only authenticated users with Admin or Editor role can delete files
+        var canDelete = IsAuthenticated() && (_userContext.IsAdmin || _userContext.IsEditor);
+        _logger.LogDebug("Can delete file {FileId}: {CanDelete}", file.Id, canDelete);
+        return Task.FromResult(canDelete);
+    }
+
+    public Task<bool> CanManageFoldersAsync()
+    {
+        // Only authenticated users with Admin or Editor role can manage folders
+        var canManage = IsAuthenticated() && (_userContext.IsAdmin || _userContext.IsEditor);
+        _logger.LogDebug("Can manage folders: {CanManage}", canManage);
+        return Task.FromResult(canManage);
+    }
+
+    public async Task<Dictionary<int, bool>> CanViewFilesAsync(IEnumerable<Database.Entities.File> files)
+    {
+        var result = new Dictionary<int, bool>();
+        var filesList = files.ToList();
+        
+        if (!filesList.Any())
+        {
+            return result;
+        }
+
+        // Get allow anonymous reading setting once for all files
+        var allowAnonymousReading = await _settingsService.GetSettingAsync<bool>(
+            "SQUIRREL_ALLOW_ANONYMOUS_READING");
+        
+        var isAuthenticated = IsAuthenticated();
+        var username = _userContext.Username ?? "Anonymous";
+        
+        foreach (var file in filesList)
+        {
+            // Deleted files cannot be viewed
+            if (file.IsDeleted)
+            {
+                result[file.Id] = false;
+                continue;
+            }
+            
+            bool canView;
+            
+            switch (file.Visibility)
+            {
+                case Database.Entities.FileVisibility.Public:
+                    // Public files are always viewable
+                    canView = true;
+                    break;
+                    
+                case Database.Entities.FileVisibility.Private:
+                    // Private files require authentication
+                    canView = isAuthenticated;
+                    break;
+                    
+                case Database.Entities.FileVisibility.Inherit:
+                default:
+                    // Inherit visibility follows global setting
+                    canView = allowAnonymousReading || isAuthenticated;
+                    break;
+            }
+            
+            result[file.Id] = canView;
+        }
+        
+        _logger.LogDebug(
+            "Batch file view authorization for user {Username}: {AuthorizedCount}/{TotalCount} files authorized",
+            username,
+            result.Count(kvp => kvp.Value),
+            result.Count);
+        
+        return result;
+    }
+
+    public Task<Dictionary<int, bool>> CanEditFilesAsync(IEnumerable<Database.Entities.File> files)
+    {
+        var result = new Dictionary<int, bool>();
+        
+        // Only Admin and Editor roles can edit files
+        var canEdit = IsAuthenticated() && (_userContext.IsAdmin || _userContext.IsEditor);
+        
+        foreach (var file in files)
+        {
+            // Deleted files cannot be edited
+            result[file.Id] = !file.IsDeleted && canEdit;
+        }
+        
+        _logger.LogDebug(
+            "Batch file edit authorization for user {Username}: {AuthorizedCount}/{TotalCount} files authorized",
+            _userContext.Username ?? "Anonymous",
+            result.Count(kvp => kvp.Value),
+            result.Count);
+        
+        return Task.FromResult(result);
+    }
+
+    public Task<Dictionary<int, bool>> CanDeleteFilesAsync(IEnumerable<Database.Entities.File> files)
+    {
+        var result = new Dictionary<int, bool>();
+        
+        // Only Admin and Editor roles can delete files
+        var canDelete = IsAuthenticated() && (_userContext.IsAdmin || _userContext.IsEditor);
+        
+        foreach (var file in files)
+        {
+            // Deleted files cannot be deleted again
+            result[file.Id] = !file.IsDeleted && canDelete;
+        }
+        
+        _logger.LogDebug(
+            "Batch file delete authorization for user {Username}: {AuthorizedCount}/{TotalCount} files authorized",
+            _userContext.Username ?? "Anonymous",
+            result.Count(kvp => kvp.Value),
+            result.Count);
+        
+        return Task.FromResult(result);
+    }
 }

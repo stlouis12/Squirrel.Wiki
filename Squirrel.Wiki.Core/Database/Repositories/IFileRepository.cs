@@ -18,4 +18,6 @@ public interface IFileRepository : IRepository<FileEntity, int>
     Task<IEnumerable<FileEntity>> SearchAsync(string searchTerm, CancellationToken cancellationToken = default);
     
     Task<IEnumerable<FileEntity>> GetByStorageProviderAsync(string provider, CancellationToken cancellationToken = default);
+    
+    Task<IEnumerable<FileEntity>> GetByIdsAsync(IEnumerable<int> ids, CancellationToken cancellationToken = default);
 }

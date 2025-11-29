@@ -22,14 +22,8 @@ public class FileService : BaseService, IFileService
     private readonly IFileRepository _fileRepository;
     private readonly IFolderRepository _folderRepository;
     private readonly IFileStorageStrategy _storageStrategy;
+    private readonly IConfigurationService _configurationService;
     private const string CacheKeyPrefix = "file:";
-    private const long DefaultMaxFileSizeBytes = 52428800; // 50MB
-    private static readonly string[] DefaultAllowedExtensions = 
-    {
-        ".jpg", ".jpeg", ".png", ".gif", ".pdf",
-        ".doc", ".docx", ".xls", ".xlsx", ".txt",
-        ".zip", ".mp4", ".mp3"
-    };
 
     public FileService(
         IFileRepository fileRepository,
@@ -39,12 +33,13 @@ public class FileService : BaseService, IFileService
         ILogger<FileService> logger,
         IEventPublisher eventPublisher,
         IMapper mapper,
-        IConfigurationService? configuration = null)
-        : base(logger, cacheService, eventPublisher, mapper, configuration)
+        IConfigurationService configurationService)
+        : base(logger, cacheService, eventPublisher, mapper, configurationService)
     {
         _fileRepository = fileRepository;
         _folderRepository = folderRepository;
         _storageStrategy = storageStrategy;
+        _configurationService = configurationService;
     }
 
     public async Task<Result<FileDto>> UploadFileAsync(FileUploadDto uploadDto, CancellationToken cancellationToken = default)
@@ -52,7 +47,7 @@ public class FileService : BaseService, IFileService
         try
         {
             // 1. Validate file size
-            var maxFileSize = DefaultMaxFileSizeBytes;
+            var maxFileSize = await _configurationService.GetValueAsync<long>("SQUIRREL_FILE_MAX_SIZE", cancellationToken);
             if (uploadDto.FileSize > maxFileSize)
             {
                 throw new FileSizeExceededException(uploadDto.FileSize, maxFileSize);
@@ -60,9 +55,10 @@ public class FileService : BaseService, IFileService
 
             // 2. Validate file type
             var extension = Path.GetExtension(uploadDto.FileName).ToLowerInvariant();
-            if (!IsAllowedExtension(extension))
+            var allowedExtensions = await _configurationService.GetValueAsync<string>("SQUIRREL_FILE_ALLOWED_EXTENSIONS", cancellationToken);
+            if (!await IsAllowedExtensionAsync(extension, allowedExtensions))
             {
-                throw new FileTypeNotAllowedException(extension, string.Join(", ", DefaultAllowedExtensions));
+                throw new FileTypeNotAllowedException(extension, allowedExtensions);
             }
 
             // 3. Validate folder exists if specified
@@ -549,9 +545,14 @@ public class FileService : BaseService, IFileService
         return $"{dir1}/{dir2}/{fileHash}{extension}";
     }
 
-    private bool IsAllowedExtension(string extension)
+    private async Task<bool> IsAllowedExtensionAsync(string extension, string allowedExtensionsString)
     {
-        return DefaultAllowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+        var allowedExtensions = allowedExtensionsString
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(e => e.Trim().ToLowerInvariant())
+            .ToArray();
+        
+        return allowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
     }
 
     private async Task<FileDto> MapToDtoAsync(FileEntity file, CancellationToken cancellationToken)

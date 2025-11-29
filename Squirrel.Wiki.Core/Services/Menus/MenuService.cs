@@ -43,7 +43,8 @@ public class MenuService : BaseService, IMenuService
         { "%CATEGORIES%", "/Categories" },
         { "%SITEMAP%", "/Sitemap" },
         { "%RECENTLYUPDATED%", "/Pages/AllPages?recent=10" },
-        { "%ADMIN%", "/Admin" }
+        { "%ADMIN%", "/Admin" },
+        { "%FILEBROWSER%", "/Files/Browse" }
     };
 
     public MenuService(

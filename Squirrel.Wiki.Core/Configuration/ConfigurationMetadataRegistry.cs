@@ -580,6 +580,97 @@ public static class ConfigurationMetadataRegistry
                 IsVisibleInUI = true,
                 Validation = new ValidationRules()
             }
+        },
+        
+        // File Storage Configuration
+        {
+            "SQUIRREL_FILE_STORAGE_PATH",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_FILE_STORAGE_PATH",
+                DisplayName = "File Storage Path",
+                Description = "Directory path where uploaded files are stored",
+                Category = "Files",
+                ValueType = typeof(string),
+                DefaultValue = "App_Data/Files",
+                EnvironmentVariable = "SQUIRREL_FILE_STORAGE_PATH",
+                IsSecret = false,
+                AllowRuntimeModification = false,
+                IsVisibleInUI = true,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_FILE_MAX_SIZE_MB",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_FILE_MAX_SIZE_MB",
+                DisplayName = "Maximum File Size (MB)",
+                Description = "Maximum allowed file size for uploads in megabytes",
+                Category = "Files",
+                ValueType = typeof(int),
+                DefaultValue = 100,
+                EnvironmentVariable = "SQUIRREL_FILE_MAX_SIZE_MB",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules
+                {
+                    MinValue = 1,
+                    MaxValue = 2048 // 2GB
+                }
+            }
+        },
+        {
+            "SQUIRREL_FILE_ALLOWED_EXTENSIONS",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_FILE_ALLOWED_EXTENSIONS",
+                DisplayName = "Allowed File Extensions",
+                Description = "Comma-separated list of allowed file extensions (e.g., .pdf,.doc,.jpg)",
+                Category = "Files",
+                ValueType = typeof(string),
+                DefaultValue = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.jpg,.jpeg,.png,.gif,.bmp,.svg,.zip,.rar,.7z",
+                EnvironmentVariable = "SQUIRREL_FILE_ALLOWED_EXTENSIONS",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_FILE_ENABLE_VERSIONING",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_FILE_ENABLE_VERSIONING",
+                DisplayName = "Enable File Versioning",
+                Description = "Whether to keep historical versions of uploaded files",
+                Category = "Files",
+                ValueType = typeof(bool),
+                DefaultValue = true,
+                EnvironmentVariable = "SQUIRREL_FILE_ENABLE_VERSIONING",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules()
+            }
+        },
+        {
+            "SQUIRREL_FILE_MAX_VERSIONS",
+            new ConfigurationProperty
+            {
+                Key = "SQUIRREL_FILE_MAX_VERSIONS",
+                DisplayName = "Maximum File Versions",
+                Description = "Maximum number of versions to keep per file (0 = unlimited)",
+                Category = "Files",
+                ValueType = typeof(int),
+                DefaultValue = 10,
+                EnvironmentVariable = "SQUIRREL_FILE_MAX_VERSIONS",
+                IsSecret = false,
+                AllowRuntimeModification = true,
+                Validation = new ValidationRules
+                {
+                    MinValue = 0,
+                    MaxValue = 100
+                }
+            }
         }
     };
 

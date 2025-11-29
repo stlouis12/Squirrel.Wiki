@@ -2628,4 +2628,314 @@
   <data name="DaysAgo" xml:space="preserve">
     <value>{0} days ago</value>
   </data>
+  <!-- File Management -->
+  <data name="Files" xml:space="preserve">
+    <value>Files</value>
+  </data>
+  <data name="FileManager" xml:space="preserve">
+    <value>File Manager</value>
+  </data>
+  <data name="UploadFiles" xml:space="preserve">
+    <value>Upload Files</value>
+  </data>
+  <data name="NewFolder" xml:space="preserve">
+    <value>New Folder</value>
+  </data>
+  <data name="Folders" xml:space="preserve">
+    <value>Folders</value>
+  </data>
+  <data name="Root" xml:space="preserve">
+    <value>Root</value>
+  </data>
+  <data name="FileName" xml:space="preserve">
+    <value>File Name</value>
+  </data>
+  <data name="FileSize" xml:space="preserve">
+    <value>File Size</value>
+  </data>
+  <data name="FileType" xml:space="preserve">
+    <value>File Type</value>
+  </data>
+  <data name="UploadedBy" xml:space="preserve">
+    <value>Uploaded By</value>
+  </data>
+  <data name="UploadedOn" xml:space="preserve">
+    <value>Uploaded On</value>
+  </data>
+  <data name="Download" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="Details" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="Upload" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="SelectFiles" xml:space="preserve">
+    <value>Select Files</value>
+  </data>
+  <data name="SelectMultipleFiles" xml:space="preserve">
+    <value>You can select multiple files to upload at once.</value>
+  </data>
+  <data name="FolderName" xml:space="preserve">
+    <value>Folder Name</value>
+  </data>
+  <data name="CreateNewFolder" xml:space="preserve">
+    <value>Create New Folder</value>
+  </data>
+  <data name="DeleteFile" xml:space="preserve">
+    <value>Delete File</value>
+  </data>
+  <data name="DeleteFolder" xml:space="preserve">
+    <value>Delete Folder</value>
+  </data>
+  <data name="AreYouSureDeleteFile" xml:space="preserve">
+    <value>Are you sure you want to delete "{0}"?</value>
+  </data>
+  <data name="AreYouSureDeleteFolder" xml:space="preserve">
+    <value>Are you sure you want to delete the folder "{0}"?</value>
+  </data>
+  <data name="DeleteAllContents" xml:space="preserve">
+    <value>Delete all contents (files and subfolders)</value>
+  </data>
+  <data name="ThisFolderIsEmpty" xml:space="preserve">
+    <value>This folder is empty.</value>
+  </data>
+  <data name="UploadFilesToGetStarted" xml:space="preserve">
+    <value>Upload files</value>
+  </data>
+  <data name="CreateFolderToGetStarted" xml:space="preserve">
+    <value>create a folder</value>
+  </data>
+  <data name="ToGetStartedText" xml:space="preserve">
+    <value>to get started.</value>
+  </data>
+  <data name="FileDetails" xml:space="preserve">
+    <value>File Details</value>
+  </data>
+  <data name="FileInformation" xml:space="preserve">
+    <value>File Information</value>
+  </data>
+  <data name="FileID" xml:space="preserve">
+    <value>File ID</value>
+  </data>
+  <data name="CurrentVersion" xml:space="preserve">
+    <value>Current Version</value>
+  </data>
+  <data name="Visibility" xml:space="preserve">
+    <value>Visibility</value>
+  </data>
+  <data name="Public" xml:space="preserve">
+    <value>Public</value>
+  </data>
+  <data name="Private" xml:space="preserve">
+    <value>Private</value>
+  </data>
+  <data name="Restricted" xml:space="preserve">
+    <value>Restricted</value>
+  </data>
+  <data name="Folder" xml:space="preserve">
+    <value>Folder</value>
+  </data>
+  <data name="ModifiedOn" xml:space="preserve">
+    <value>Modified On</value>
+  </data>
+  <data name="VersionHistory" xml:space="preserve">
+    <value>Version History</value>
+  </data>
+  <data name="VersionNumber" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="DownloadThisVersion" xml:space="preserve">
+    <value>Download this version</value>
+  </data>
+  <data name="RestoreThisVersion" xml:space="preserve">
+    <value>Restore this version</value>
+  </data>
+  <data name="RestoreVersion" xml:space="preserve">
+    <value>Restore Version</value>
+  </data>
+  <data name="AreYouSureRestoreVersion" xml:space="preserve">
+    <value>Are you sure you want to restore version {0}? This will create a new version with the content from version {0}.</value>
+  </data>
+  <data name="UsageInMarkdown" xml:space="preserve">
+    <value>Usage in Markdown</value>
+  </data>
+  <data name="CopyAndPasteIntoWikiPages" xml:space="preserve">
+    <value>Copy and paste into wiki pages:</value>
+  </data>
+  <data name="ImageEmbed" xml:space="preserve">
+    <value>Image Embed</value>
+  </data>
+  <data name="DownloadLink" xml:space="preserve">
+    <value>Download Link</value>
+  </data>
+  <data name="CopiedToClipboard" xml:space="preserve">
+    <value>Copied to clipboard!</value>
+  </data>
+  <data name="DownloadFile" xml:space="preserve">
+    <value>Download File</value>
+  </data>
+  <data name="EditMetadata" xml:space="preserve">
+    <value>Edit Metadata</value>
+  </data>
+  <data name="PreviewNotAvailable" xml:space="preserve">
+    <value>Preview not available for this file type</value>
+  </data>
+  <data name="DownloadToView" xml:space="preserve">
+    <value>Download to View</value>
+  </data>
+  <data name="SearchFiles" xml:space="preserve">
+    <value>Search Files</value>
+  </data>
+  <data name="SearchFilters" xml:space="preserve">
+    <value>Search Filters</value>
+  </data>
+  <data name="SearchTerm" xml:space="preserve">
+    <value>Search Term</value>
+  </data>
+  <data name="SearchByFilenameOrDescription" xml:space="preserve">
+    <value>Search by filename or description...</value>
+  </data>
+  <data name="AllTypes" xml:space="preserve">
+    <value>All Types</value>
+  </data>
+  <data name="Images" xml:space="preserve">
+    <value>Images</value>
+  </data>
+  <data name="PDFDocuments" xml:space="preserve">
+    <value>PDF Documents</value>
+  </data>
+  <data name="OfficeDocuments" xml:space="preserve">
+    <value>Office Documents</value>
+  </data>
+  <data name="TextFiles" xml:space="preserve">
+    <value>Text Files</value>
+  </data>
+  <data name="Videos" xml:space="preserve">
+    <value>Videos</value>
+  </data>
+  <data name="Audio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="UploadedAfter" xml:space="preserve">
+    <value>Uploaded After</value>
+  </data>
+  <data name="UploadedBefore" xml:space="preserve">
+    <value>Uploaded Before</value>
+  </data>
+  <data name="SearchResults" xml:space="preserve">
+    <value>Search Results</value>
+  </data>
+  <data name="FilesFound" xml:space="preserve">
+    <value>files found</value>
+  </data>
+  <data name="Grid" xml:space="preserve">
+    <value>Grid</value>
+  </data>
+  <data name="EnterSearchCriteria" xml:space="preserve">
+    <value>Enter search criteria above to find files</value>
+  </data>
+  <data name="NoFilesFoundMatchingCriteria" xml:space="preserve">
+    <value>No files found matching your search criteria</value>
+  </data>
+  <data name="EditFolder" xml:space="preserve">
+    <value>Edit Folder</value>
+  </data>
+  <data name="FolderNameRequired" xml:space="preserve">
+    <value>Folder Name</value>
+  </data>
+  <data name="EnterFolderName" xml:space="preserve">
+    <value>Enter folder name...</value>
+  </data>
+  <data name="FolderNameWillGenerateSlug" xml:space="preserve">
+    <value>The folder name will be used to generate a URL-friendly slug.</value>
+  </data>
+  <data name="BriefDescriptionOfFolder" xml:space="preserve">
+    <value>Provide a brief description of what this folder contains.</value>
+  </data>
+  <data name="CurrentLocation" xml:space="preserve">
+    <value>Current Location</value>
+  </data>
+  <data name="ToMoveFolderUseManagement" xml:space="preserve">
+    <value>To move this folder, use the folder management interface in the Browse view.</value>
+  </data>
+  <data name="FolderInformation" xml:space="preserve">
+    <value>Folder Information</value>
+  </data>
+  <data name="FolderID" xml:space="preserve">
+    <value>Folder ID</value>
+  </data>
+  <data name="FilesCount" xml:space="preserve">
+    <value>file(s)</value>
+  </data>
+  <data name="SubfoldersCount" xml:space="preserve">
+    <value>subfolder(s)</value>
+  </data>
+  <data name="Important" xml:space="preserve">
+    <value>Important</value>
+  </data>
+  <data name="FolderContainsFilesAndSubfolders" xml:space="preserve">
+    <value>This folder contains <strong>{0} file(s)</strong> and <strong>{1} subfolder(s)</strong>. Deleting this folder will also delete all files and subfolders within it. This action cannot be undone.</value>
+  </data>
+  <data name="ConfirmDeleteFolder" xml:space="preserve">
+    <value>Are you sure you want to delete the folder "{0}"?</value>
+  </data>
+  <data name="FolderContentsWillBeDeleted" xml:space="preserve">
+    <value>This folder contains:\n- {0} file(s)\n- {1} subfolder(s)\n\nAll contents will be permanently deleted. This action cannot be undone.</value>
+  </data>
+  <data name="EditFile" xml:space="preserve">
+    <value>Edit File</value>
+  </data>
+  <data name="UpdateFile" xml:space="preserve">
+    <value>Update File</value>
+  </data>
+  <data name="ReplaceFile" xml:space="preserve">
+    <value>Replace File</value>
+  </data>
+  <data name="SelectNewFile" xml:space="preserve">
+    <value>Select a new file to replace the current one</value>
+  </data>
+  <data name="NewVersionWillBeCreated" xml:space="preserve">
+    <value>A new version will be created</value>
+  </data>
+  <data name="ChangeVisibility" xml:space="preserve">
+    <value>Change Visibility</value>
+  </data>
+  <data name="VisibleToEveryone" xml:space="preserve">
+    <value>Visible to everyone</value>
+  </data>
+  <data name="RequiresAuthentication" xml:space="preserve">
+    <value>Requires authentication</value>
+  </data>
+  <data name="RestrictedAccess" xml:space="preserve">
+    <value>Restricted access</value>
+  </data>
+  <data name="UpdateMetadata" xml:space="preserve">
+    <value>Update Metadata</value>
+  </data>
+  <data name="FileUpdatedSuccessfully" xml:space="preserve">
+    <value>File updated successfully</value>
+  </data>
+  <data name="FolderCreatedSuccessfully" xml:space="preserve">
+    <value>Folder created successfully</value>
+  </data>
+  <data name="FolderUpdatedSuccessfully" xml:space="preserve">
+    <value>Folder updated successfully</value>
+  </data>
+  <data name="FolderDeletedSuccessfully" xml:space="preserve">
+    <value>Folder deleted successfully</value>
+  </data>
+  <data name="FileDeletedSuccessfully" xml:space="preserve">
+    <value>File deleted successfully</value>
+  </data>
+  <data name="FilesUploadedSuccessfully" xml:space="preserve">
+    <value>Files uploaded successfully</value>
+  </data>
+  <data name="VersionRestoredSuccessfully" xml:space="preserve">
+    <value>Version restored successfully</value>
+  </data>
 </root>

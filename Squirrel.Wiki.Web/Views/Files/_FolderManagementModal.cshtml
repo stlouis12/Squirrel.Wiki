@@ -1,0 +1,334 @@
+@inject IStringLocalizer<SharedResources> Localizer
+@* Folder Management Modal - Partial View *@
+
+<!-- Create Folder Modal -->
+<div class="modal fade" id="createFolderModal" tabindex="-1" aria-labelledby="createFolderModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createFolderModalLabel">
+                    <i class="bi bi-folder-plus"></i> @Localizer["CreateNewFolder"]
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+            </div>
+            <form id="createFolderForm" asp-action="CreateFolder" asp-controller="Files" method="post">
+                <div class="modal-body">
+                    <input type="hidden" id="createFolderParentId" name="parentFolderId" value="" />
+                    
+                    <div class="mb-3">
+                        <label for="createFolderName" class="form-label">@Localizer["FolderName"] <span class="text-danger">*</span></label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="createFolderName" 
+                               name="name" 
+                               required 
+                               maxlength="100"
+                               placeholder="@Localizer["EnterFolderName"]">
+                        <div class="form-text">
+                            <i class="bi bi-info-circle"></i> @Localizer["UseDescriptiveNameForEasyIdentification"]
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="createFolderDescription" class="form-label">@Localizer["Description"]</label>
+                        <textarea class="form-control" 
+                                  id="createFolderDescription" 
+                                  name="description" 
+                                  rows="3"
+                                  maxlength="500"
+                                  placeholder="@Localizer["OptionalDescription"]"></textarea>
+                        <div class="form-text">
+                            @Localizer["OptionalProvideAdditionalContext"]
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-lightbulb"></i>
+                        <strong>@Localizer["Tip"]:</strong> @Localizer["OrganizeFilesIntoFolders"]
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-folder-plus"></i> @Localizer["CreateFolder"]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Folder Modal -->
+<div class="modal fade" id="editFolderModal" tabindex="-1" aria-labelledby="editFolderModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editFolderModalLabel">
+                    <i class="bi bi-pencil-square"></i> @Localizer["EditFolder"]
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+            </div>
+            <form id="editFolderForm" asp-action="EditFolder" asp-controller="Files" method="post">
+                <div class="modal-body">
+                    <input type="hidden" id="editFolderId" name="id" value="" />
+                    
+                    <div class="mb-3">
+                        <label for="editFolderName" class="form-label">@Localizer["FolderName"] <span class="text-danger">*</span></label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="editFolderName" 
+                               name="name" 
+                               required 
+                               maxlength="100">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="editFolderDescription" class="form-label">@Localizer["Description"]</label>
+                        <textarea class="form-control" 
+                                  id="editFolderDescription" 
+                                  name="description" 
+                                  rows="3"
+                                  maxlength="500"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> @Localizer["SaveChanges"]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Move Folder Modal -->
+<div class="modal fade" id="moveFolderModal" tabindex="-1" aria-labelledby="moveFolderModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="moveFolderModalLabel">
+                    <i class="bi bi-folder-symlink"></i> @Localizer["MoveFolder"]
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+            </div>
+            <form id="moveFolderForm" asp-action="MoveFolder" asp-controller="Files" method="post">
+                <div class="modal-body">
+                    <input type="hidden" id="moveFolderId" name="id" value="" />
+                    
+                    <div class="mb-3">
+                        <label class="form-label">@Localizer["CurrentFolder"]</label>
+                        <p class="form-control-plaintext" id="moveFolderCurrentName"></p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="moveFolderNewParentId" class="form-label">@Localizer["MoveTo"]</label>
+                        <select class="form-select" id="moveFolderNewParentId" name="newParentFolderId">
+                            <option value="">@Localizer["RootTopLevel"]</option>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                        <div class="form-text">
+                            @Localizer["SelectTheDestinationFolder"]
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>@Localizer["Note"]:</strong> @Localizer["MovingFolderWillAlsoMoveSubfoldersAndFiles"]
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-folder-symlink"></i> @Localizer["MoveFolder"]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Folder Modal -->
+<div class="modal fade" id="deleteFolderModal" tabindex="-1" aria-labelledby="deleteFolderModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteFolderModalLabel">
+                    <i class="bi bi-exclamation-triangle"></i> @Localizer["DeleteFolder"]
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+            </div>
+            <form id="deleteFolderForm" asp-action="DeleteFolder" asp-controller="Files" method="post">
+                <div class="modal-body">
+                    <input type="hidden" id="deleteFolderId" name="id" value="" />
+                    
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-circle"></i>
+                        <strong>@Localizer["Warning"]:</strong> @Localizer["ThisActionCannotBeUndone"]!
+                    </div>
+
+                    <p>@Localizer["AreYouSureDeleteFolder"] <strong id="deleteFolderName"></strong>?</p>
+                    
+                    <div id="deleteFolderContents" class="alert alert-warning" style="display: none;">
+                        <p class="mb-0">
+                            <i class="bi bi-info-circle"></i>
+                            @Localizer["ThisFolderContains"]:
+                        </p>
+                        <ul class="mb-0 mt-2">
+                            <li><span id="deleteFolderFileCount"></span> @Localizer["Files"]</li>
+                            <li><span id="deleteFolderSubfolderCount"></span> @Localizer["Subfolders"]</li>
+                        </ul>
+                        <p class="mt-2 mb-0">
+                            <strong>@Localizer["AllContentsWillBeDeletedPermanently"]</strong>
+                        </p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> @Localizer["DeleteFolder"]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Create Folder Modal
+            window.showCreateFolderModal = function(parentFolderId) {
+                $('#createFolderParentId').val(parentFolderId || '');
+                $('#createFolderName').val('');
+                $('#createFolderDescription').val('');
+                $('#createFolderModal').modal('show');
+            };
+
+            $('#createFolderForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                $.ajax({
+                    url: $(this).attr('action'),
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    success: function(response) {
+                        $('#createFolderModal').modal('hide');
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert('Error creating folder: ' + (xhr.responseJSON?.message || 'Unknown error'));
+                    }
+                });
+            });
+
+            // Edit Folder Modal
+            window.showEditFolderModal = function(folderId, folderName, folderDescription) {
+                $('#editFolderId').val(folderId);
+                $('#editFolderName').val(folderName);
+                $('#editFolderDescription').val(folderDescription || '');
+                $('#editFolderModal').modal('show');
+            };
+
+            $('#editFolderForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                $.ajax({
+                    url: $(this).attr('action'),
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    success: function(response) {
+                        $('#editFolderModal').modal('hide');
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert('Error updating folder: ' + (xhr.responseJSON?.message || 'Unknown error'));
+                    }
+                });
+            });
+
+            // Move Folder Modal
+            window.showMoveFolderModal = function(folderId, folderName, currentParentId) {
+                $('#moveFolderId').val(folderId);
+                $('#moveFolderCurrentName').text(folderName);
+                
+                // Load available folders
+                $.get('@Url.Action("GetFolderTree", "Files")', function(folders) {
+                    const select = $('#moveFolderNewParentId');
+                    select.empty();
+                    select.append('<option value="">Root (Top Level)</option>');
+                    
+                    function addFolderOptions(folders, level = 0) {
+                        folders.forEach(function(folder) {
+                            if (folder.id !== folderId) { // Don't allow moving to itself
+                                const indent = '&nbsp;&nbsp;'.repeat(level);
+                                select.append(`<option value="${folder.id}">${indent}${folder.name}</option>`);
+                                if (folder.children && folder.children.length > 0) {
+                                    addFolderOptions(folder.children, level + 1);
+                                }
+                            }
+                        });
+                    }
+                    
+                    addFolderOptions(folders);
+                    
+                    if (currentParentId) {
+                        select.val(currentParentId);
+                    }
+                });
+                
+                $('#moveFolderModal').modal('show');
+            };
+
+            $('#moveFolderForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                $.ajax({
+                    url: $(this).attr('action'),
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    success: function(response) {
+                        $('#moveFolderModal').modal('hide');
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert('Error moving folder: ' + (xhr.responseJSON?.message || 'Unknown error'));
+                    }
+                });
+            });
+
+            // Delete Folder Modal
+            window.showDeleteFolderModal = function(folderId, folderName, fileCount, subfolderCount) {
+                $('#deleteFolderId').val(folderId);
+                $('#deleteFolderName').text(folderName);
+                
+                if (fileCount > 0 || subfolderCount > 0) {
+                    $('#deleteFolderFileCount').text(fileCount);
+                    $('#deleteFolderSubfolderCount').text(subfolderCount);
+                    $('#deleteFolderContents').show();
+                } else {
+                    $('#deleteFolderContents').hide();
+                }
+                
+                $('#deleteFolderModal').modal('show');
+            };
+
+            $('#deleteFolderForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                $.ajax({
+                    url: $(this).attr('action'),
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    success: function(response) {
+                        $('#deleteFolderModal').modal('hide');
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert('Error deleting folder: ' + (xhr.responseJSON?.message || 'Unknown error'));
+                    }
+                });
+            });
+        });
+    </script>
+}

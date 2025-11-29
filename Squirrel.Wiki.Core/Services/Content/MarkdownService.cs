@@ -7,6 +7,7 @@ using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Contracts.Plugins;
 using Squirrel.Wiki.Core.Services.Caching;
 using Squirrel.Wiki.Core.Events;
+using Squirrel.Wiki.Core.Database.Repositories;
 
 namespace Squirrel.Wiki.Core.Services.Content;
 
@@ -169,6 +170,9 @@ public class MarkdownService : BaseService, IMarkdownService
                 LogError(ex, "Failed to post-process HTML with plugin: {PluginId}", plugin.Metadata.Id);
             }
         }
+
+        // Process file references (convert file IDs to download URLs)
+        html = await ProcessFileReferencesAsync(html, cancellationToken);
 
         // Cache the result using the configured cache expiration setting
         await Cache.SetAsync(cacheKey, html, null, cancellationToken);
@@ -376,5 +380,128 @@ public class MarkdownService : BaseService, IMarkdownService
         }
 
         return html;
+    }
+
+    /// <summary>
+    /// Processes file references in HTML, converting file IDs to download URLs
+    /// Supports both ![Alt](fileId) for images and [Link](fileId) for files
+    /// Also supports optional file: prefix: ![Alt](file:fileId)
+    /// </summary>
+    public async Task<string> ProcessFileReferencesAsync(string html, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+            return html;
+
+        try
+        {
+            // Get file repository from service provider
+            var fileRepository = _serviceProvider.GetService(typeof(IFileRepository)) as IFileRepository;
+            if (fileRepository == null)
+            {
+                LogWarning("File repository not available for processing file references");
+                return html;
+            }
+
+            // Pattern 1: Match <img src="fileId"> or <img src="file:fileId">
+            // This handles ![Alt](fileId) after markdown conversion
+            var imagePattern = new Regex(
+                @"<img\s+([^>]*\s+)?src=""(?:file:)?(\d+)""([^>]*)>",
+                RegexOptions.IgnoreCase);
+
+            var imageMatches = imagePattern.Matches(html);
+            var imageReplacements = new Dictionary<string, string>();
+
+            foreach (Match match in imageMatches)
+            {
+                var fullMatch = match.Value;
+                var beforeSrc = match.Groups[1].Value;
+                var fileIdStr = match.Groups[2].Value;
+                var afterSrc = match.Groups[3].Value;
+
+                if (int.TryParse(fileIdStr, out var fileId))
+                {
+                    // Look up file in database
+                    var file = await fileRepository.GetByIdAsync(fileId, cancellationToken);
+                    
+                    if (file != null && !file.IsDeleted)
+                    {
+                        // Convert to download URL
+                        var downloadUrl = $"/files/download/{fileId}";
+                        var newImg = $"<img {beforeSrc}src=\"{downloadUrl}\"{afterSrc}>";
+                        
+                        if (!imageReplacements.ContainsKey(fullMatch))
+                        {
+                            imageReplacements[fullMatch] = newImg;
+                            LogDebug("Resolved file reference for image: {FileId} -> {FileName}", 
+                                fileId, file.FileName);
+                        }
+                    }
+                    else
+                    {
+                        LogWarning("File reference not found or deleted: {FileId}", fileId);
+                    }
+                }
+            }
+
+            // Apply image replacements
+            foreach (var replacement in imageReplacements)
+            {
+                html = html.Replace(replacement.Key, replacement.Value);
+            }
+
+            // Pattern 2: Match <a href="fileId"> or <a href="file:fileId">
+            // This handles [Link](fileId) after markdown conversion
+            var linkPattern = new Regex(
+                @"<a\s+([^>]*\s+)?href=""(?:file:)?(\d+)""([^>]*)>",
+                RegexOptions.IgnoreCase);
+
+            var linkMatches = linkPattern.Matches(html);
+            var linkReplacements = new Dictionary<string, string>();
+
+            foreach (Match match in linkMatches)
+            {
+                var fullMatch = match.Value;
+                var beforeHref = match.Groups[1].Value;
+                var fileIdStr = match.Groups[2].Value;
+                var afterHref = match.Groups[3].Value;
+
+                if (int.TryParse(fileIdStr, out var fileId))
+                {
+                    // Look up file in database
+                    var file = await fileRepository.GetByIdAsync(fileId, cancellationToken);
+                    
+                    if (file != null && !file.IsDeleted)
+                    {
+                        // Convert to download URL
+                        var downloadUrl = $"/files/download/{fileId}";
+                        var newLink = $"<a {beforeHref}href=\"{downloadUrl}\"{afterHref}>";
+                        
+                        if (!linkReplacements.ContainsKey(fullMatch))
+                        {
+                            linkReplacements[fullMatch] = newLink;
+                            LogDebug("Resolved file reference for link: {FileId} -> {FileName}", 
+                                fileId, file.FileName);
+                        }
+                    }
+                    else
+                    {
+                        LogWarning("File reference not found or deleted: {FileId}", fileId);
+                    }
+                }
+            }
+
+            // Apply link replacements
+            foreach (var replacement in linkReplacements)
+            {
+                html = html.Replace(replacement.Key, replacement.Value);
+            }
+
+            return html;
+        }
+        catch (Exception ex)
+        {
+            LogError(ex, "Error processing file references in HTML");
+            return html; // Return original HTML on error
+        }
     }
 }

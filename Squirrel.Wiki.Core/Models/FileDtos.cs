@@ -21,6 +21,27 @@ public class FileDto
     public string DownloadUrl { get; set; } = string.Empty;
     public string? ThumbnailUrl { get; set; }
     public int CurrentVersion { get; set; }
+    
+    /// <summary>
+    /// Gets formatted file size (e.g., "1.5 MB")
+    /// </summary>
+    public string FileSizeFormatted
+    {
+        get
+        {
+            const long KB = 1024;
+            const long MB = KB * 1024;
+            const long GB = MB * 1024;
+
+            if (FileSize >= GB)
+                return $"{FileSize / (double)GB:F2} GB";
+            if (FileSize >= MB)
+                return $"{FileSize / (double)MB:F2} MB";
+            if (FileSize >= KB)
+                return $"{FileSize / (double)KB:F2} KB";
+            return $"{FileSize} bytes";
+        }
+    }
 }
 
 /// <summary>
@@ -111,4 +132,30 @@ public class FolderTreeDto
     public int? ParentFolderId { get; set; }
     public int FileCount { get; set; }
     public List<FolderTreeDto> Children { get; set; } = new();
+}
+
+/// <summary>
+/// DTO for detailed file information including version history
+/// </summary>
+public class FileDetailsDto : FileDto
+{
+    public string? FolderPath { get; set; }
+    public string ModifiedBy { get; set; } = string.Empty;
+    public DateTime ModifiedOn { get; set; }
+    public List<FileVersionDto> Versions { get; set; } = new();
+}
+
+/// <summary>
+/// DTO for file version information
+/// </summary>
+public class FileVersionDto
+{
+    public int Id { get; set; }
+    public int FileId { get; set; }
+    public int VersionNumber { get; set; }
+    public long FileSize { get; set; }
+    public string ContentType { get; set; } = string.Empty;
+    public string StoragePath { get; set; } = string.Empty;
+    public string UploadedBy { get; set; } = string.Empty;
+    public DateTime UploadedOn { get; set; }
 }

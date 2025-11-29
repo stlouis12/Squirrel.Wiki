@@ -38,4 +38,47 @@ public interface IAuthorizationService
     /// Checks if the current user is authenticated
     /// </summary>
     bool IsAuthenticated();
+    
+    /// <summary>
+    /// Checks if the current user can view a file based on its visibility and global settings
+    /// </summary>
+    Task<bool> CanViewFileAsync(Database.Entities.File file, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Checks if the current user can upload files
+    /// </summary>
+    Task<bool> CanUploadFileAsync(CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Checks if the current user can edit a file
+    /// </summary>
+    Task<bool> CanEditFileAsync(Database.Entities.File file, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Checks if the current user can delete a file
+    /// </summary>
+    Task<bool> CanDeleteFileAsync(Database.Entities.File file, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Checks if the current user can manage folders (create, edit, delete, move)
+    /// </summary>
+    Task<bool> CanManageFoldersAsync();
+
+    /// <summary>
+    /// Batch authorization check for viewing multiple files
+    /// Returns a dictionary mapping file IDs to whether the user can view them
+    /// </summary>
+    Task<Dictionary<int, bool>> CanViewFilesAsync(IEnumerable<Database.Entities.File> files);
+
+    /// <summary>
+    /// Batch authorization check for editing multiple files
+    /// Returns a dictionary mapping file IDs to whether the user can edit them
+    /// </summary>
+    Task<Dictionary<int, bool>> CanEditFilesAsync(IEnumerable<Database.Entities.File> files);
+
+    /// <summary>
+    /// Batch authorization check for deleting multiple files
+    /// Returns a dictionary mapping file IDs to whether the user can delete them
+    /// </summary>
+    Task<Dictionary<int, bool>> CanDeleteFilesAsync(IEnumerable<Database.Entities.File> files);
 }

@@ -80,6 +80,17 @@ public class FileRepository : Repository<FileEntity, int>, IFileRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<FileEntity>> GetByIdsAsync(
+        IEnumerable<int> ids, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbSet
+            .Where(f => ids.Contains(f.Id))
+            .Include(f => f.Folder)
+            .Include(f => f.Content)
+            .ToListAsync(cancellationToken);
+    }
+
     public override async Task<FileEntity?> GetByIdAsync(
         int id, 
         CancellationToken cancellationToken = default)

@@ -34,4 +34,10 @@ public interface IMarkdownService
     /// Converts internal slug-only links in HTML to full /wiki/{id}/{slug} URLs
     /// </summary>
     Task<string> ConvertInternalLinksAsync(string html, Func<string, Task<(int? id, string? slug)>> slugLookup, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Processes file references in HTML, converting file IDs to download URLs
+    /// Supports both ![Alt](fileId) for images and [Link](fileId) for files
+    /// </summary>
+    Task<string> ProcessFileReferencesAsync(string html, CancellationToken cancellationToken = default);
 }

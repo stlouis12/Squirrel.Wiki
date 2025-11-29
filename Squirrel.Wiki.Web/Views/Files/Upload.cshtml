@@ -1,0 +1,215 @@
+@model dynamic
+@inject IStringLocalizer<SharedResources> Localizer
+@{
+    ViewData["Title"] = Localizer["UploadFiles"];
+    var folderId = ViewBag.FolderId as int?;
+    var folderName = ViewBag.FolderName as string;
+}
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2>
+                        <i class="bi bi-cloud-upload"></i> @Localizer["UploadFiles"]
+                    </h2>
+                    @if (!string.IsNullOrEmpty(folderName))
+                    {
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-folder"></i> @Localizer["UploadingTo"]: <strong>@folderName</strong>
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-folder"></i> @Localizer["UploadingTo"]: <strong>@Localizer["Root"]</strong>
+                        </p>
+                    }
+                </div>
+                <div>
+                    <a href="@Url.Action("Index", new { folderId = folderId })" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> @Localizer["BackToFiles"]
+                    </a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <form id="uploadForm" asp-action="Upload" asp-controller="Files" method="post" enctype="multipart/form-data">
+                        <input type="hidden" name="folderId" value="@folderId" />
+                        
+                        <div class="mb-4">
+                            <label for="files" class="form-label">@Localizer["SelectFiles"]</label>
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="files" 
+                                   name="files" 
+                                   multiple 
+                                   required
+                                   accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.mp4,.mp3">
+                            <div class="form-text">
+                                <i class="bi bi-info-circle"></i> 
+                                @Localizer["MaximumFileSize"]: 50MB. 
+                                @Localizer["AllowedTypes"]: @Localizer["ImagesDocumentsArchivesVideosAudio"]
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="visibility" class="form-label">@Localizer["Visibility"]</label>
+                            <select class="form-select" id="visibility" name="visibility">
+                                <option value="0">@Localizer["Public"] - @Localizer["AnyoneCanAccess"]</option>
+                                <option value="1">@Localizer["Private"] - @Localizer["OnlyYouCanAccess"]</option>
+                                <option value="2">@Localizer["Restricted"] - @Localizer["SpecificUsersCanAccess"]</option>
+                            </select>
+                        </div>
+
+                        <div id="fileList" class="mb-4" style="display: none;">
+                            <h5>@Localizer["SelectedFiles"]</h5>
+                            <div class="list-group" id="selectedFiles"></div>
+                        </div>
+
+                        <div id="uploadProgress" style="display: none;">
+                            <div class="progress mb-3">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" 
+                                     id="progressBar"
+                                     style="width: 0%">0%</div>
+                            </div>
+                            <p class="text-center text-muted" id="uploadStatus">@Localizer["PreparingUpload"]...</p>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" id="uploadButton">
+                                <i class="bi bi-cloud-upload"></i> @Localizer["UploadFiles"]
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> @Localizer["UploadGuidelines"]</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li>@Localizer["YouCanUploadMultipleFiles"]</li>
+                        <li>@Localizer["MaximumFileSizeIs50MB"]</li>
+                        <li>@Localizer["DuplicateFilesWillBeDeduplicated"]</li>
+                        <li>@Localizer["SupportedFileTypes"]: JPG, PNG, GIF, PDF, DOC, DOCX, XLS, XLSX, TXT, ZIP, MP4, MP3</li>
+                        <li>@Localizer["FilesAreScannedForSecurity"]</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            const fileInput = $('#files');
+            const fileList = $('#fileList');
+            const selectedFiles = $('#selectedFiles');
+            const uploadForm = $('#uploadForm');
+            const uploadButton = $('#uploadButton');
+            const uploadProgress = $('#uploadProgress');
+            const progressBar = $('#progressBar');
+            const uploadStatus = $('#uploadStatus');
+
+            // Show selected files
+            fileInput.on('change', function() {
+                const files = this.files;
+                if (files.length > 0) {
+                    selectedFiles.empty();
+                    let totalSize = 0;
+
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        totalSize += file.size;
+                        
+                        const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+                        const fileItem = $(`
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="bi bi-file-earmark"></i>
+                                        <strong>${file.name}</strong>
+                                    </div>
+                                    <span class="badge bg-secondary">${sizeInMB} MB</span>
+                                </div>
+                            </div>
+                        `);
+                        selectedFiles.append(fileItem);
+                    }
+
+                    const totalSizeInMB = (totalSize / (1024 * 1024)).toFixed(2);
+                    const summaryItem = $(`
+                        <div class="list-group-item list-group-item-info">
+                            <strong>Total: ${files.length} file(s), ${totalSizeInMB} MB</strong>
+                        </div>
+                    `);
+                    selectedFiles.append(summaryItem);
+
+                    fileList.show();
+                } else {
+                    fileList.hide();
+                }
+            });
+
+            // Handle form submission
+            uploadForm.on('submit', function(e) {
+                e.preventDefault();
+
+                const formData = new FormData(this);
+                
+                uploadButton.prop('disabled', true);
+                uploadProgress.show();
+                progressBar.css('width', '0%').text('0%');
+                uploadStatus.text('@Localizer["UploadingFiles"]...');
+
+                $.ajax({
+                    url: $(this).attr('action'),
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    xhr: function() {
+                        const xhr = new window.XMLHttpRequest();
+                        xhr.upload.addEventListener('progress', function(e) {
+                            if (e.lengthComputable) {
+                                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                                progressBar.css('width', percentComplete + '%').text(percentComplete + '%');
+                            }
+                        }, false);
+                        return xhr;
+                    },
+                    success: function(response) {
+                        progressBar.removeClass('progress-bar-animated')
+                                   .removeClass('progress-bar-striped')
+                                   .addClass('bg-success');
+                        uploadStatus.html('<i class="bi bi-check-circle text-success"></i> @Localizer["UploadCompletedSuccessfully"]!');
+                        
+                        setTimeout(function() {
+                            window.location.href = '@Url.Action("Index", new { folderId = folderId })';
+                        }, 1500);
+                    },
+                    error: function(xhr) {
+                        progressBar.removeClass('progress-bar-animated')
+                                   .removeClass('progress-bar-striped')
+                                   .addClass('bg-danger');
+                        
+                        let errorMessage = '@Localizer["UploadFailedPleaseTryAgain"]';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+                        
+                        uploadStatus.html('<i class="bi bi-x-circle text-danger"></i> ' + errorMessage);
+                        uploadButton.prop('disabled', false);
+                    }
+                });
+            });
+        });
+    </script>
+}
