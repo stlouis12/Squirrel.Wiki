@@ -92,30 +92,76 @@ public class LuceneSearchStrategy : ISearchStrategy
 
             // Build query based on search fields
             var searchFields = request.SearchFields?.ToArray() ?? new[] { "content", "title", "tags" };
-            var parser = new MultiFieldQueryParser(LUCENE_VERSION, searchFields, analyzer, request.FieldBoosts);
             
             Query query;
-            try
+            
+            // For file searches, use WildcardQuery directly for substring matching
+            var isFileSearch = request.DocumentTypes != null && request.DocumentTypes.Contains("file");
+            
+            if (isFileSearch && !request.MinSimilarity.HasValue)
             {
-                // Apply fuzzy search if requested
-                var queryString = request.MinSimilarity.HasValue 
-                    ? $"{request.Query}~" 
-                    : request.Query;
+                // Build a BooleanQuery with WildcardQuery for each field to support substring matching
+                var booleanQuery = new BooleanQuery();
+                var wildcardPattern = $"*{request.Query.ToLowerInvariant()}*";
+                
+                foreach (var field in searchFields)
+                {
+                    var wildcardQuery = new WildcardQuery(new Term(field, wildcardPattern));
                     
-                query = parser.Parse(queryString);
+                    // Apply field boost if specified
+                    if (request.FieldBoosts != null && request.FieldBoosts.TryGetValue(field, out var boost))
+                    {
+                        wildcardQuery.Boost = boost;
+                    }
+                    
+                    booleanQuery.Add(wildcardQuery, Occur.SHOULD);
+                }
+                
+                query = booleanQuery;
             }
-            catch (ParseException)
+            else
             {
-                // Escape special characters if parsing fails
-                var escapedQuery = QueryParserBase.Escape(request.Query);
-                query = parser.Parse(escapedQuery);
+                // Use standard parser for non-file searches or fuzzy searches
+                var parser = new MultiFieldQueryParser(LUCENE_VERSION, searchFields, analyzer, request.FieldBoosts);
+                
+                try
+                {
+                    var queryString = request.MinSimilarity.HasValue 
+                        ? $"{request.Query}~" 
+                        : request.Query;
+                        
+                    query = parser.Parse(queryString);
+                }
+                catch (ParseException)
+                {
+                    // Escape special characters if parsing fails
+                    var escapedQuery = QueryParserBase.Escape(request.Query);
+                    query = parser.Parse(escapedQuery);
+                }
             }
 
             // Apply filters
             var filter = BuildFilter(request);
+            
+            _logger.LogDebug("Lucene query: {Query}, Filter: {HasFilter}, DocumentTypes: {DocumentTypes}, SearchFields: {SearchFields}", 
+                query.ToString(), filter != null, 
+                request.DocumentTypes != null ? string.Join(",", request.DocumentTypes) : "none",
+                string.Join(",", searchFields));
+            
             var topDocs = filter != null 
                 ? searcher.Search(query, filter, 1000)
                 : searcher.Search(query, 1000);
+
+            _logger.LogDebug("Lucene search returned {TotalHits} hits before processing", topDocs.TotalHits);
+            
+            // Log first few documents for debugging
+            if (topDocs.TotalHits > 0)
+            {
+                _logger.LogDebug("First document details:");
+                var firstDoc = searcher.Doc(topDocs.ScoreDocs[0].Doc);
+                _logger.LogDebug("  ID: {Id}, Title: {Title}, DocumentType: {DocType}, FileName: {FileName}", 
+                    firstDoc.Get("id"), firstDoc.Get("title"), firstDoc.Get("documenttype"), firstDoc.Get("filename"));
+            }
 
             var results = new List<SearchResult>();
 
@@ -555,6 +601,11 @@ public class LuceneSearchStrategy : ISearchStrategy
     {
         var doc = new Document();
         
+        // Log what we're indexing
+        var docType = document.Metadata.TryGetValue("DocumentType", out var dt) ? dt : "unknown";
+        _logger.LogDebug("Creating Lucene document - ID: {Id}, Title: {Title}, DocType: {DocType}", 
+            document.Id, document.Title, docType);
+        
         // Stored and indexed fields
         doc.Add(new StringField("id", document.Id, Field.Store.YES));
         doc.Add(new TextField("title", document.Title ?? string.Empty, Field.Store.YES));
@@ -578,15 +629,23 @@ public class LuceneSearchStrategy : ISearchStrategy
         doc.Add(new StringField("createdon", document.CreatedOn.ToString("O"), Field.Store.YES));
         doc.Add(new StringField("modifiedon", document.ModifiedOn.ToString("O"), Field.Store.YES));
         
-        // File-specific metadata (if present)
-        if (document.Metadata.TryGetValue("DocumentType", out var docType))
+        // File-specific metadata (if present) - use lowercase field names for consistency
+        if (document.Metadata.TryGetValue("DocumentType", out var documentType))
         {
-            doc.Add(new StringField("documenttype", docType, Field.Store.YES));
+            doc.Add(new StringField("documenttype", documentType.ToLowerInvariant(), Field.Store.YES));
         }
         
         if (document.Metadata.TryGetValue("FileName", out var fileName))
         {
+            _logger.LogDebug("  Adding filename field: {FileName}, Title: {Title}", fileName, document.Title);
+            // Index as both 'filename' (for searching) and 'title' (for display/boosting)
             doc.Add(new TextField("filename", fileName, Field.Store.YES));
+            // Also add to title field if not already set for files
+            if (string.IsNullOrEmpty(document.Title) || document.Title == fileName)
+            {
+                _logger.LogDebug("  Also adding to title field");
+                doc.Add(new TextField("title", fileName, Field.Store.YES));
+            }
         }
         
         if (document.Metadata.TryGetValue("FileExtension", out var fileExtension))

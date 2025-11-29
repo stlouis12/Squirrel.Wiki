@@ -39,9 +39,10 @@ public class RebuildIndexAction : IPluginAction
             // Clear the existing index
             await _strategy.RebuildIndexAsync(cancellationToken);
 
-            // Create a new scope to get a fresh repository instance
+            // Create a new scope to get fresh repository instances
             using var scope = serviceProvider.CreateScope();
             var pageRepository = scope.ServiceProvider.GetRequiredService<IPageRepository>();
+            var fileRepository = scope.ServiceProvider.GetRequiredService<IFileRepository>();
 
             // Get all pages from database
             var pages = await pageRepository.GetAllAsync(cancellationToken);
@@ -49,7 +50,7 @@ public class RebuildIndexAction : IPluginAction
 
             _logger.LogInformation("Indexing {Count} pages", pagesList.Count);
 
-            // Create search documents
+            // Create search documents for pages
             var documents = new List<SearchDocument>();
             foreach (var page in pagesList)
             {
@@ -68,7 +69,43 @@ public class RebuildIndexAction : IPluginAction
                     Tags = page.PageTags?.Select(pt => pt.Tag.Name).ToList() ?? new List<string>(),
                     Author = page.ModifiedBy ?? page.CreatedBy,
                     CreatedOn = page.CreatedOn,
-                    ModifiedOn = page.ModifiedOn
+                    ModifiedOn = page.ModifiedOn,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "DocumentType", "page" }
+                    }
+                });
+            }
+
+            // Get all files from database
+            var files = await fileRepository.GetAllAsync(cancellationToken);
+            var filesList = files.ToList();
+
+            _logger.LogInformation("Indexing {Count} files", filesList.Count);
+
+            // Create search documents for files
+            foreach (var file in filesList)
+            {
+                documents.Add(new SearchDocument
+                {
+                    Id = file.Id.ToString(),
+                    Title = file.FileName,
+                    Slug = file.FileName,
+                    Content = file.Description ?? string.Empty,
+                    CategoryId = null,
+                    CategoryName = file.Folder?.Name,
+                    Tags = new List<string>(), // Files don't have tags in the current schema
+                    Author = file.UploadedBy,
+                    CreatedOn = file.UploadedOn,
+                    ModifiedOn = file.UploadedOn, // Files don't have a separate ModifiedOn in current schema
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "DocumentType", "file" },
+                        { "FileId", file.Id.ToString() },
+                        { "FileName", file.FileName },
+                        { "FileSize", file.FileSize.ToString() },
+                        { "ContentType", file.ContentType }
+                    }
                 });
             }
 
@@ -78,10 +115,12 @@ public class RebuildIndexAction : IPluginAction
             _logger.LogInformation("Lucene index rebuild completed successfully");
 
             return PluginActionResult.Successful(
-                $"Successfully rebuilt search index with {documents.Count} pages",
+                $"Successfully rebuilt search index with {pagesList.Count} pages and {filesList.Count} files",
                 new Dictionary<string, object>
                 {
-                    { "PagesIndexed", documents.Count },
+                    { "PagesIndexed", pagesList.Count },
+                    { "FilesIndexed", filesList.Count },
+                    { "TotalDocuments", documents.Count },
                     { "CompletedAt", DateTime.UtcNow }
                 });
         }

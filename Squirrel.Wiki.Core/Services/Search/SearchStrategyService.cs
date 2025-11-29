@@ -297,7 +297,16 @@ public class SearchStrategyService : BaseService, ISearchService
             Query = query,
             Page = pageNumber,
             PageSize = pageSize,
-            DocumentTypes = new List<string> { "file" }
+            DocumentTypes = new List<string> { "file" },
+            // Specify file-specific search fields
+            SearchFields = new List<string> { "filename", "folderpath", "title" },
+            // Boost filename matches higher than folder path
+            FieldBoosts = new Dictionary<string, float>
+            {
+                { "filename", 2.0f },
+                { "title", 2.0f },
+                { "folderpath", 1.0f }
+            }
         };
 
         var response = await strategy.SearchAsync(request, cancellationToken);
@@ -341,9 +350,8 @@ public class SearchStrategyService : BaseService, ISearchService
             TotalPages = response.TotalPages,
             Results = response.Results.Select(r =>
             {
-                // Check if this is a file result by looking at the Highlights dictionary
-                var isFile = r.Highlights.ContainsKey("DocumentType") && 
-                            r.Highlights["DocumentType"].Contains("file");
+                // Try to determine if this is a file by checking if DocumentId is a GUID
+                var isFile = Guid.TryParse(r.DocumentId, out var _);
 
                 var result = new SearchResultItemDto
                 {
@@ -364,7 +372,7 @@ public class SearchStrategyService : BaseService, ISearchService
                         result.FileId = fileId;
                     }
 
-                    // Extract file metadata from Highlights
+                    // Extract file metadata from Highlights (if available) or use defaults
                     if (r.Highlights.TryGetValue("ContentType", out var contentType))
                         result.ContentType = contentType.FirstOrDefault();
                     

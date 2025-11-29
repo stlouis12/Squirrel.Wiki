@@ -72,7 +72,11 @@ public class PageIndexRequestedEventHandler : IEventHandler<PageIndexRequestedEv
             Tags = page.PageTags?.Select(pt => pt.Tag.Name).ToList() ?? new List<string>(),
             Author = page.ModifiedBy ?? page.CreatedBy,
             CreatedOn = page.CreatedOn,
-            ModifiedOn = page.ModifiedOn
+            ModifiedOn = page.ModifiedOn,
+            Metadata = new Dictionary<string, string>
+            {
+                { "DocumentType", "page" }
+            }
         };
 
         // Index in all enabled search plugins
@@ -150,7 +154,11 @@ public class PagesIndexRequestedEventHandler : IEventHandler<PagesIndexRequested
                 Tags = page.PageTags?.Select(pt => pt.Tag.Name).ToList() ?? new List<string>(),
                 Author = page.ModifiedBy ?? page.CreatedBy,
                 CreatedOn = page.CreatedOn,
-                ModifiedOn = page.ModifiedOn
+                ModifiedOn = page.ModifiedOn,
+                Metadata = new Dictionary<string, string>
+                {
+                    { "DocumentType", "page" }
+                }
             });
         }
 

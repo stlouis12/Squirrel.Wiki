@@ -373,6 +373,7 @@ builder.Services.AddScoped<IMenuService, MenuService>();
 // Register Search Services
 builder.Services.AddScoped<Squirrel.Wiki.Core.Services.Search.SearchService>();
 builder.Services.AddScoped<Squirrel.Wiki.Core.Services.Search.DatabaseSearchStrategy>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Services.Search.SearchStrategyService>();
 builder.Services.AddScoped<ISearchService, Squirrel.Wiki.Core.Services.Search.SearchStrategyService>();
 Log.Information("Search services registered (SearchService, DatabaseSearchStrategy, SearchStrategyService)");
 

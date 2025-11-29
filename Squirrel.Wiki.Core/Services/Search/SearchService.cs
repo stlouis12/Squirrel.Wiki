@@ -689,18 +689,22 @@ public class SearchService : BaseService, ISearchService
 
         LogInfo("Searching files for: {Query}", query);
 
-        // Search in files by filename and description
+        // Search in files using database
         var files = await _fileRepository.SearchAsync(query, cancellationToken);
         
-        // Filter files by permissions - batch authorization check
-        var viewPermissions = await _authorizationService.CanViewFilesAsync(files);
-        var authorizedFiles = files.Where(f => viewPermissions.GetValueOrDefault<Guid, bool>(f.Id, false)).ToList();
-        
-        LogDebug("File search filtered by permissions: {AuthorizedCount}/{TotalCount} files visible", 
-            authorizedFiles.Count, files.Count());
-        
+        // Filter by permissions
+        var accessibleFiles = new List<Core.Database.Entities.File>();
+        foreach (var file in files)
+        {
+            if (await _authorizationService.CanViewFileAsync(file, cancellationToken))
+            {
+                accessibleFiles.Add(file);
+            }
+        }
+
+        // Convert to search results
         var results = new List<SearchResultItemDto>();
-        foreach (var file in authorizedFiles)
+        foreach (var file in accessibleFiles)
         {
             var folder = file.FolderId.HasValue 
                 ? await _folderRepository.GetByIdAsync(file.FolderId.Value, cancellationToken)
@@ -711,13 +715,14 @@ public class SearchService : BaseService, ISearchService
                 Type = SearchResultType.File,
                 FileId = file.Id,
                 Title = file.FileName,
+                Slug = file.FileName,
                 Excerpt = file.Description ?? string.Empty,
                 ModifiedBy = file.UploadedBy,
                 ModifiedOn = file.UploadedOn,
                 Score = (float)CalculateFileRelevance(file.FileName, file.Description ?? string.Empty, query),
-                FolderPath = folder != null ? await _folderRepository.GetFolderPathAsync(folder.Id, cancellationToken) ?? "/" : "/",
                 ContentType = file.ContentType,
                 FileSize = file.FileSize,
+                FolderPath = folder?.Name,
                 DownloadUrl = $"/files/download/{file.Id}"
             };
             results.Add(result);
