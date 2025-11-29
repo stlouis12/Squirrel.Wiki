@@ -8,7 +8,7 @@
 
   <ItemGroup>
     <!-- ASP.NET Core -->
-    <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
+    <PackageReference Include="AutoMapper" Version="15.1.0" />
     <PackageReference Include="DiffPlex" Version="1.9.0" />
     
     <!-- Entity Framework Core Design (for migrations) -->
@@ -71,17 +71,28 @@
     <PropertyGroup>
       <PluginsDir>$(OutputPath)Plugins</PluginsDir>
       <LucenePluginDir>$(PluginsDir)\Squirrel.Wiki.Plugins.Lucene</LucenePluginDir>
-      <LucenePluginSource>..\Squirrel.Wiki.Plugins.Lucene\bin\$(Configuration)\net8.0\Squirrel.Wiki.Plugins.Lucene.dll</LucenePluginSource>
+      <LucenePluginSourceDir>..\Squirrel.Wiki.Plugins.Lucene\bin\$(Configuration)\net8.0</LucenePluginSourceDir>
     </PropertyGroup>
     
     <!-- Create plugin subdirectory -->
     <MakeDir Directories="$(LucenePluginDir)" Condition="!Exists('$(LucenePluginDir)')" />
     
-    <!-- Copy plugin DLL to its subdirectory -->
-    <Copy SourceFiles="$(LucenePluginSource)" DestinationFolder="$(LucenePluginDir)" SkipUnchangedFiles="true" Condition="Exists('$(LucenePluginSource)')" />
+    <!-- Only copy Lucene-specific files (plugin DLL and Lucene.NET dependencies) -->
+    <ItemGroup>
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\Squirrel.Wiki.Plugins.Lucene.dll" />
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\Squirrel.Wiki.Plugins.Lucene.pdb" />
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\Lucene.Net.dll" />
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\Lucene.Net.Analysis.Common.dll" />
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\Lucene.Net.QueryParser.dll" />
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\Lucene.Net.Queries.dll" />
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\Lucene.Net.Sandbox.dll" />
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\J2N.dll" />
+    </ItemGroup>
     
-    <Message Text="Copied Lucene plugin to $(LucenePluginDir)" Importance="high" Condition="Exists('$(LucenePluginSource)')" />
-    <Warning Text="Lucene plugin not found at $(LucenePluginSource)" Condition="!Exists('$(LucenePluginSource)')" />
+    <!-- Copy only Lucene-specific plugin files -->
+    <Copy SourceFiles="@(LucenePluginFiles)" DestinationFolder="$(LucenePluginDir)" SkipUnchangedFiles="true" />
+    
+    <Message Text="Copied Lucene plugin and Lucene-specific dependencies to $(LucenePluginDir)" Importance="high" />
   </Target>
 
   <!-- Copy Table of Contents plugin to Plugins folder after build -->

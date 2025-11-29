@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Localization;
 using Serilog;
 using Squirrel.Wiki.Contracts.Configuration;
@@ -58,7 +59,10 @@ builder.Services.AddSingleton<IStringLocalizer>(sp =>
 });
 
 // Configure AutoMapper
-builder.Services.AddAutoMapper(typeof(Squirrel.Wiki.Core.Mapping.UserMappingProfile).Assembly);
+builder.Services.AddAutoMapper(config =>
+{
+    // AutoMapper will automatically discover all Profile classes in the assembly
+}, typeof(Squirrel.Wiki.Core.Mapping.UserMappingProfile).Assembly);
 
 // Add response caching
 builder.Services.AddResponseCaching();
@@ -84,12 +88,6 @@ if (!Directory.Exists(resolvedAppDataPath))
     Directory.CreateDirectory(resolvedAppDataPath);
     Log.Information("Created application data directory: {Directory}", resolvedAppDataPath);
 }
-
-// Configure search settings using the resolved app data path
-builder.Services.Configure<Squirrel.Wiki.Core.Services.Search.SearchSettings>(options =>
-{
-    options.IndexPath = Path.Combine(resolvedAppDataPath, "SearchIndex");
-});
 
 // Configure database
 // Priority: Environment Variables → defaults from ConfigurationMetadataRegistry
