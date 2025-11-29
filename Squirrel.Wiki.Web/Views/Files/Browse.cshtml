@@ -1,6 +1,9 @@
 @using Squirrel.Wiki.Core.Models
 @using Squirrel.Wiki.Core.Database.Entities
+@using Squirrel.Wiki.Core.Services.Configuration
+@using Squirrel.Wiki.Web.Extensions
 @inject IStringLocalizer<SharedResources> Localizer
+@inject ITimezoneService TimezoneService
 
 @{
     ViewData["Title"] = Localizer["FileBrowser"];
@@ -166,8 +169,8 @@
                                             <span>
                                                 <i class="bi bi-hdd"></i> @FormatFileSize(file.FileSize)
                                             </span>
-                                            <span>
-                                                <i class="bi bi-calendar"></i> @file.UploadedOn.ToString("MMM dd, yyyy")
+                                            <span title="@await file.UploadedOn.ToLocalTimeStringAsync(TimezoneService, "F")">
+                                                <i class="bi bi-calendar"></i> @await file.UploadedOn.ToLocalTimeStringAsync(TimezoneService, "MMM dd, yyyy")
                                             </span>
                                         </div>
                                         

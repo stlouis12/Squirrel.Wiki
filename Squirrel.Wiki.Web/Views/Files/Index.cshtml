@@ -1,6 +1,9 @@
 @using Squirrel.Wiki.Core.Models
 @using Squirrel.Wiki.Core.Database.Entities
+@using Squirrel.Wiki.Core.Services.Configuration
+@using Squirrel.Wiki.Web.Extensions
 @inject IStringLocalizer<SharedResources> Localizer
+@inject ITimezoneService TimezoneService
 @{
     ViewData["Title"] = Localizer["FileManager"];
     var currentFolder = ViewBag.CurrentFolder as FolderDto;
@@ -117,7 +120,7 @@
                                     <p class="card-text text-muted small">@folder.Description</p>
                                 }
                                 <small class="text-muted">
-                                    Created @folder.CreatedOn.ToString("MMM dd, yyyy")
+                                    @Localizer["Created"] @await folder.CreatedOn.ToLocalDateStringAsync(TimezoneService)
                                 </small>
                             </div>
                         </div>
@@ -162,8 +165,8 @@
                                 <td><span class="badge bg-secondary">@file.ContentType</span></td>
                                 <td>@file.UploadedBy</td>
                                 <td>
-                                    <small class="text-muted" title="@file.UploadedOn.ToString("F")">
-                                        @file.UploadedOn.ToString("MMM dd, yyyy")
+                                    <small class="text-muted" title="@await file.UploadedOn.ToLocalTimeStringAsync(TimezoneService, "F")">
+                                        @await file.UploadedOn.ToLocalTimeStringAsync(TimezoneService, "MMM dd, yyyy")
                                     </small>
                                 </td>
                                 <td class="text-center">

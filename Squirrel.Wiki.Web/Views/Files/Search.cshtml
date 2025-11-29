@@ -1,5 +1,8 @@
 @model IEnumerable<Squirrel.Wiki.Core.Models.FileDto>
+@using Squirrel.Wiki.Core.Services.Configuration
+@using Squirrel.Wiki.Web.Extensions
 @inject IStringLocalizer<SharedResources> Localizer
+@inject ITimezoneService TimezoneService
 @{
     ViewData["Title"] = Localizer["SearchFiles"];
     var searchTerm = ViewBag.SearchTerm as string ?? "";
@@ -179,7 +182,11 @@
                                                 }
                                             </td>
                                             <td>@file.UploadedBy</td>
-                                            <td>@file.UploadedOn.ToString("g")</td>
+                                            <td>
+                                                <span title="@await file.UploadedOn.ToLocalTimeStringAsync(TimezoneService, "F")">
+                                                    @await file.UploadedOn.ToLocalTimeStringAsync(TimezoneService, "g")
+                                                </span>
+                                            </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm" role="group">
                                                     <a asp-action="Details" asp-route-id="@file.Id" 
@@ -231,7 +238,7 @@
                                             <p class="card-text small text-muted mb-2">
                                                 <i class="bi bi-hdd"></i> @file.FileSizeFormatted<br>
                                                 <i class="bi bi-person"></i> @file.UploadedBy<br>
-                                                <i class="bi bi-calendar"></i> @file.UploadedOn.ToString("d")
+                                                <i class="bi bi-calendar"></i> @await file.UploadedOn.ToLocalDateStringAsync(TimezoneService)
                                             </p>
                                         </div>
                                         <div class="card-footer bg-transparent">

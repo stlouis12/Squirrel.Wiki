@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
+using Squirrel.Wiki.Core.Services.Configuration;
 using Squirrel.Wiki.Core.Services.Files;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Web.Resources;
 using Squirrel.Wiki.Web.Services;
 
 namespace Squirrel.Wiki.Web.Controllers;
@@ -27,8 +30,10 @@ public class FilesController : BaseController
         Squirrel.Wiki.Core.Security.IAuthorizationService authorizationService,
         IFileRepository fileRepository,
         ILogger<FilesController> logger,
-        INotificationService notificationService)
-        : base(logger, notificationService)
+        INotificationService notificationService,
+        ITimezoneService timezoneService,
+        IStringLocalizer<SharedResources> localizer)
+        : base(logger, notificationService, timezoneService, localizer)
     {
         _fileService = fileService;
         _folderService = folderService;

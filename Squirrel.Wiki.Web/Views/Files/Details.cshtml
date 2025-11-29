@@ -1,5 +1,8 @@
 @model Squirrel.Wiki.Core.Models.FileDetailsDto
+@using Squirrel.Wiki.Core.Services.Configuration
+@using Squirrel.Wiki.Web.Extensions
 @inject IStringLocalizer<SharedResources> Localizer
+@inject ITimezoneService TimezoneService
 @{
     ViewData["Title"] = Model.FileName;
     var isImage = Model.ContentType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) ?? false;
@@ -122,7 +125,11 @@
                                             </td>
                                             <td>@FormatFileSize(version.FileSize)</td>
                                             <td>@version.UploadedBy</td>
-                                            <td>@version.UploadedOn.ToString("g")</td>
+                                            <td>
+                                                <small title="@await version.UploadedOn.ToLocalTimeStringAsync(TimezoneService, "F")">
+                                                    @await version.UploadedOn.ToLocalTimeStringAsync(TimezoneService, "g")
+                                                </small>
+                                            </td>
                                             <td>
                                                 <a asp-action="DownloadVersion" 
                                                    asp-route-id="@Model.Id" 
@@ -202,13 +209,21 @@
                         <dd class="col-sm-7">@Model.UploadedBy</dd>
 
                         <dt class="col-sm-5">@Localizer["UploadedOn"]:</dt>
-                        <dd class="col-sm-7">@Model.UploadedOn.ToString("g")</dd>
+                        <dd class="col-sm-7">
+                            <span title="@await Model.UploadedOn.ToLocalTimeStringAsync(TimezoneService, "F")">
+                                @await Model.UploadedOn.ToLocalTimeStringAsync(TimezoneService, "g")
+                            </span>
+                        </dd>
 
                         <dt class="col-sm-5">@Localizer["ModifiedBy"]:</dt>
                         <dd class="col-sm-7">@Model.ModifiedBy</dd>
 
                         <dt class="col-sm-5">@Localizer["ModifiedOn"]:</dt>
-                        <dd class="col-sm-7">@Model.ModifiedOn.ToString("g")</dd>
+                        <dd class="col-sm-7">
+                            <span title="@await Model.ModifiedOn.ToLocalTimeStringAsync(TimezoneService, "F")">
+                                @await Model.ModifiedOn.ToLocalTimeStringAsync(TimezoneService, "g")
+                            </span>
+                        </dd>
                     </dl>
                 </div>
             </div>
