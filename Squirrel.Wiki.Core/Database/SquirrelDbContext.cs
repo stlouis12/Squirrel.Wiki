@@ -37,6 +37,10 @@ public class SquirrelDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<PluginSetting> PluginSettings { get; set; } = null!;
     public DbSet<PluginAuditLog> PluginAuditLogs { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
+    public DbSet<Folder> Folders { get; set; } = null!;
+    public DbSet<Entities.File> Files { get; set; } = null!;
+    public DbSet<FileContent> FileContents { get; set; } = null!;
+    public DbSet<FileVersion> FileVersions { get; set; } = null!;
 
     /// <summary>
     /// Ensures all DateTime values are stored as UTC before saving to database
@@ -112,5 +116,9 @@ public class SquirrelDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<PluginSetting>().ToTable("squirrel_plugin_settings");
         modelBuilder.Entity<PluginAuditLog>().ToTable("squirrel_plugin_audit_logs");
         modelBuilder.Entity<DataProtectionKey>().ToTable("squirrel_data_protection_keys");
+        modelBuilder.Entity<Folder>().ToTable("squirrel_folders");
+        modelBuilder.Entity<Entities.File>().ToTable("squirrel_files");
+        modelBuilder.Entity<FileContent>().ToTable("squirrel_file_contents");
+        modelBuilder.Entity<FileVersion>().ToTable("squirrel_file_versions");
     }
 }
