@@ -275,6 +275,8 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ITagRepository, TagRepository>();
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Database.Repositories.IFileRepository, Squirrel.Wiki.Core.Database.Repositories.FileRepository>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Database.Repositories.IFolderRepository, Squirrel.Wiki.Core.Database.Repositories.FolderRepository>();
 
 // Register Configuration System
 builder.Services.AddScoped<Squirrel.Wiki.Core.Configuration.IConfigurationProvider, DefaultConfigurationProvider>();
@@ -361,6 +363,15 @@ builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<ITimezoneService, TimezoneService>();
 builder.Services.AddScoped<IUrlTokenResolver, UrlTokenResolver>();
 builder.Services.AddScoped<FooterMarkupParser>();
+
+// Register File Storage Strategy
+builder.Services.AddScoped<Squirrel.Wiki.Contracts.Storage.IFileStorageStrategy, Squirrel.Wiki.Core.Services.Infrastructure.LocalFileStorageStrategy>();
+Log.Information("File storage strategy registered (LocalFileStorageStrategy)");
+
+// Register File Management Services
+builder.Services.AddScoped<Squirrel.Wiki.Core.Services.Files.IFileService, Squirrel.Wiki.Core.Services.Files.FileService>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Services.Files.IFolderService, Squirrel.Wiki.Core.Services.Files.FolderService>();
+Log.Information("File management services registered (FileService, FolderService)");
 
 // Register Web Services
 builder.Services.AddScoped<Squirrel.Wiki.Web.Services.INotificationService, Squirrel.Wiki.Web.Services.TempDataNotificationService>();
