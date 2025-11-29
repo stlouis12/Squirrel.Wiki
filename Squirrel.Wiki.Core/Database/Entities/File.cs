@@ -5,7 +5,7 @@ namespace Squirrel.Wiki.Core.Database.Entities;
 /// </summary>
 public class File
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
     
     public string FileHash { get; set; } = string.Empty;
     

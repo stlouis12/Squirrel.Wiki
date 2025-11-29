@@ -68,17 +68,17 @@ public interface IAuthorizationService
     /// Batch authorization check for viewing multiple files
     /// Returns a dictionary mapping file IDs to whether the user can view them
     /// </summary>
-    Task<Dictionary<int, bool>> CanViewFilesAsync(IEnumerable<Database.Entities.File> files);
+    Task<Dictionary<Guid, bool>> CanViewFilesAsync(IEnumerable<Database.Entities.File> files);
 
     /// <summary>
     /// Batch authorization check for editing multiple files
     /// Returns a dictionary mapping file IDs to whether the user can edit them
     /// </summary>
-    Task<Dictionary<int, bool>> CanEditFilesAsync(IEnumerable<Database.Entities.File> files);
+    Task<Dictionary<Guid, bool>> CanEditFilesAsync(IEnumerable<Database.Entities.File> files);
 
     /// <summary>
     /// Batch authorization check for deleting multiple files
     /// Returns a dictionary mapping file IDs to whether the user can delete them
     /// </summary>
-    Task<Dictionary<int, bool>> CanDeleteFilesAsync(IEnumerable<Database.Entities.File> files);
+    Task<Dictionary<Guid, bool>> CanDeleteFilesAsync(IEnumerable<Database.Entities.File> files);
 }

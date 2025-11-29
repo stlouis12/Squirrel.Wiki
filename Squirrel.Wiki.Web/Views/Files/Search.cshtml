@@ -6,9 +6,6 @@
 @{
     ViewData["Title"] = Localizer["SearchFiles"];
     var searchTerm = ViewBag.SearchTerm as string ?? "";
-    var folderId = ViewBag.FolderId as int?;
-    var contentType = ViewBag.ContentType as string;
-    var uploadedBy = ViewBag.UploadedBy as string;
 }
 
 <div class="container-fluid mt-4">
@@ -29,65 +26,23 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-funnel"></i> @Localizer["SearchFilters"]</h5>
+                    <h5 class="mb-0"><i class="bi bi-funnel"></i> @Localizer["SearchFiles"]</h5>
                 </div>
                 <div class="card-body">
                     <form asp-action="Search" method="get">
                         <div class="row g-3">
-                            <div class="col-md-6">
+                            <div class="col-md-9">
                                 <label for="searchTerm" class="form-label">@Localizer["SearchTerm"]</label>
                                 <input type="text" 
                                        class="form-control" 
                                        id="searchTerm" 
                                        name="searchTerm" 
                                        value="@searchTerm"
-                                       placeholder="@Localizer["SearchByFilenameOrDescription"]">
+                                       placeholder="@Localizer["SearchByFilenameOrDescription"]"
+                                       autofocus>
                             </div>
                             
-                            <div class="col-md-3">
-                                <label for="contentType" class="form-label">@Localizer["FileType"]</label>
-                                <select class="form-select" id="contentType" name="contentType">
-                                    <option value="">@Localizer["AllTypes"]</option>
-                                    <option value="image/" selected="@(contentType?.StartsWith("image/") == true)">@Localizer["Images"]</option>
-                                    <option value="application/pdf" selected="@(contentType == "application/pdf")">@Localizer["PDFDocuments"]</option>
-                                    <option value="application/vnd.openxmlformats-officedocument" selected="@(contentType?.Contains("officedocument") == true)">@Localizer["OfficeDocuments"]</option>
-                                    <option value="text/" selected="@(contentType?.StartsWith("text/") == true)">@Localizer["TextFiles"]</option>
-                                    <option value="video/" selected="@(contentType?.StartsWith("video/") == true)">@Localizer["Videos"]</option>
-                                    <option value="audio/" selected="@(contentType?.StartsWith("audio/") == true)">@Localizer["Audio"]</option>
-                                </select>
-                            </div>
-                            
-                            <div class="col-md-3">
-                                <label for="uploadedBy" class="form-label">@Localizer["UploadedBy"]</label>
-                                <input type="text" 
-                                       class="form-control" 
-                                       id="uploadedBy" 
-                                       name="uploadedBy" 
-                                       value="@uploadedBy"
-                                       placeholder="@Localizer["Username"]">
-                            </div>
-                        </div>
-                        
-                        <div class="row g-3 mt-2">
-                            <div class="col-md-3">
-                                <label for="uploadedAfter" class="form-label">@Localizer["UploadedAfter"]</label>
-                                <input type="date" 
-                                       class="form-control" 
-                                       id="uploadedAfter" 
-                                       name="uploadedAfter"
-                                       value="@ViewBag.UploadedAfter">
-                            </div>
-                            
-                            <div class="col-md-3">
-                                <label for="uploadedBefore" class="form-label">@Localizer["UploadedBefore"]</label>
-                                <input type="date" 
-                                       class="form-control" 
-                                       id="uploadedBefore" 
-                                       name="uploadedBefore"
-                                       value="@ViewBag.UploadedBefore">
-                            </div>
-                            
-                            <div class="col-md-6 d-flex align-items-end">
+                            <div class="col-md-3 d-flex align-items-end">
                                 <button type="submit" class="btn btn-primary me-2">
                                     <i class="bi bi-search"></i> @Localizer["Search"]
                                 </button>
@@ -132,7 +87,7 @@
                         <div class="text-center py-5">
                             <i class="bi bi-search display-1 text-muted"></i>
                             <p class="mt-3 text-muted">
-                                @if (string.IsNullOrEmpty(searchTerm) && contentType == null && uploadedBy == null)
+                                @if (string.IsNullOrEmpty(searchTerm))
                                 {
                                     <text>@Localizer["EnterSearchCriteria"]</text>
                                 }
@@ -165,14 +120,14 @@
                                         <tr>
                                             <td>
                                                 <i class="bi bi-file-earmark me-2"></i>
-                                                <a asp-action="Details" asp-route-id="@file.Id">@file.FileName</a>
+                                                <a href="#" class="file-details-link" data-file-id="@file.Id">@file.FileName</a>
                                             </td>
                                             <td>@file.FileSizeFormatted</td>
                                             <td><small class="text-muted">@file.ContentType</small></td>
                                             <td>
                                                 @if (file.FolderId.HasValue)
                                                 {
-                                                    <a asp-action="Browse" asp-route-folderId="@file.FolderId">
+                                                    <a asp-action="Index" asp-route-folderId="@file.FolderId">
                                                         @file.FolderName
                                                     </a>
                                                 }
@@ -189,8 +144,8 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm" role="group">
-                                                    <a asp-action="Details" asp-route-id="@file.Id" 
-                                                       class="btn btn-outline-primary" 
+                                                    <a href="#" class="btn btn-outline-primary file-details-link" 
+                                                       data-file-id="@file.Id"
                                                        title="@Localizer["ViewDetails"]">
                                                         <i class="bi bi-eye"></i>
                                                     </a>
@@ -198,11 +153,6 @@
                                                        class="btn btn-outline-success" 
                                                        title="@Localizer["Download"]">
                                                         <i class="bi bi-download"></i>
-                                                    </a>
-                                                    <a asp-action="Edit" asp-route-id="@file.Id" 
-                                                       class="btn btn-outline-secondary" 
-                                                       title="@Localizer["Edit"]">
-                                                        <i class="bi bi-pencil"></i>
                                                     </a>
                                                 </div>
                                             </td>
@@ -243,7 +193,7 @@
                                         </div>
                                         <div class="card-footer bg-transparent">
                                             <div class="d-grid gap-2">
-                                                <a asp-action="Details" asp-route-id="@file.Id" class="btn btn-sm btn-primary">
+                                                <a href="#" class="btn btn-sm btn-primary file-details-link" data-file-id="@file.Id">
                                                     <i class="bi bi-eye"></i> @Localizer["View"]
                                                 </a>
                                             </div>
@@ -253,6 +203,25 @@
                             }
                         </div>
                     }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- File Details Modal -->
+<div class="modal fade" id="fileDetailsModal" tabindex="-1" aria-labelledby="fileDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="fileDetailsModalLabel">@Localizer["FileDetails"]</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="fileDetailsContent">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -278,5 +247,49 @@
                 buttons[1].classList.add('active');
             }
         }
+
+        // File details modal
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.file-details-link')) {
+                e.preventDefault();
+                const link = e.target.closest('.file-details-link');
+                const fileId = link.dataset.fileId;
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('fileDetailsModal'));
+                modal.show();
+                
+                // Load file details
+                fetch(`/Files/GetFileDetails/${fileId}`)
+                    .then(response => response.text())
+                    .then(html => {
+                        document.getElementById('fileDetailsContent').innerHTML = html;
+                    })
+                    .catch(error => {
+                        document.getElementById('fileDetailsContent').innerHTML = 
+                            '<div class="alert alert-danger">Error loading file details</div>';
+                    });
+            }
+        });
+
+        // Copy markdown embed code to clipboard using event delegation
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.copy-markdown-btn')) {
+                e.preventDefault();
+                const button = e.target.closest('.copy-markdown-btn');
+                const input = button.closest('.input-group').querySelector('input');
+                
+                // Copy to clipboard
+                input.select();
+                document.execCommand('copy');
+                
+                // Visual feedback
+                const originalHTML = button.innerHTML;
+                button.innerHTML = '<i class="bi bi-check"></i>';
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                }, 2000);
+            }
+        });
     </script>
 }

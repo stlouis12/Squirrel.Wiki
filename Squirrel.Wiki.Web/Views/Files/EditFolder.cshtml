@@ -1,5 +1,8 @@
 @model Squirrel.Wiki.Core.Models.FolderDto
+@using Squirrel.Wiki.Core.Services.Configuration
+@using Squirrel.Wiki.Web.Extensions
 @inject IStringLocalizer<SharedResources> Localizer
+@inject ITimezoneService TimezoneService
 @{
     ViewData["Title"] = $"{Localizer["EditFolder"]}: {Model.Name}";
 }
@@ -94,7 +97,9 @@
                                         <dd class="col-sm-8">@Model.CreatedBy</dd>
 
                                         <dt class="col-sm-4">@Localizer["CreatedOn"]:</dt>
-                                        <dd class="col-sm-8">@Model.CreatedOn.ToString("g")</dd>
+                                        <dd class="col-sm-8" title="@await Model.CreatedOn.ToLocalTimeStringAsync(TimezoneService, "F")">
+                                            @await Model.CreatedOn.ToLocalTimeStringAsync(TimezoneService, "g")
+                                        </dd>
                                     </dl>
                                 </div>
                             </div>

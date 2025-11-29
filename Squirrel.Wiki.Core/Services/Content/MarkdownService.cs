@@ -383,7 +383,7 @@ public class MarkdownService : BaseService, IMarkdownService
     }
 
     /// <summary>
-    /// Processes file references in HTML, converting file IDs to download URLs
+    /// Processes file references in HTML, converting file GUIDs to download URLs
     /// Supports both ![Alt](fileId) for images and [Link](fileId) for files
     /// Also supports optional file: prefix: ![Alt](file:fileId)
     /// </summary>
@@ -402,10 +402,11 @@ public class MarkdownService : BaseService, IMarkdownService
                 return html;
             }
 
-            // Pattern 1: Match <img src="fileId"> or <img src="file:fileId">
-            // This handles ![Alt](fileId) after markdown conversion
+            // Pattern 1: Match <img src="guid"> or <img src="file:guid">
+            // This handles ![Alt](guid) after markdown conversion
+            // GUID pattern: 8-4-4-4-12 hex digits
             var imagePattern = new Regex(
-                @"<img\s+([^>]*\s+)?src=""(?:file:)?(\d+)""([^>]*)>",
+                @"<img\s+([^>]*\s+)?src=""(?:file:)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})""([^>]*)>",
                 RegexOptions.IgnoreCase);
 
             var imageMatches = imagePattern.Matches(html);
@@ -418,7 +419,7 @@ public class MarkdownService : BaseService, IMarkdownService
                 var fileIdStr = match.Groups[2].Value;
                 var afterSrc = match.Groups[3].Value;
 
-                if (int.TryParse(fileIdStr, out var fileId))
+                if (Guid.TryParse(fileIdStr, out var fileId))
                 {
                     // Look up file in database
                     var file = await fileRepository.GetByIdAsync(fileId, cancellationToken);
@@ -426,7 +427,7 @@ public class MarkdownService : BaseService, IMarkdownService
                     if (file != null && !file.IsDeleted)
                     {
                         // Convert to download URL
-                        var downloadUrl = $"/files/download/{fileId}";
+                        var downloadUrl = $"/Files/Download/{fileId}";
                         var newImg = $"<img {beforeSrc}src=\"{downloadUrl}\"{afterSrc}>";
                         
                         if (!imageReplacements.ContainsKey(fullMatch))
@@ -449,10 +450,10 @@ public class MarkdownService : BaseService, IMarkdownService
                 html = html.Replace(replacement.Key, replacement.Value);
             }
 
-            // Pattern 2: Match <a href="fileId"> or <a href="file:fileId">
-            // This handles [Link](fileId) after markdown conversion
+            // Pattern 2: Match <a href="guid"> or <a href="file:guid">
+            // This handles [Link](guid) after markdown conversion
             var linkPattern = new Regex(
-                @"<a\s+([^>]*\s+)?href=""(?:file:)?(\d+)""([^>]*)>",
+                @"<a\s+([^>]*\s+)?href=""(?:file:)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})""([^>]*)>",
                 RegexOptions.IgnoreCase);
 
             var linkMatches = linkPattern.Matches(html);
@@ -465,7 +466,7 @@ public class MarkdownService : BaseService, IMarkdownService
                 var fileIdStr = match.Groups[2].Value;
                 var afterHref = match.Groups[3].Value;
 
-                if (int.TryParse(fileIdStr, out var fileId))
+                if (Guid.TryParse(fileIdStr, out var fileId))
                 {
                     // Look up file in database
                     var file = await fileRepository.GetByIdAsync(fileId, cancellationToken);
@@ -473,7 +474,7 @@ public class MarkdownService : BaseService, IMarkdownService
                     if (file != null && !file.IsDeleted)
                     {
                         // Convert to download URL
-                        var downloadUrl = $"/files/download/{fileId}";
+                        var downloadUrl = $"/Files/Download/{fileId}";
                         var newLink = $"<a {beforeHref}href=\"{downloadUrl}\"{afterHref}>";
                         
                         if (!linkReplacements.ContainsKey(fullMatch))

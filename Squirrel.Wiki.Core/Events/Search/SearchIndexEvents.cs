@@ -83,3 +83,42 @@ public class IndexClearRequestedEvent : DomainEvent
         RequestedBy = requestedBy;
     }
 }
+
+/// <summary>
+/// Event raised when a file needs to be indexed
+/// </summary>
+public class FileIndexRequestedEvent : DomainEvent
+{
+    public Guid FileId { get; }
+
+    public FileIndexRequestedEvent(Guid fileId)
+    {
+        FileId = fileId;
+    }
+}
+
+/// <summary>
+/// Event raised when multiple files need to be indexed
+/// </summary>
+public class FilesIndexRequestedEvent : DomainEvent
+{
+    public IEnumerable<Guid> FileIds { get; }
+
+    public FilesIndexRequestedEvent(IEnumerable<Guid> fileIds)
+    {
+        FileIds = fileIds;
+    }
+}
+
+/// <summary>
+/// Event raised when a file needs to be removed from the index
+/// </summary>
+public class FileRemovedFromIndexEvent : DomainEvent
+{
+    public Guid FileId { get; }
+
+    public FileRemovedFromIndexEvent(Guid fileId)
+    {
+        FileId = fileId;
+    }
+}

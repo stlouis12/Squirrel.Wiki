@@ -52,7 +52,7 @@
                     @if (isImage)
                     {
                         <div class="text-center">
-                            <img src="@Url.Action("Download", new { id = Model.Id })" 
+                            <img src="@Url.Action("Preview", new { id = Model.Id })" 
                                  alt="@Model.FileName" 
                                  class="img-fluid rounded"
                                  style="max-height: 600px;" />
@@ -61,7 +61,7 @@
                     else if (isPdf)
                     {
                         <div class="embed-responsive" style="height: 600px;">
-                            <iframe src="@Url.Action("Download", new { id = Model.Id })" 
+                            <iframe src="@Url.Action("Preview", new { id = Model.Id })" 
                                     class="embed-responsive-item w-100 h-100 border-0"
                                     title="@Model.FileName">
                             </iframe>
@@ -186,7 +186,7 @@
                         <dd class="col-sm-7"><code>@Model.ContentType</code></dd>
 
                         <dt class="col-sm-5">@Localizer["Version"]:</dt>
-                        <dd class="col-sm-7">v@Model.CurrentVersion</dd>
+                        <dd class="col-sm-7">v@(Model.CurrentVersion)</dd>
 
                         <dt class="col-sm-5">@Localizer["Visibility"]:</dt>
                         <dd class="col-sm-7">

@@ -91,4 +91,29 @@ public interface ISearchService
     /// Performs a fuzzy search (tolerates typos)
     /// </summary>
     Task<SearchResultsDto> FuzzySearchAsync(string query, float minSimilarity = 0.7f, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Indexes a single file
+    /// </summary>
+    Task IndexFileAsync(Guid fileId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Indexes multiple files
+    /// </summary>
+    Task IndexFilesAsync(IEnumerable<Guid> fileIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes a file from the search index
+    /// </summary>
+    Task RemoveFileFromIndexAsync(Guid fileId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Searches for files
+    /// </summary>
+    Task<SearchResultsDto> SearchFilesAsync(string query, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Searches for both pages and files
+    /// </summary>
+    Task<SearchResultsDto> SearchAllAsync(string query, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
 }

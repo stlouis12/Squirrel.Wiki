@@ -373,3 +373,253 @@ public class IndexClearRequestedEventHandler : IEventHandler<IndexClearRequested
         }
     }
 }
+
+/// <summary>
+/// Handles file index requested events and notifies search plugins
+/// </summary>
+public class FileIndexRequestedEventHandler : IEventHandler<FileIndexRequestedEvent>
+{
+    private readonly IPluginService _pluginService;
+    private readonly IFileRepository _fileRepository;
+    private readonly IFolderRepository _folderRepository;
+    private readonly ILogger<FileIndexRequestedEventHandler> _logger;
+
+    public FileIndexRequestedEventHandler(
+        IPluginService pluginService,
+        IFileRepository fileRepository,
+        IFolderRepository folderRepository,
+        ILogger<FileIndexRequestedEventHandler> logger)
+    {
+        _pluginService = pluginService;
+        _fileRepository = fileRepository;
+        _folderRepository = folderRepository;
+        _logger = logger;
+    }
+
+    public async Task HandleAsync(FileIndexRequestedEvent domainEvent, CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug("Handling FileIndexRequestedEvent for file {FileId}", domainEvent.FileId);
+
+        // Get enabled search plugins
+        var enabledPlugins = await _pluginService.GetEnabledPluginsAsync(cancellationToken);
+        var searchPlugins = enabledPlugins
+            .Where(p => p.PluginType == PluginType.SearchProvider.ToString())
+            .Select(p => _pluginService.GetLoadedPlugin<ISearchPlugin>(p.PluginId))
+            .Where(p => p != null)
+            .Cast<ISearchPlugin>()
+            .ToList();
+
+        if (!searchPlugins.Any())
+        {
+            _logger.LogDebug("No enabled search plugins found");
+            return;
+        }
+
+        // Get file data
+        var file = await _fileRepository.GetByIdAsync(domainEvent.FileId, cancellationToken);
+        if (file == null)
+        {
+            _logger.LogWarning("File {FileId} not found for indexing", domainEvent.FileId);
+            return;
+        }
+
+        // Get folder path if file is in a folder
+        string folderPath = "/";
+        if (file.FolderId.HasValue)
+        {
+            folderPath = await _folderRepository.GetFolderPathAsync(file.FolderId.Value, cancellationToken) ?? "/";
+        }
+
+        // Create search document
+        var document = new SearchDocument
+        {
+            Id = file.Id.ToString(),
+            Title = file.FileName,
+            Content = file.Description ?? string.Empty,
+            Slug = file.FileName.ToLowerInvariant().Replace(" ", "-"),
+            Author = file.UploadedBy,
+            CreatedOn = file.UploadedOn,
+            ModifiedOn = file.UploadedOn,
+            Metadata = new Dictionary<string, string>
+            {
+                { "DocumentType", "file" },
+                { "FileName", file.FileName },
+                { "FileExtension", Path.GetExtension(file.FileName).TrimStart('.') },
+                { "ContentType", file.ContentType },
+                { "FileSize", file.FileSize.ToString() },
+                { "FolderPath", folderPath },
+                { "Visibility", file.Visibility.ToString() }
+            }
+        };
+
+        if (file.FolderId.HasValue)
+        {
+            document.Metadata["FolderId"] = file.FolderId.Value.ToString();
+        }
+
+        // Index in all enabled search plugins
+        foreach (var plugin in searchPlugins)
+        {
+            try
+            {
+                _logger.LogDebug("Indexing file {FileId} in plugin {PluginName}", domainEvent.FileId, plugin.Metadata.Name);
+                await plugin.SearchStrategy.IndexDocumentAsync(document, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error indexing file {FileId} in plugin {PluginName}", domainEvent.FileId, plugin.Metadata.Name);
+            }
+        }
+    }
+}
+
+/// <summary>
+/// Handles files index requested events and notifies search plugins
+/// </summary>
+public class FilesIndexRequestedEventHandler : IEventHandler<FilesIndexRequestedEvent>
+{
+    private readonly IPluginService _pluginService;
+    private readonly IFileRepository _fileRepository;
+    private readonly IFolderRepository _folderRepository;
+    private readonly ILogger<FilesIndexRequestedEventHandler> _logger;
+
+    public FilesIndexRequestedEventHandler(
+        IPluginService pluginService,
+        IFileRepository fileRepository,
+        IFolderRepository folderRepository,
+        ILogger<FilesIndexRequestedEventHandler> logger)
+    {
+        _pluginService = pluginService;
+        _fileRepository = fileRepository;
+        _folderRepository = folderRepository;
+        _logger = logger;
+    }
+
+    public async Task HandleAsync(FilesIndexRequestedEvent domainEvent, CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug("Handling FilesIndexRequestedEvent for {Count} files", domainEvent.FileIds.Count());
+
+        // Get enabled search plugins
+        var enabledPlugins = await _pluginService.GetEnabledPluginsAsync(cancellationToken);
+        var searchPlugins = enabledPlugins
+            .Where(p => p.PluginType == PluginType.SearchProvider.ToString())
+            .Select(p => _pluginService.GetLoadedPlugin<ISearchPlugin>(p.PluginId))
+            .Where(p => p != null)
+            .Cast<ISearchPlugin>()
+            .ToList();
+
+        if (!searchPlugins.Any())
+        {
+            _logger.LogDebug("No enabled search plugins found");
+            return;
+        }
+
+        // Get file data and create documents
+        var documents = new List<SearchDocument>();
+        foreach (var fileId in domainEvent.FileIds)
+        {
+            var file = await _fileRepository.GetByIdAsync(fileId, cancellationToken);
+            if (file == null) continue;
+
+            // Get folder path if file is in a folder
+            string folderPath = "/";
+            if (file.FolderId.HasValue)
+            {
+                folderPath = await _folderRepository.GetFolderPathAsync(file.FolderId.Value, cancellationToken) ?? "/";
+            }
+
+            var document = new SearchDocument
+            {
+                Id = file.Id.ToString(),
+                Title = file.FileName,
+                Content = file.Description ?? string.Empty,
+                Slug = file.FileName.ToLowerInvariant().Replace(" ", "-"),
+                Author = file.UploadedBy,
+                CreatedOn = file.UploadedOn,
+                ModifiedOn = file.UploadedOn,
+                Metadata = new Dictionary<string, string>
+                {
+                    { "DocumentType", "file" },
+                    { "FileName", file.FileName },
+                    { "FileExtension", Path.GetExtension(file.FileName).TrimStart('.') },
+                    { "ContentType", file.ContentType },
+                    { "FileSize", file.FileSize.ToString() },
+                    { "FolderPath", folderPath },
+                    { "Visibility", file.Visibility.ToString() }
+                }
+            };
+
+            if (file.FolderId.HasValue)
+            {
+                document.Metadata["FolderId"] = file.FolderId.Value.ToString();
+            }
+
+            documents.Add(document);
+        }
+
+        // Index in all enabled search plugins
+        foreach (var plugin in searchPlugins)
+        {
+            try
+            {
+                _logger.LogDebug("Indexing {Count} files in plugin {PluginName}", documents.Count, plugin.Metadata.Name);
+                await plugin.SearchStrategy.IndexDocumentsAsync(documents, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error indexing files in plugin {PluginName}", plugin.Metadata.Name);
+            }
+        }
+    }
+}
+
+/// <summary>
+/// Handles file removed from index events and notifies search plugins
+/// </summary>
+public class FileRemovedFromIndexEventHandler : IEventHandler<FileRemovedFromIndexEvent>
+{
+    private readonly IPluginService _pluginService;
+    private readonly ILogger<FileRemovedFromIndexEventHandler> _logger;
+
+    public FileRemovedFromIndexEventHandler(
+        IPluginService pluginService,
+        ILogger<FileRemovedFromIndexEventHandler> logger)
+    {
+        _pluginService = pluginService;
+        _logger = logger;
+    }
+
+    public async Task HandleAsync(FileRemovedFromIndexEvent domainEvent, CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug("Handling FileRemovedFromIndexEvent for file {FileId}", domainEvent.FileId);
+
+        // Get enabled search plugins
+        var enabledPlugins = await _pluginService.GetEnabledPluginsAsync(cancellationToken);
+        var searchPlugins = enabledPlugins
+            .Where(p => p.PluginType == PluginType.SearchProvider.ToString())
+            .Select(p => _pluginService.GetLoadedPlugin<ISearchPlugin>(p.PluginId))
+            .Where(p => p != null)
+            .Cast<ISearchPlugin>()
+            .ToList();
+
+        if (!searchPlugins.Any())
+        {
+            _logger.LogDebug("No enabled search plugins found");
+            return;
+        }
+
+        // Remove from all enabled search plugins
+        foreach (var plugin in searchPlugins)
+        {
+            try
+            {
+                _logger.LogDebug("Removing file {FileId} from plugin {PluginName}", domainEvent.FileId, plugin.Metadata.Name);
+                await plugin.SearchStrategy.RemoveDocumentAsync(domainEvent.FileId.ToString(), cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error removing file {FileId} from plugin {PluginName}", domainEvent.FileId, plugin.Metadata.Name);
+            }
+        }
+    }
+}

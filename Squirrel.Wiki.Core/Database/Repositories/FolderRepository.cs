@@ -79,4 +79,44 @@ public class FolderRepository : Repository<Folder, int>, IFolderRepository
             .Include(f => f.SubFolders.Where(sf => !sf.IsDeleted))
             .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
     }
+
+    public async Task<string?> GetFolderPathAsync(
+        int folderId, 
+        CancellationToken cancellationToken = default)
+    {
+        var folder = await _dbSet
+            .AsNoTracking()
+            .FirstOrDefaultAsync(f => f.Id == folderId && !f.IsDeleted, cancellationToken);
+
+        if (folder == null)
+        {
+            return null;
+        }
+
+        // Build path by traversing up the hierarchy
+        var pathSegments = new List<string> { folder.Name };
+        var currentParentId = folder.ParentFolderId;
+
+        // Prevent infinite loops with a max depth
+        const int maxDepth = 20;
+        int depth = 0;
+
+        while (currentParentId.HasValue && depth < maxDepth)
+        {
+            var parent = await _dbSet
+                .AsNoTracking()
+                .FirstOrDefaultAsync(f => f.Id == currentParentId.Value && !f.IsDeleted, cancellationToken);
+
+            if (parent == null)
+            {
+                break;
+            }
+
+            pathSegments.Insert(0, parent.Name);
+            currentParentId = parent.ParentFolderId;
+            depth++;
+        }
+
+        return string.Join("/", pathSegments);
+    }
 }

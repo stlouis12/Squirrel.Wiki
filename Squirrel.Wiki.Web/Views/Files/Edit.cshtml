@@ -1,5 +1,8 @@
 @model Squirrel.Wiki.Core.Models.FileDto
+@using Squirrel.Wiki.Core.Services.Configuration
+@using Squirrel.Wiki.Web.Extensions
 @inject IStringLocalizer<SharedResources> Localizer
+@inject ITimezoneService TimezoneService
 @{
     ViewData["Title"] = Localizer["EditFile"];
 }
@@ -72,7 +75,9 @@
                             </div>
                             <div class="col-md-6">
                                 <strong>@Localizer["UploadedOn"]:</strong>
-                                <p class="text-muted">@Model.UploadedOn.ToString("yyyy-MM-dd HH:mm:ss")</p>
+                                <p class="text-muted" title="@await Model.UploadedOn.ToLocalTimeStringAsync(TimezoneService, "F")">
+                                    @await Model.UploadedOn.ToLocalTimeStringAsync(TimezoneService, "g")
+                                </p>
                             </div>
                         </div>
 

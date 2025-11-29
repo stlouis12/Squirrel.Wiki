@@ -20,7 +20,12 @@ public interface IFileService
     /// <summary>
     /// Gets a file by ID
     /// </summary>
-    Task<Result<FileDto>> GetFileByIdAsync(int fileId, CancellationToken cancellationToken = default);
+    Task<Result<FileDto>> GetFileByIdAsync(Guid fileId, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Gets detailed file information including version history
+    /// </summary>
+    Task<Result<FileDetailsDto>> GetFileDetailsAsync(Guid fileId, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Gets a file by path
@@ -35,27 +40,27 @@ public interface IFileService
     /// <summary>
     /// Downloads a file
     /// </summary>
-    Task<Result<(Stream Stream, string FileName, string ContentType)>> DownloadFileAsync(int fileId, CancellationToken cancellationToken = default);
+    Task<Result<(Stream Stream, string FileName, string ContentType)>> DownloadFileAsync(Guid fileId, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Updates file metadata
     /// </summary>
-    Task<Result<FileDto>> UpdateFileAsync(int fileId, FileUpdateDto updateDto, string updatedBy, CancellationToken cancellationToken = default);
+    Task<Result<FileDto>> UpdateFileAsync(Guid fileId, FileUpdateDto updateDto, string updatedBy, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Moves a file to a different folder
     /// </summary>
-    Task<Result<FileDto>> MoveFileAsync(int fileId, int? newFolderId, string movedBy, CancellationToken cancellationToken = default);
+    Task<Result<FileDto>> MoveFileAsync(Guid fileId, int? newFolderId, string movedBy, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Deletes a file (soft delete)
     /// </summary>
-    Task<Result> DeleteFileAsync(int fileId, string deletedBy, CancellationToken cancellationToken = default);
+    Task<Result> DeleteFileAsync(Guid fileId, string deletedBy, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Permanently deletes a file and its physical storage
     /// </summary>
-    Task<Result> PermanentlyDeleteFileAsync(int fileId, CancellationToken cancellationToken = default);
+    Task<Result> PermanentlyDeleteFileAsync(Guid fileId, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Searches for files

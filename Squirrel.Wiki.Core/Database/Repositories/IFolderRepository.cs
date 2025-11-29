@@ -18,4 +18,12 @@ public interface IFolderRepository : IRepository<Folder, int>
     Task<bool> HasChildrenAsync(int folderId, CancellationToken cancellationToken = default);
     
     Task<bool> HasFilesAsync(int folderId, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Gets the full path of a folder by traversing up the parent hierarchy
+    /// </summary>
+    /// <param name="folderId">The folder ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Full path (e.g., "Documents/Projects/2024") or null if folder not found</returns>
+    Task<string?> GetFolderPathAsync(int folderId, CancellationToken cancellationToken = default);
 }

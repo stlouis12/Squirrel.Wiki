@@ -223,7 +223,9 @@ public class SearchResultsDto
 
 public class SearchResultItemDto
 {
+    public SearchResultType Type { get; set; } = SearchResultType.Page;
     public int PageId { get; set; }
+    public Guid? FileId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
     public string Excerpt { get; set; } = string.Empty;
@@ -232,6 +234,16 @@ public class SearchResultItemDto
     public string ModifiedBy { get; set; } = string.Empty;
     public List<string> Tags { get; set; } = new();
     public string? CategoryName { get; set; }
+    public string? FolderPath { get; set; }
+    public string? ContentType { get; set; }
+    public long? FileSize { get; set; }
+    public string? DownloadUrl { get; set; }
+}
+
+public enum SearchResultType
+{
+    Page = 0,
+    File = 1
 }
 
 public class SearchQueryDto

@@ -514,6 +514,7 @@ public class FolderService : BaseService, IFolderService
         var dto = Mapper.Map<FolderDto>(folder);
         dto.FileCount = await _fileRepository.GetCountByFolderAsync(folder.Id, cancellationToken);
         dto.SubFolderCount = (await _folderRepository.GetChildrenAsync(folder.Id, cancellationToken)).Count();
+        dto.Path = await _folderRepository.GetFolderPathAsync(folder.Id, cancellationToken);
         return dto;
     }
 

@@ -333,7 +333,23 @@ builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki
 builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Search.IndexClearRequestedEvent>, 
     Squirrel.Wiki.Core.Events.Handlers.IndexClearRequestedEventHandler>();
 
-Log.Information("Event-based search indexing system registered");
+// Register Event Handlers for file search indexing
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Files.FileUploadedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.FileSearchIndexHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Files.FileUpdatedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.FileSearchIndexHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Files.FileDeletedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.FileSearchIndexHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Files.FileMovedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.FileSearchIndexHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Search.FileIndexRequestedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.FileIndexRequestedEventHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Search.FilesIndexRequestedEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.FilesIndexRequestedEventHandler>();
+builder.Services.AddScoped<Squirrel.Wiki.Core.Events.IEventHandler<Squirrel.Wiki.Core.Events.Search.FileRemovedFromIndexEvent>, 
+    Squirrel.Wiki.Core.Events.Handlers.FileRemovedFromIndexEventHandler>();
+
+Log.Information("Event-based search indexing system registered (pages and files)");
 
 // Register services that depend on cache services
 builder.Services.AddScoped<IMarkdownService, MarkdownService>();
@@ -355,9 +371,10 @@ builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<IMenuService, MenuService>();
 
 // Register Search Services
+builder.Services.AddScoped<Squirrel.Wiki.Core.Services.Search.SearchService>();
 builder.Services.AddScoped<Squirrel.Wiki.Core.Services.Search.DatabaseSearchStrategy>();
 builder.Services.AddScoped<ISearchService, Squirrel.Wiki.Core.Services.Search.SearchStrategyService>();
-Log.Information("Search services registered (DatabaseSearchStrategy, SearchStrategyService)");
+Log.Information("Search services registered (SearchService, DatabaseSearchStrategy, SearchStrategyService)");
 
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<ITimezoneService, TimezoneService>();

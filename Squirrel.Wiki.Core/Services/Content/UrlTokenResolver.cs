@@ -26,7 +26,7 @@ public class UrlTokenResolver : IUrlTokenResolver
         { "%SITEMAP%", "/Sitemap" },
         { "%RECENTLYUPDATED%", "/Pages/AllPages?recent=10" },
         { "%ADMIN%", "/Admin" },
-        { "%FILEBROWSER%", "/Files/Browse" }
+        { "%FILEBROWSER%", "/Files" }
     };
 
     public UrlTokenResolver(

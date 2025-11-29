@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore.Storage;
+
 namespace Squirrel.Wiki.Core.Database.Repositories;
 
 /// <summary>
@@ -18,4 +20,6 @@ public interface IRepository<TEntity, TKey> where TEntity : class
     Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default);
     
     Task<bool> ExistsAsync(TKey id, CancellationToken cancellationToken = default);
+    
+    Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
 }

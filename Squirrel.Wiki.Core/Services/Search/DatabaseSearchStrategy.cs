@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Search;
 using Squirrel.Wiki.Core.Database.Repositories;
+using Squirrel.Wiki.Core.Security;
 using System.Text.RegularExpressions;
 
 namespace Squirrel.Wiki.Core.Services.Search;
@@ -11,6 +12,9 @@ namespace Squirrel.Wiki.Core.Services.Search;
 public class DatabaseSearchStrategy : ISearchStrategy
 {
     private readonly IPageRepository _pageRepository;
+    private readonly IFileRepository _fileRepository;
+    private readonly IFolderRepository _folderRepository;
+    private readonly IAuthorizationService _authorizationService;
     private readonly ILogger<DatabaseSearchStrategy> _logger;
     private static readonly Regex HtmlTagRegex = new(@"<[^>]*>", RegexOptions.Compiled);
 
@@ -19,9 +23,15 @@ public class DatabaseSearchStrategy : ISearchStrategy
 
     public DatabaseSearchStrategy(
         IPageRepository pageRepository,
+        IFileRepository fileRepository,
+        IFolderRepository folderRepository,
+        IAuthorizationService authorizationService,
         ILogger<DatabaseSearchStrategy> logger)
     {
         _pageRepository = pageRepository;
+        _fileRepository = fileRepository;
+        _folderRepository = folderRepository;
+        _authorizationService = authorizationService;
         _logger = logger;
     }
 
@@ -56,9 +66,62 @@ public class DatabaseSearchStrategy : ISearchStrategy
             };
         }
 
-        _logger.LogDebug("Database search for: {Query}", request.Query);
+        _logger.LogDebug("Database search for: {Query}, DocumentTypes: {DocumentTypes}", 
+            request.Query, 
+            request.DocumentTypes != null ? string.Join(", ", request.DocumentTypes) : "all");
 
-        // Search in pages
+        var results = new List<SearchResult>();
+
+        // Determine what to search based on DocumentTypes filter
+        var searchPages = request.DocumentTypes == null || 
+                         !request.DocumentTypes.Any() || 
+                         request.DocumentTypes.Contains("page", StringComparer.OrdinalIgnoreCase);
+        
+        var searchFiles = request.DocumentTypes == null || 
+                         !request.DocumentTypes.Any() || 
+                         request.DocumentTypes.Contains("file", StringComparer.OrdinalIgnoreCase);
+
+        // Search in pages if requested
+        if (searchPages)
+        {
+            var pageResults = await SearchPagesAsync(request, cancellationToken);
+            results.AddRange(pageResults);
+        }
+
+        // Search in files if requested
+        if (searchFiles)
+        {
+            var fileResults = await SearchFilesAsync(request, cancellationToken);
+            results.AddRange(fileResults);
+        }
+
+        // Sort by relevance
+        results = results.OrderByDescending(r => r.Score).ToList();
+
+        // Apply pagination
+        var totalResults = results.Count;
+        var totalPages = (int)Math.Ceiling(totalResults / (double)request.PageSize);
+        var paginatedResults = results
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .ToList();
+
+        var executionTime = (long)(DateTime.UtcNow - startTime).TotalMilliseconds;
+
+        return new SearchResponse
+        {
+            Query = request.Query,
+            TotalResults = totalResults,
+            Page = request.Page,
+            PageSize = request.PageSize,
+            TotalPages = totalPages,
+            Results = paginatedResults,
+            ExecutionTimeMs = executionTime
+        };
+    }
+
+    private async Task<List<SearchResult>> SearchPagesAsync(SearchRequest request, CancellationToken cancellationToken)
+    {
         var pages = await _pageRepository.SearchAsync(request.Query, cancellationToken);
         
         // Apply filters
@@ -84,7 +147,6 @@ public class DatabaseSearchStrategy : ISearchStrategy
             pages = pages.Where(p => p.ModifiedOn <= request.EndDate.Value);
         }
 
-        // Convert to search results
         var results = new List<SearchResult>();
         foreach (var page in pages)
         {
@@ -124,29 +186,63 @@ public class DatabaseSearchStrategy : ISearchStrategy
             }
         }
 
-        // Sort by relevance
-        results = results.OrderByDescending(r => r.Score).ToList();
+        return results;
+    }
 
-        // Apply pagination
-        var totalResults = results.Count;
-        var totalPages = (int)Math.Ceiling(totalResults / (double)request.PageSize);
-        var paginatedResults = results
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .ToList();
-
-        var executionTime = (long)(DateTime.UtcNow - startTime).TotalMilliseconds;
-
-        return new SearchResponse
+    private async Task<List<SearchResult>> SearchFilesAsync(SearchRequest request, CancellationToken cancellationToken)
+    {
+        var files = await _fileRepository.SearchAsync(request.Query, cancellationToken);
+        
+        // Filter files by permissions - batch authorization check
+        var viewPermissions = await _authorizationService.CanViewFilesAsync(files);
+        var authorizedFiles = files.Where(f => viewPermissions.GetValueOrDefault(f.Id, false)).ToList();
+        
+        _logger.LogDebug("File search filtered by permissions: {AuthorizedCount}/{TotalCount} files visible", 
+            authorizedFiles.Count, files.Count());
+        
+        var results = new List<SearchResult>();
+        foreach (var file in authorizedFiles)
         {
-            Query = request.Query,
-            TotalResults = totalResults,
-            Page = request.Page,
-            PageSize = request.PageSize,
-            TotalPages = totalPages,
-            Results = paginatedResults,
-            ExecutionTimeMs = executionTime
-        };
+            var folder = file.FolderId.HasValue 
+                ? await _folderRepository.GetByIdAsync(file.FolderId.Value, cancellationToken)
+                : null;
+
+            var folderPath = folder != null 
+                ? await _folderRepository.GetFolderPathAsync(folder.Id, cancellationToken) ?? "/" 
+                : "/";
+
+            var score = CalculateFileRelevance(file.FileName, file.Description ?? string.Empty, request.Query);
+
+            var result = new SearchResult
+            {
+                DocumentId = file.Id.ToString(),
+                Title = file.FileName,
+                Slug = string.Empty,
+                Excerpt = file.Description ?? string.Empty,
+                Content = null,
+                Score = score,
+                Author = file.UploadedBy,
+                CreatedOn = file.UploadedOn,
+                ModifiedOn = file.UploadedOn,
+                Highlights = new Dictionary<string, List<string>>
+                {
+                    { "DocumentType", new List<string> { "file" } },
+                    { "FileName", new List<string> { file.FileName } },
+                    { "ContentType", new List<string> { file.ContentType } },
+                    { "FileSize", new List<string> { file.FileSize.ToString() } },
+                    { "FolderPath", new List<string> { folderPath } }
+                }
+            };
+
+            if (file.FolderId.HasValue)
+            {
+                result.Highlights["FolderId"] = new List<string> { file.FolderId.Value.ToString() };
+            }
+
+            results.Add(result);
+        }
+
+        return results;
     }
 
     public Task IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
@@ -372,6 +468,41 @@ public class DatabaseSearchStrategy : ISearchStrategy
         var occurrences = Regex.Matches(contentLower, Regex.Escape(searchTermLower)).Count;
         
         score += occurrences * 0.5f;
+
+        return score;
+    }
+
+    private float CalculateFileRelevance(string fileName, string description, string searchTerm)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            return 0;
+        }
+
+        float score = 0;
+
+        // Filename matches are worth more
+        if (fileName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 10;
+            
+            // Exact filename match is worth even more
+            if (fileName.Equals(searchTerm, StringComparison.OrdinalIgnoreCase))
+            {
+                score += 20;
+            }
+            // Filename starts with search term
+            else if (fileName.StartsWith(searchTerm, StringComparison.OrdinalIgnoreCase))
+            {
+                score += 10;
+            }
+        }
+
+        // Description matches
+        if (!string.IsNullOrWhiteSpace(description) && description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 5;
+        }
 
         return score;
     }

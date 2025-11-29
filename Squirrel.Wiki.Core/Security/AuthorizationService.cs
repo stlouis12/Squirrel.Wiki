@@ -260,9 +260,9 @@ public class AuthorizationService : IAuthorizationService
         return Task.FromResult(canManage);
     }
 
-    public async Task<Dictionary<int, bool>> CanViewFilesAsync(IEnumerable<Database.Entities.File> files)
+    public async Task<Dictionary<Guid, bool>> CanViewFilesAsync(IEnumerable<Database.Entities.File> files)
     {
-        var result = new Dictionary<int, bool>();
+        var result = new Dictionary<Guid, bool>();
         var filesList = files.ToList();
         
         if (!filesList.Any())
@@ -319,9 +319,9 @@ public class AuthorizationService : IAuthorizationService
         return result;
     }
 
-    public Task<Dictionary<int, bool>> CanEditFilesAsync(IEnumerable<Database.Entities.File> files)
+    public Task<Dictionary<Guid, bool>> CanEditFilesAsync(IEnumerable<Database.Entities.File> files)
     {
-        var result = new Dictionary<int, bool>();
+        var result = new Dictionary<Guid, bool>();
         
         // Only Admin and Editor roles can edit files
         var canEdit = IsAuthenticated() && (_userContext.IsAdmin || _userContext.IsEditor);
@@ -341,9 +341,9 @@ public class AuthorizationService : IAuthorizationService
         return Task.FromResult(result);
     }
 
-    public Task<Dictionary<int, bool>> CanDeleteFilesAsync(IEnumerable<Database.Entities.File> files)
+    public Task<Dictionary<Guid, bool>> CanDeleteFilesAsync(IEnumerable<Database.Entities.File> files)
     {
-        var result = new Dictionary<int, bool>();
+        var result = new Dictionary<Guid, bool>();
         
         // Only Admin and Editor roles can delete files
         var canDelete = IsAuthenticated() && (_userContext.IsAdmin || _userContext.IsEditor);

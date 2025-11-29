@@ -17,10 +17,12 @@ public class SearchStrategyService : BaseService, ISearchService
 {
     private readonly IPluginService _pluginService;
     private readonly DatabaseSearchStrategy _databaseStrategy;
+    private readonly SearchService _searchService;
 
     public SearchStrategyService(
         IPluginService pluginService,
         DatabaseSearchStrategy databaseStrategy,
+        SearchService searchService,
         ILogger<SearchStrategyService> logger,
         ICacheService cache,
         IEventPublisher eventPublisher,
@@ -29,6 +31,7 @@ public class SearchStrategyService : BaseService, ISearchService
     {
         _pluginService = pluginService;
         _databaseStrategy = databaseStrategy;
+        _searchService = searchService;
     }
 
     /// <summary>
@@ -264,6 +267,69 @@ public class SearchStrategyService : BaseService, ISearchService
         return MapToSearchResultsDto(response);
     }
 
+    // File search methods - delegate to SearchService
+    public async Task IndexFileAsync(Guid fileId, CancellationToken cancellationToken = default)
+    {
+        LogDebug("IndexFileAsync called for file {FileId} - delegating to SearchService", fileId);
+        await _searchService.IndexFileAsync(fileId, cancellationToken);
+    }
+
+    public async Task IndexFilesAsync(IEnumerable<Guid> fileIds, CancellationToken cancellationToken = default)
+    {
+        LogDebug("IndexFilesAsync called for {Count} files - delegating to SearchService", fileIds.Count());
+        await _searchService.IndexFilesAsync(fileIds, cancellationToken);
+    }
+
+    public async Task RemoveFileFromIndexAsync(Guid fileId, CancellationToken cancellationToken = default)
+    {
+        LogDebug("RemoveFileFromIndexAsync called for file {FileId} - delegating to SearchService", fileId);
+        await _searchService.RemoveFileFromIndexAsync(fileId, cancellationToken);
+    }
+
+    public async Task<SearchResultsDto> SearchFilesAsync(string query, int pageNumber = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    {
+        var strategy = await GetActiveStrategyAsync(cancellationToken);
+        
+        LogInfo("Executing file search with query '{Query}' using {StrategyType}", query, strategy.GetType().Name);
+        
+        var request = new SearchRequest
+        {
+            Query = query,
+            Page = pageNumber,
+            PageSize = pageSize,
+            DocumentTypes = new List<string> { "file" }
+        };
+
+        var response = await strategy.SearchAsync(request, cancellationToken);
+        
+        LogInfo("File search completed: {TotalResults} results found in {ExecutionTime}ms", 
+            response.TotalResults, response.ExecutionTimeMs);
+        
+        return MapToSearchResultsDto(response);
+    }
+
+    public async Task<SearchResultsDto> SearchAllAsync(string query, int pageNumber = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    {
+        var strategy = await GetActiveStrategyAsync(cancellationToken);
+        
+        LogInfo("Executing combined search (pages + files) with query '{Query}' using {StrategyType}", query, strategy.GetType().Name);
+        
+        var request = new SearchRequest
+        {
+            Query = query,
+            Page = pageNumber,
+            PageSize = pageSize
+            // No DocumentTypes filter - search both pages and files
+        };
+
+        var response = await strategy.SearchAsync(request, cancellationToken);
+        
+        LogInfo("Combined search completed: {TotalResults} results found in {ExecutionTime}ms", 
+            response.TotalResults, response.ExecutionTimeMs);
+        
+        return MapToSearchResultsDto(response);
+    }
+
     private SearchResultsDto MapToSearchResultsDto(SearchResponse response)
     {
         return new SearchResultsDto
@@ -273,15 +339,58 @@ public class SearchStrategyService : BaseService, ISearchService
             Page = response.Page,
             PageSize = response.PageSize,
             TotalPages = response.TotalPages,
-            Results = response.Results.Select(r => new SearchResultItemDto
+            Results = response.Results.Select(r =>
             {
-                PageId = int.Parse(r.DocumentId),
-                Title = r.Title,
-                Slug = r.Slug,
-                Excerpt = r.Excerpt,
-                ModifiedBy = r.Author,
-                ModifiedOn = r.ModifiedOn,
-                Score = r.Score
+                // Check if this is a file result by looking at the Highlights dictionary
+                var isFile = r.Highlights.ContainsKey("DocumentType") && 
+                            r.Highlights["DocumentType"].Contains("file");
+
+                var result = new SearchResultItemDto
+                {
+                    Type = isFile ? SearchResultType.File : SearchResultType.Page,
+                    Title = r.Title,
+                    Slug = r.Slug,
+                    Excerpt = r.Excerpt,
+                    ModifiedBy = r.Author,
+                    ModifiedOn = r.ModifiedOn,
+                    Score = r.Score
+                };
+
+                // Set PageId or FileId based on type
+                if (isFile)
+                {
+                    if (Guid.TryParse(r.DocumentId, out var fileId))
+                    {
+                        result.FileId = fileId;
+                    }
+
+                    // Extract file metadata from Highlights
+                    if (r.Highlights.TryGetValue("ContentType", out var contentType))
+                        result.ContentType = contentType.FirstOrDefault();
+                    
+                    if (r.Highlights.TryGetValue("FileSize", out var fileSize) && 
+                        long.TryParse(fileSize.FirstOrDefault(), out var size))
+                        result.FileSize = size;
+                    
+                    if (r.Highlights.TryGetValue("FolderPath", out var folderPath))
+                        result.FolderPath = folderPath.FirstOrDefault();
+                    
+                    // Set download URL
+                    result.DownloadUrl = $"/files/download/{r.DocumentId}";
+                }
+                else
+                {
+                    if (int.TryParse(r.DocumentId, out var pageId))
+                    {
+                        result.PageId = pageId;
+                    }
+
+                    // Set page metadata
+                    result.CategoryName = r.CategoryName;
+                    result.Tags = r.Tags;
+                }
+
+                return result;
             }).ToList()
         };
     }

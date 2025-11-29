@@ -14,8 +14,8 @@
     // Authorization flags
     var canUpload = ViewBag.CanUpload as bool? ?? false;
     var canManageFolders = ViewBag.CanManageFolders as bool? ?? false;
-    var canEditFiles = ViewBag.CanEditFiles as Dictionary<int, bool> ?? new Dictionary<int, bool>();
-    var canDeleteFiles = ViewBag.CanDeleteFiles as Dictionary<int, bool> ?? new Dictionary<int, bool>();
+    var canEditFiles = ViewBag.CanEditFiles as Dictionary<Guid, bool> ?? new Dictionary<Guid, bool>();
+    var canDeleteFiles = ViewBag.CanDeleteFiles as Dictionary<Guid, bool> ?? new Dictionary<Guid, bool>();
 }
 
 <div class="file-manager">
@@ -56,7 +56,8 @@
                         <i class="bi bi-house-door"></i> @Localizer["Root"]
                     </a>
                 </li>
-                @foreach (var folder in breadcrumb)
+                @* Only show breadcrumb folders that are not the current folder *@
+                @foreach (var folder in breadcrumb.Where(f => currentFolder == null || f.Id != currentFolder.Id))
                 {
                     <li class="breadcrumb-item">
                         <a href="@Url.Action("Index", "Files", new { folderId = folder.Id })">
@@ -153,7 +154,7 @@
                             <tr>
                                 <td>
                                     <i class="bi @GetFileIcon(file.ContentType)"></i>
-                                    <a href="@Url.Action("Details", "Files", new { id = file.Id })">
+                                    <a href="javascript:void(0)" onclick="showFileDetails('@file.Id')" class="text-decoration-none">
                                         @file.FileName
                                     </a>
                                     @if (file.Visibility == FileVisibility.Private)
@@ -175,21 +176,21 @@
                                            class="btn btn-outline-primary" title="@Localizer["Download"]">
                                             <i class="bi bi-download"></i>
                                         </a>
-                                        <a href="@Url.Action("Details", "Files", new { id = file.Id })" 
-                                           class="btn btn-outline-info" title="@Localizer["Details"]">
+                                        <button type="button" class="btn btn-outline-info" title="@Localizer["Details"]"
+                                                onclick="showFileDetails('@file.Id')">
                                             <i class="bi bi-info-circle"></i>
-                                        </a>
-                                        @if (canEditFiles.GetValueOrDefault(file.Id, false))
+                                        </button>
+                                        @if (canEditFiles.GetValueOrDefault<Guid, bool>(file.Id, false))
                                         {
-                                            <a href="@Url.Action("Edit", "Files", new { id = file.Id })" 
-                                               class="btn btn-outline-secondary" title="@Localizer["Edit"]">
+                                            <button type="button" class="btn btn-outline-secondary" title="@Localizer["Edit"]"
+                                                    onclick="showEditFile('@file.Id')">
                                                 <i class="bi bi-pencil"></i>
-                                            </a>
+                                            </button>
                                         }
-                                        @if (canDeleteFiles.GetValueOrDefault(file.Id, false))
+                                        @if (canDeleteFiles.GetValueOrDefault<Guid, bool>(file.Id, false))
                                         {
                                             <button type="button" class="btn btn-outline-danger" title="@Localizer["Delete"]" 
-                                                    onclick="confirmDeleteFile(@file.Id, '@file.FileName')">
+                                                    onclick="confirmDeleteFile('@file.Id', '@file.FileName')">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         }
@@ -358,6 +359,60 @@
     </div>
 </div>
 
+<!-- File Details Modal -->
+<div class="modal fade" id="fileDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@Localizer["FileDetails"]</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+            </div>
+            <div class="modal-body">
+                <div id="fileDetailsContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">@Localizer["Loading"]...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Close"]</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit File Modal -->
+<div class="modal fade" id="editFileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="editFileForm" method="post" asp-action="UpdateMetadata" asp-controller="Files">
+                <div class="modal-header">
+                    <h5 class="modal-title">@Localizer["EditFile"]</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="editFileContent">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">@Localizer["Loading"]...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> @Localizer["Save"]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         // Delete file confirmation
@@ -379,6 +434,92 @@
         // Update recursive checkbox value
         document.getElementById('deleteRecursive')?.addEventListener('change', function() {
             document.getElementById('deleteFolderRecursive').value = this.checked ? 'true' : 'false';
+        });
+        
+        // Show file details modal
+        async function showFileDetails(fileId) {
+            const modal = new bootstrap.Modal(document.getElementById('fileDetailsModal'));
+            const content = document.getElementById('fileDetailsContent');
+            
+            // Show loading spinner
+            content.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+            modal.show();
+            
+            try {
+                const response = await fetch(`/Files/GetFileDetails/${fileId}`);
+                if (response.ok) {
+                    const html = await response.text();
+                    content.innerHTML = html;
+                } else {
+                    content.innerHTML = '<div class="alert alert-danger">Failed to load file details.</div>';
+                }
+            } catch (error) {
+                content.innerHTML = '<div class="alert alert-danger">An error occurred while loading file details.</div>';
+            }
+        }
+        
+        // Show edit file modal
+        async function showEditFile(fileId) {
+            const modal = new bootstrap.Modal(document.getElementById('editFileModal'));
+            const content = document.getElementById('editFileContent');
+            
+            // Show loading spinner
+            content.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+            modal.show();
+            
+            try {
+                const response = await fetch(`/Files/GetEditForm/${fileId}`);
+                if (response.ok) {
+                    const html = await response.text();
+                    content.innerHTML = html;
+                } else {
+                    content.innerHTML = '<div class="alert alert-danger">Failed to load edit form.</div>';
+                }
+            } catch (error) {
+                content.innerHTML = '<div class="alert alert-danger">An error occurred while loading the edit form.</div>';
+            }
+        }
+        
+        // Copy markdown embed code to clipboard
+        document.addEventListener('click', async function(e) {
+            if (e.target.closest('.copy-markdown-btn')) {
+                const button = e.target.closest('.copy-markdown-btn');
+                const input = document.getElementById('markdownEmbed');
+                
+                if (!input) return;
+                
+                const originalHtml = button.innerHTML;
+                
+                try {
+                    // Use modern Clipboard API
+                    await navigator.clipboard.writeText(input.value);
+                    
+                    // Show success feedback
+                    button.innerHTML = '<i class="bi bi-check"></i>';
+                    setTimeout(() => {
+                        button.innerHTML = originalHtml;
+                    }, 2000);
+                } catch (err) {
+                    // Fallback to older method if Clipboard API fails
+                    try {
+                        input.select();
+                        document.execCommand('copy');
+                        
+                        // Show success feedback
+                        button.innerHTML = '<i class="bi bi-check"></i>';
+                        setTimeout(() => {
+                            button.innerHTML = originalHtml;
+                        }, 2000);
+                    } catch (fallbackErr) {
+                        // Show error feedback
+                        button.innerHTML = '<i class="bi bi-x"></i>';
+                        setTimeout(() => {
+                            button.innerHTML = originalHtml;
+                        }, 2000);
+                        console.error('Failed to copy:', fallbackErr);
+                    }
+                }
+            }
         });
     </script>
 }

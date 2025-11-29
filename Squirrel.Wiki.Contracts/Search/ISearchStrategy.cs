@@ -162,6 +162,11 @@ public class SearchRequest
     /// Fields to boost in search results
     /// </summary>
     public Dictionary<string, float>? FieldBoosts { get; set; }
+
+    /// <summary>
+    /// Filter by document types (e.g., "page", "file")
+    /// </summary>
+    public List<string>? DocumentTypes { get; set; }
 }
 
 /// <summary>

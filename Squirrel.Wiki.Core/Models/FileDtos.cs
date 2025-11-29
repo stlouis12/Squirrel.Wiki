@@ -3,11 +3,11 @@ using Squirrel.Wiki.Core.Database.Entities;
 namespace Squirrel.Wiki.Core.Models;
 
 /// <summary>
-/// DTO for file information
+/// Data transfer object for file information
 /// </summary>
 public class FileDto
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
     public string FileName { get; set; } = string.Empty;
     public long FileSize { get; set; }
     public string ContentType { get; set; } = string.Empty;
@@ -94,6 +94,7 @@ public class FolderDto
     public string? Description { get; set; }
     public int? ParentFolderId { get; set; }
     public string? ParentFolderName { get; set; }
+    public string? Path { get; set; }
     public int FileCount { get; set; }
     public int SubFolderCount { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
@@ -146,12 +147,12 @@ public class FileDetailsDto : FileDto
 }
 
 /// <summary>
-/// DTO for file version information
+/// Data transfer object for file version information
 /// </summary>
 public class FileVersionDto
 {
     public int Id { get; set; }
-    public int FileId { get; set; }
+    public Guid FileId { get; set; }
     public int VersionNumber { get; set; }
     public long FileSize { get; set; }
     public string ContentType { get; set; } = string.Empty;

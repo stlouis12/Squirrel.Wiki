@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Squirrel.Wiki.Core.Database.Repositories;
 
@@ -51,5 +52,10 @@ public abstract class Repository<TEntity, TKey> : IRepository<TEntity, TKey> whe
     {
         var entity = await GetByIdAsync(id, cancellationToken);
         return entity != null;
+    }
+
+    public virtual async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Database.BeginTransactionAsync(cancellationToken);
     }
 }

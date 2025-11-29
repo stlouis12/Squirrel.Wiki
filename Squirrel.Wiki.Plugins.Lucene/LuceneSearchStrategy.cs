@@ -145,6 +145,41 @@ public class LuceneSearchStrategy : ISearchStrategy
                     result.CategoryName = doc.Get("categoryname");
                 }
 
+                // Add file-specific metadata to highlights dictionary for easy access
+                var documentType = doc.Get("documenttype");
+                if (!string.IsNullOrEmpty(documentType))
+                {
+                    result.Highlights["DocumentType"] = new List<string> { documentType };
+                    
+                    var fileName = doc.Get("filename");
+                    if (!string.IsNullOrEmpty(fileName))
+                        result.Highlights["FileName"] = new List<string> { fileName };
+                    
+                    var fileExtension = doc.Get("fileextension");
+                    if (!string.IsNullOrEmpty(fileExtension))
+                        result.Highlights["FileExtension"] = new List<string> { fileExtension };
+                    
+                    var contentType = doc.Get("contenttype");
+                    if (!string.IsNullOrEmpty(contentType))
+                        result.Highlights["ContentType"] = new List<string> { contentType };
+                    
+                    var fileSize = doc.Get("filesize");
+                    if (!string.IsNullOrEmpty(fileSize))
+                        result.Highlights["FileSize"] = new List<string> { fileSize };
+                    
+                    var folderPath = doc.Get("folderpath");
+                    if (!string.IsNullOrEmpty(folderPath))
+                        result.Highlights["FolderPath"] = new List<string> { folderPath };
+                    
+                    var folderId = doc.Get("folderid");
+                    if (!string.IsNullOrEmpty(folderId))
+                        result.Highlights["FolderId"] = new List<string> { folderId };
+                    
+                    var visibility = doc.Get("visibility");
+                    if (!string.IsNullOrEmpty(visibility))
+                        result.Highlights["Visibility"] = new List<string> { visibility };
+                }
+
                 results.Add(result);
             }
 
@@ -543,6 +578,47 @@ public class LuceneSearchStrategy : ISearchStrategy
         doc.Add(new StringField("createdon", document.CreatedOn.ToString("O"), Field.Store.YES));
         doc.Add(new StringField("modifiedon", document.ModifiedOn.ToString("O"), Field.Store.YES));
         
+        // File-specific metadata (if present)
+        if (document.Metadata.TryGetValue("DocumentType", out var docType))
+        {
+            doc.Add(new StringField("documenttype", docType, Field.Store.YES));
+        }
+        
+        if (document.Metadata.TryGetValue("FileName", out var fileName))
+        {
+            doc.Add(new TextField("filename", fileName, Field.Store.YES));
+        }
+        
+        if (document.Metadata.TryGetValue("FileExtension", out var fileExtension))
+        {
+            doc.Add(new StringField("fileextension", fileExtension.ToLowerInvariant(), Field.Store.YES));
+        }
+        
+        if (document.Metadata.TryGetValue("ContentType", out var contentType))
+        {
+            doc.Add(new StringField("contenttype", contentType, Field.Store.YES));
+        }
+        
+        if (document.Metadata.TryGetValue("FileSize", out var fileSize))
+        {
+            doc.Add(new StringField("filesize", fileSize, Field.Store.YES));
+        }
+        
+        if (document.Metadata.TryGetValue("FolderPath", out var folderPath))
+        {
+            doc.Add(new TextField("folderpath", folderPath, Field.Store.YES));
+        }
+        
+        if (document.Metadata.TryGetValue("FolderId", out var folderId))
+        {
+            doc.Add(new StringField("folderid", folderId, Field.Store.YES));
+        }
+        
+        if (document.Metadata.TryGetValue("Visibility", out var visibility))
+        {
+            doc.Add(new StringField("visibility", visibility, Field.Store.YES));
+        }
+        
         // Content summary (stored but not indexed)
         var summary = GenerateContentSummary(document.Content ?? string.Empty);
         doc.Add(new StoredField("contentsummary", summary));
@@ -578,6 +654,18 @@ public class LuceneSearchStrategy : ISearchStrategy
             
             var dateQuery = TermRangeQuery.NewStringRange("modifiedon", startDate, endDate, true, true);
             booleanQuery.Add(dateQuery, Occur.MUST);
+            hasFilters = true;
+        }
+
+        // Document type filter
+        if (request.DocumentTypes != null && request.DocumentTypes.Any())
+        {
+            var docTypeQuery = new BooleanQuery();
+            foreach (var docType in request.DocumentTypes)
+            {
+                docTypeQuery.Add(new TermQuery(new Term("documenttype", docType.ToLowerInvariant())), Occur.SHOULD);
+            }
+            booleanQuery.Add(docTypeQuery, Occur.MUST);
             hasFilters = true;
         }
 

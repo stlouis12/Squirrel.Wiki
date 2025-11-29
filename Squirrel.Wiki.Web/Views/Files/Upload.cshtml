@@ -39,20 +39,22 @@
                     <form id="uploadForm" asp-action="Upload" asp-controller="Files" method="post" enctype="multipart/form-data">
                         <input type="hidden" name="folderId" value="@folderId" />
                         
-                        <div class="mb-4">
-                            <label for="files" class="form-label">@Localizer["SelectFiles"]</label>
+                        <!-- Drag and Drop Zone -->
+                        <div id="dropZone" class="drop-zone mb-4">
+                            <div class="drop-zone-content">
+                                <i class="bi bi-cloud-upload drop-zone-icon"></i>
+                                <h4 class="drop-zone-title">@Localizer["DragAndDropFiles"]</h4>
+                                <p class="drop-zone-text">@Localizer["OrClickToSelectFiles"]</p>
+                                <button type="button" class="btn btn-primary" id="selectFilesBtn">
+                                    <i class="bi bi-folder2-open"></i> @Localizer["SelectFiles"]
+                                </button>
+                            </div>
                             <input type="file" 
-                                   class="form-control" 
+                                   class="d-none" 
                                    id="files" 
                                    name="files" 
                                    multiple 
-                                   required
-                                   accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.mp4,.mp3">
-                            <div class="form-text">
-                                <i class="bi bi-info-circle"></i> 
-                                @Localizer["MaximumFileSize"]: 50MB. 
-                                @Localizer["AllowedTypes"]: @Localizer["ImagesDocumentsArchivesVideosAudio"]
-                            </div>
+                                   accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt,.md,.zip,.mp4,.mp3">
                         </div>
 
                         <div class="mb-4">
@@ -80,7 +82,7 @@
                         </div>
 
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg" id="uploadButton">
+                            <button type="submit" class="btn btn-primary btn-lg" id="uploadButton" disabled>
                                 <i class="bi bi-cloud-upload"></i> @Localizer["UploadFiles"]
                             </button>
                         </div>
@@ -97,7 +99,7 @@
                         <li>@Localizer["YouCanUploadMultipleFiles"]</li>
                         <li>@Localizer["MaximumFileSizeIs50MB"]</li>
                         <li>@Localizer["DuplicateFilesWillBeDeduplicated"]</li>
-                        <li>@Localizer["SupportedFileTypes"]: JPG, PNG, GIF, PDF, DOC, DOCX, XLS, XLSX, TXT, ZIP, MP4, MP3</li>
+                        <li>@Localizer["SupportedFileTypes"]: JPG, PNG, GIF, PDF, DOC, DOCX, XLS, XLSX, TXT, MD, ZIP, MP4, MP3</li>
                         <li>@Localizer["FilesAreScannedForSecurity"]</li>
                     </ul>
                 </div>
@@ -117,46 +119,147 @@
             const uploadProgress = $('#uploadProgress');
             const progressBar = $('#progressBar');
             const uploadStatus = $('#uploadStatus');
+            const dropZone = $('#dropZone');
+            const selectFilesBtn = $('#selectFilesBtn');
 
-            // Show selected files
-            fileInput.on('change', function() {
-                const files = this.files;
-                if (files.length > 0) {
-                    selectedFiles.empty();
-                    let totalSize = 0;
+            let selectedFilesList = [];
 
-                    for (let i = 0; i < files.length; i++) {
-                        const file = files[i];
-                        totalSize += file.size;
-                        
-                        const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
-                        const fileItem = $(`
-                            <div class="list-group-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <i class="bi bi-file-earmark"></i>
-                                        <strong>${file.name}</strong>
-                                    </div>
-                                    <span class="badge bg-secondary">${sizeInMB} MB</span>
-                                </div>
-                            </div>
-                        `);
-                        selectedFiles.append(fileItem);
-                    }
+            // Click to select files
+            selectFilesBtn.on('click', function() {
+                fileInput.click();
+            });
 
-                    const totalSizeInMB = (totalSize / (1024 * 1024)).toFixed(2);
-                    const summaryItem = $(`
-                        <div class="list-group-item list-group-item-info">
-                            <strong>Total: ${files.length} file(s), ${totalSizeInMB} MB</strong>
-                        </div>
-                    `);
-                    selectedFiles.append(summaryItem);
-
-                    fileList.show();
-                } else {
-                    fileList.hide();
+            // Also allow clicking anywhere in the drop zone
+            dropZone.on('click', function(e) {
+                if (e.target === this || $(e.target).hasClass('drop-zone-content') || 
+                    $(e.target).hasClass('drop-zone-icon') || $(e.target).hasClass('drop-zone-title') || 
+                    $(e.target).hasClass('drop-zone-text')) {
+                    fileInput.click();
                 }
             });
+
+            // Prevent default drag behaviors
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone[0].addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            // Highlight drop zone when dragging over it
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone[0].addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone[0].addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight(e) {
+                dropZone.addClass('drop-zone-active');
+            }
+
+            function unhighlight(e) {
+                dropZone.removeClass('drop-zone-active');
+            }
+
+            // Handle dropped files
+            dropZone[0].addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles(files);
+            }
+
+            // Handle file input change
+            fileInput.on('change', function() {
+                handleFiles(this.files);
+            });
+
+            function handleFiles(files) {
+                if (files.length === 0) return;
+
+                selectedFilesList = Array.from(files);
+                displaySelectedFiles();
+                uploadButton.prop('disabled', false);
+            }
+
+            function displaySelectedFiles() {
+                selectedFiles.empty();
+                let totalSize = 0;
+                const maxSize = 50 * 1024 * 1024; // 50MB
+
+                selectedFilesList.forEach((file, index) => {
+                    totalSize += file.size;
+                    const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+                    const isTooBig = file.size > maxSize;
+                    
+                    const fileItem = $(`
+                        <div class="list-group-item ${isTooBig ? 'list-group-item-danger' : ''}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="flex-grow-1">
+                                    <i class="bi ${getFileIcon(file.type)}"></i>
+                                    <strong>${file.name}</strong>
+                                    ${isTooBig ? '<span class="badge bg-danger ms-2">Too Large</span>' : ''}
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-secondary me-2">${sizeInMB} MB</span>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFile(${index})">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                    selectedFiles.append(fileItem);
+                });
+
+                const totalSizeInMB = (totalSize / (1024 * 1024)).toFixed(2);
+                const summaryItem = $(`
+                    <div class="list-group-item list-group-item-info">
+                        <strong>Total: ${selectedFilesList.length} file(s), ${totalSizeInMB} MB</strong>
+                    </div>
+                `);
+                selectedFiles.append(summaryItem);
+
+                fileList.show();
+                dropZone.hide();
+            }
+
+            // Remove file from selection
+            window.removeFile = function(index) {
+                selectedFilesList.splice(index, 1);
+                
+                if (selectedFilesList.length === 0) {
+                    fileList.hide();
+                    dropZone.show();
+                    uploadButton.prop('disabled', true);
+                    fileInput.val('');
+                } else {
+                    // Update the file input
+                    const dt = new DataTransfer();
+                    selectedFilesList.forEach(file => dt.items.add(file));
+                    fileInput[0].files = dt.files;
+                    displaySelectedFiles();
+                }
+            };
+
+            function getFileIcon(contentType) {
+                if (contentType.startsWith('image/')) return 'bi-file-image text-primary';
+                if (contentType.includes('pdf')) return 'bi-file-pdf text-danger';
+                if (contentType.includes('word') || contentType.includes('document')) return 'bi-file-word text-primary';
+                if (contentType.includes('excel') || contentType.includes('spreadsheet')) return 'bi-file-excel text-success';
+                if (contentType.includes('powerpoint') || contentType.includes('presentation')) return 'bi-file-ppt text-warning';
+                if (contentType.includes('zip') || contentType.includes('rar') || contentType.includes('7z')) return 'bi-file-zip text-secondary';
+                if (contentType.includes('text')) return 'bi-file-text text-info';
+                if (contentType.includes('video')) return 'bi-file-play text-danger';
+                if (contentType.includes('audio')) return 'bi-file-music text-info';
+                return 'bi-file-earmark';
+            }
 
             // Handle form submission
             uploadForm.on('submit', function(e) {
@@ -191,6 +294,9 @@
                                    .addClass('bg-success');
                         uploadStatus.html('<i class="bi bi-check-circle text-success"></i> @Localizer["UploadCompletedSuccessfully"]!');
                         
+                        // Show success toast
+                        window.showToast('@Localizer["Success"]', '@Localizer["FilesUploadedSuccessfully"]', 'success');
+                        
                         setTimeout(function() {
                             window.location.href = '@Url.Action("Index", new { folderId = folderId })';
                         }, 1500);
@@ -203,13 +309,82 @@
                         let errorMessage = '@Localizer["UploadFailedPleaseTryAgain"]';
                         if (xhr.responseJSON && xhr.responseJSON.message) {
                             errorMessage = xhr.responseJSON.message;
+                        } else if (xhr.responseText) {
+                            try {
+                                const response = JSON.parse(xhr.responseText);
+                                if (response.error) {
+                                    errorMessage = response.error;
+                                }
+                            } catch (e) {
+                                // Use default error message
+                            }
                         }
                         
                         uploadStatus.html('<i class="bi bi-x-circle text-danger"></i> ' + errorMessage);
                         uploadButton.prop('disabled', false);
+                        
+                        // Show error toast
+                        window.showToast('@Localizer["Error"]', errorMessage, 'danger');
                     }
                 });
             });
         });
     </script>
 }
+
+<style>
+    .drop-zone {
+        border: 3px dashed #dee2e6;
+        border-radius: 10px;
+        padding: 60px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background-color: #f8f9fa;
+    }
+
+    .drop-zone:hover {
+        border-color: #0d6efd;
+        background-color: #e7f1ff;
+    }
+
+    .drop-zone-active {
+        border-color: #0d6efd;
+        background-color: #cfe2ff;
+        transform: scale(1.02);
+    }
+
+    .drop-zone-icon {
+        font-size: 4rem;
+        color: #6c757d;
+        margin-bottom: 1rem;
+    }
+
+    .drop-zone-active .drop-zone-icon {
+        color: #0d6efd;
+        animation: bounce 0.5s ease;
+    }
+
+    .drop-zone-title {
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+
+    .drop-zone-text {
+        color: #6c757d;
+        margin-bottom: 1.5rem;
+    }
+
+    @@keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    .list-group-item {
+        transition: background-color 0.2s ease;
+    }
+
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+    }
+</style>
