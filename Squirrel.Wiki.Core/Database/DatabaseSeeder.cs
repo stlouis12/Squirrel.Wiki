@@ -5,6 +5,7 @@ using Squirrel.Wiki.Core.Database.Entities;
 using System.Text.Json;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
+using IOFile = System.IO.File;
 
 namespace Squirrel.Wiki.Core.Database;
 
@@ -87,7 +88,7 @@ public static class DatabaseSeeder
             {
                 seedFilePath = customSeedDataPath;
                 
-                if (!File.Exists(seedFilePath))
+                if (!IOFile.Exists(seedFilePath))
                 {
                     logger.LogWarning("Custom seed data file not found: {Path}", seedFilePath);
                     return null;
@@ -103,13 +104,13 @@ public static class DatabaseSeeder
                 seedFilePath = Path.Combine(assemblyDirectory!, "Database", SeedDataFileName);
 
                 // If not found in assembly directory, try current directory
-                if (!File.Exists(seedFilePath))
+                if (!IOFile.Exists(seedFilePath))
                 {
                     seedFilePath = Path.Combine(Directory.GetCurrentDirectory(), "Database", SeedDataFileName);
                 }
 
                 // If still not found, try one level up (for development scenarios)
-                if (!File.Exists(seedFilePath))
+                if (!IOFile.Exists(seedFilePath))
                 {
                     var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
                     if (parentDir != null)
@@ -118,7 +119,7 @@ public static class DatabaseSeeder
                     }
                 }
 
-                if (!File.Exists(seedFilePath))
+                if (!IOFile.Exists(seedFilePath))
                 {
                     logger.LogWarning("Seed data file not found at expected locations. Tried: {Path}", seedFilePath);
                     return null;
@@ -127,7 +128,7 @@ public static class DatabaseSeeder
                 logger.LogInformation("Loading seed data from default file: {Path}", seedFilePath);
             }
 
-            var yaml = File.ReadAllText(seedFilePath);
+            var yaml = IOFile.ReadAllText(seedFilePath);
             var deserializer = new DeserializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();

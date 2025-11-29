@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Squirrel.Wiki.Core.Database;
 
@@ -10,9 +11,11 @@ using Squirrel.Wiki.Core.Database;
 namespace Squirrel.Wiki.Core.Migrations
 {
     [DbContext(typeof(SquirrelDbContext))]
-    partial class SquirrelDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251129134621_AddFileManagement")]
+    partial class AddFileManagement
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.11");
