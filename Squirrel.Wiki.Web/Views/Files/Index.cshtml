@@ -244,8 +244,7 @@
                     
                     <div class="mb-3">
                         <label for="files" class="form-label">@Localizer["SelectFiles"]</label>
-                        <input type="file" class="form-control" id="files" name="files" multiple required />
-                        <div class="form-text">@Localizer["YouCanSelectMultipleFiles"]</div>
+                        <input type="file" class="form-control" id="files" name="files" required />
                     </div>
                     
                     <div class="mb-3">
@@ -308,8 +307,8 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
             </div>
             <div class="modal-body">
-                <p>@Localizer["AreYouSureDeleteFile"] "<strong id="deleteFileName"></strong>"?</p>
-                <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> @Localizer["ThisActionCannotBeUndone"]</p>
+                <p id="deleteFileMessage"></p>
+                <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> @Localizer["ActionCannotBeUndone"]</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
@@ -335,14 +334,14 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
             </div>
             <div class="modal-body">
-                <p>@Localizer["AreYouSureDeleteFolder"] "<strong id="deleteFolderName"></strong>"?</p>
+                <p id="deleteFolderMessage"></p>
                 <div class="form-check mb-3">
                     <input class="form-check-input" type="checkbox" id="deleteRecursive" name="recursive" value="true">
                     <label class="form-check-label" for="deleteRecursive">
                         @Localizer["DeleteAllContents"]
                     </label>
                 </div>
-                <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> @Localizer["ThisActionCannotBeUndone"]</p>
+                <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> @Localizer["ActionCannotBeUndone"]</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
@@ -418,7 +417,7 @@
         // Delete file confirmation
         function confirmDeleteFile(fileId, fileName) {
             document.getElementById('deleteFileId').value = fileId;
-            document.getElementById('deleteFileName').textContent = fileName;
+            document.getElementById('deleteFileMessage').innerHTML = '@Localizer["AreYouSureDeleteFile"]'.replace('{0}', '<strong>' + fileName + '</strong>');
             var deleteModal = new bootstrap.Modal(document.getElementById('deleteFileModal'));
             deleteModal.show();
         }
@@ -426,7 +425,7 @@
         // Delete folder confirmation
         function confirmDeleteFolder(folderId, folderName) {
             document.getElementById('deleteFolderId').value = folderId;
-            document.getElementById('deleteFolderName').textContent = folderName;
+            document.getElementById('deleteFolderMessage').innerHTML = '@Localizer["AreYouSureDeleteFolder"]'.replace('{0}', '<strong>' + folderName + '</strong>');
             var deleteModal = new bootstrap.Modal(document.getElementById('deleteFolderModal'));
             deleteModal.show();
         }

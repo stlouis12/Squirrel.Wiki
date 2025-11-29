@@ -62,7 +62,7 @@ public class FileService : BaseService, IFileService
             var allowedExtensions = await _configurationService.GetValueAsync<string>("SQUIRREL_FILE_ALLOWED_EXTENSIONS", cancellationToken);
             if (!await IsAllowedExtensionAsync(extension, allowedExtensions))
             {
-                throw new FileTypeNotAllowedException(extension, allowedExtensions);
+                throw new FileTypeNotAllowedException(uploadDto.FileName, extension, allowedExtensions);
             }
 
             // 3. Validate folder exists if specified
@@ -102,7 +102,11 @@ public class FileService : BaseService, IFileService
             try
             {
                 string storagePath;
-                if (existingFile == null)
+                
+                // Check if FileContent already exists for this hash
+                var existingFileContent = await _fileRepository.GetFileContentAsync(fileHash, cancellationToken);
+                
+                if (existingFileContent == null)
                 {
                     // 6. Save physical file (new content)
                     storagePath = GenerateStoragePath(fileHash, extension);
@@ -128,10 +132,10 @@ public class FileService : BaseService, IFileService
                 }
                 else
                 {
-                    // Reuse existing storage path and increment reference count
-                    storagePath = existingFile.FilePath;
+                    // Reuse existing FileContent and increment reference count
+                    storagePath = existingFileContent.StoragePath;
                     await _fileRepository.IncrementReferenceCountAsync(fileHash, cancellationToken);
-                    LogInfo("Reusing existing physical file with hash {FileHash}, incremented reference count", fileHash);
+                    LogInfo("Reusing existing FileContent with hash {FileHash}, incremented reference count", fileHash);
                 }
 
                 // 7. Generate unique logical file path
@@ -206,7 +210,7 @@ public class FileService : BaseService, IFileService
         catch (FileTypeNotAllowedException ex)
         {
             LogError(ex, "File type not allowed for {FileName}", uploadDto.FileName);
-            return Result<FileDto>.Failure(ex.Message, "FILE_TYPE_NOT_ALLOWED");
+            return Result<FileDto>.Failure(ex.GetUserMessage(), "FILE_TYPE_NOT_ALLOWED");
         }
         catch (Exception ex)
         {
