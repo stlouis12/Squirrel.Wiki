@@ -11,8 +11,8 @@ using Squirrel.Wiki.Core.Database;
 namespace Squirrel.Wiki.Core.Migrations
 {
     [DbContext(typeof(SquirrelDbContext))]
-    [Migration("20251129173501_ConvertFileIdToGuid")]
-    partial class ConvertFileIdToGuid
+    [Migration("20251129232033_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
