@@ -3,10 +3,12 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Squirrel.Wiki.Contracts.Plugins;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services.Configuration;
+using Squirrel.Wiki.Core.Services.Plugins;
 using Squirrel.Wiki.Core.Services.Users;
 using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models;
@@ -19,11 +21,13 @@ public class AccountController : BaseController
     private readonly IUserContext _userContext;
     private readonly IUserService _userService;
     private readonly ISettingsService _settingsService;
+    private readonly IPluginService _pluginService;
 
     public AccountController(
         IUserContext userContext,
         IUserService userService,
         ISettingsService settingsService,
+        IPluginService pluginService,
         ITimezoneService timezoneService,
         ILogger<AccountController> logger,
         INotificationService notifications)
@@ -32,20 +36,35 @@ public class AccountController : BaseController
         _userContext = userContext;
         _userService = userService;
         _settingsService = settingsService;
+        _pluginService = pluginService;
     }
 
     [HttpGet]
     [AllowAnonymous]
-    public IActionResult Login(string? returnUrl = null)
+    public async Task<IActionResult> Login(string? returnUrl = null)
     {
         if (_userContext.IsAuthenticated)
         {
             return RedirectToAction("Index", "Home");
         }
 
+        // Get enabled authentication plugins
+        var enabledPlugins = await _pluginService.GetEnabledPluginsAsync();
+        var authPlugins = new List<IAuthenticationPlugin>();
+        
+        foreach (var dbPlugin in enabledPlugins)
+        {
+            var loadedPlugin = _pluginService.GetLoadedPlugin<IAuthenticationPlugin>(dbPlugin.PluginId);
+            if (loadedPlugin != null && dbPlugin.IsConfigured)
+            {
+                authPlugins.Add(loadedPlugin);
+            }
+        }
+
         var model = new LoginViewModel
         {
-            ReturnUrl = returnUrl
+            ReturnUrl = returnUrl,
+            AuthenticationPlugins = authPlugins
         };
 
         return View(model);
@@ -257,6 +276,269 @@ public class AccountController : BaseController
     {
         ViewBag.ReturnUrl = returnUrl;
         return View();
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public async Task<IActionResult> OidcLogin(string? returnUrl = null)
+    {
+        // Get the OIDC plugin
+        var oidcPlugin = _pluginService.GetLoadedPlugin<IAuthenticationPlugin>("squirrel.auth.oidc");
+        if (oidcPlugin == null)
+        {
+            _logger.LogWarning("OIDC plugin not found or not loaded");
+            NotifyError("OIDC authentication is not available.");
+            return RedirectToAction("Login", new { returnUrl });
+        }
+
+        // Get plugin configuration
+        var dbPlugin = await _pluginService.GetPluginByPluginIdAsync("squirrel.auth.oidc");
+        if (dbPlugin == null || !dbPlugin.IsEnabled || !dbPlugin.IsConfigured)
+        {
+            _logger.LogWarning("OIDC plugin not enabled or configured");
+            NotifyError("OIDC authentication is not properly configured.");
+            return RedirectToAction("Login", new { returnUrl });
+        }
+
+        var config = await _pluginService.GetPluginConfigurationWithDefaultsAsync(dbPlugin.Id);
+
+        // Build the authorization URL
+        var authority = config["Authority"];
+        var clientId = config["ClientId"];
+        var scope = config.GetValueOrDefault("Scope", "openid profile email");
+        
+        var redirectUri = $"{Request.Scheme}://{Request.Host}/Account/OidcCallback";
+        var state = Guid.NewGuid().ToString("N");
+        var nonce = Guid.NewGuid().ToString("N");
+
+        // Store state and nonce in session for validation
+        HttpContext.Session.SetString("oidc_state", state);
+        HttpContext.Session.SetString("oidc_nonce", nonce);
+        HttpContext.Session.SetString("oidc_return_url", returnUrl ?? "/");
+
+        // Build authorization URL
+        var authUrl = $"{authority}/protocol/openid-connect/auth?" +
+            $"client_id={Uri.EscapeDataString(clientId)}&" +
+            $"redirect_uri={Uri.EscapeDataString(redirectUri)}&" +
+            $"response_type=code&" +
+            $"scope={Uri.EscapeDataString(scope)}&" +
+            $"state={state}&" +
+            $"nonce={nonce}";
+
+        _logger.LogInformation("Redirecting to OIDC provider: {Authority}", authority);
+        return Redirect(authUrl);
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public async Task<IActionResult> OidcCallback(string? code, string? state, string? error, string? error_description)
+    {
+        if (!string.IsNullOrEmpty(error))
+        {
+            _logger.LogWarning("OIDC authentication error: {Error} - {ErrorDescription}", error, error_description);
+            NotifyError($"Authentication failed: {error_description ?? error}");
+            return RedirectToAction("Login");
+        }
+
+        if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state))
+        {
+            _logger.LogWarning("OIDC callback missing code or state");
+            NotifyError("Invalid authentication response.");
+            return RedirectToAction("Login");
+        }
+
+        // Validate state
+        var savedState = HttpContext.Session.GetString("oidc_state");
+        if (savedState != state)
+        {
+            _logger.LogWarning("OIDC state mismatch");
+            NotifyError("Invalid authentication state.");
+            return RedirectToAction("Login");
+        }
+
+        var returnUrl = HttpContext.Session.GetString("oidc_return_url") ?? "/";
+
+        // Get the OIDC plugin and configuration
+        var dbPlugin = await _pluginService.GetPluginByPluginIdAsync("squirrel.auth.oidc");
+        if (dbPlugin == null)
+        {
+            NotifyError("OIDC authentication is not available.");
+            return RedirectToAction("Login");
+        }
+
+        var config = await _pluginService.GetPluginConfigurationWithDefaultsAsync(dbPlugin.Id);
+
+        try
+        {
+            // Exchange code for tokens
+            var authority = config["Authority"];
+            var clientId = config["ClientId"];
+            var clientSecret = config["ClientSecret"];
+            var redirectUri = $"{Request.Scheme}://{Request.Host}/Account/OidcCallback";
+
+            using var httpClient = new HttpClient();
+            var tokenRequest = new Dictionary<string, string>
+            {
+                ["grant_type"] = "authorization_code",
+                ["code"] = code,
+                ["redirect_uri"] = redirectUri,
+                ["client_id"] = clientId,
+                ["client_secret"] = clientSecret
+            };
+
+            var tokenResponse = await httpClient.PostAsync(
+                $"{authority}/protocol/openid-connect/token",
+                new FormUrlEncodedContent(tokenRequest));
+
+            if (!tokenResponse.IsSuccessStatusCode)
+            {
+                var errorContent = await tokenResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Token exchange failed: {StatusCode} - {Error}", tokenResponse.StatusCode, errorContent);
+                NotifyError("Failed to complete authentication.");
+                return RedirectToAction("Login");
+            }
+
+            var tokenData = await tokenResponse.Content.ReadAsStringAsync();
+            var tokenJson = System.Text.Json.JsonDocument.Parse(tokenData);
+            var accessToken = tokenJson.RootElement.GetProperty("access_token").GetString();
+            var idToken = tokenJson.RootElement.GetProperty("id_token").GetString();
+
+            // Get user info
+            httpClient.DefaultRequestHeaders.Authorization = 
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+            
+            var userInfoResponse = await httpClient.GetAsync($"{authority}/protocol/openid-connect/userinfo");
+            if (!userInfoResponse.IsSuccessStatusCode)
+            {
+                _logger.LogError("Failed to get user info");
+                NotifyError("Failed to retrieve user information.");
+                return RedirectToAction("Login");
+            }
+
+            var userInfoData = await userInfoResponse.Content.ReadAsStringAsync();
+            var userInfo = System.Text.Json.JsonDocument.Parse(userInfoData);
+
+            // Extract user information from claims
+            var sub = userInfo.RootElement.GetProperty("sub").GetString();
+            var usernameClaim = config.GetValueOrDefault("UsernameClaim", "preferred_username");
+            var emailClaim = config.GetValueOrDefault("EmailClaim", "email");
+            var displayNameClaim = config.GetValueOrDefault("DisplayNameClaim", "name");
+            var groupsClaim = config.GetValueOrDefault("GroupsClaim", "groups");
+
+            var username = userInfo.RootElement.TryGetProperty(usernameClaim, out var usernameProp) 
+                ? usernameProp.GetString() : sub;
+            var email = userInfo.RootElement.TryGetProperty(emailClaim, out var emailProp) 
+                ? emailProp.GetString() : "";
+            var displayName = userInfo.RootElement.TryGetProperty(displayNameClaim, out var displayNameProp) 
+                ? displayNameProp.GetString() : username;
+
+            var groups = new List<string>();
+            if (userInfo.RootElement.TryGetProperty(groupsClaim, out var groupsProp) && groupsProp.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                foreach (var group in groupsProp.EnumerateArray())
+                {
+                    groups.Add(group.GetString() ?? "");
+                }
+            }
+
+            // Authenticate using the OIDC plugin strategy
+            var oidcPlugin = _pluginService.GetLoadedPlugin<IAuthenticationPlugin>("squirrel.auth.oidc");
+            
+            // Use reflection to call the overloaded CreateStrategy method that accepts IServiceProvider
+            var createStrategyMethod = oidcPlugin!.GetType().GetMethod(
+                "CreateStrategy",
+                new[] { typeof(IServiceProvider), typeof(Dictionary<string, string>) });
+            
+            if (createStrategyMethod == null)
+            {
+                _logger.LogError("Could not find CreateStrategy method with IServiceProvider parameter");
+                NotifyError("Internal authentication error.");
+                return RedirectToAction("Login");
+            }
+            
+            // Call the overloaded CreateStrategy method with the current request's service provider
+            var strategy = (Squirrel.Wiki.Contracts.Authentication.IAuthenticationStrategy?)createStrategyMethod.Invoke(
+                oidcPlugin, 
+                new object[] { HttpContext.RequestServices, config });
+            
+            if (strategy == null)
+            {
+                _logger.LogError("CreateStrategy returned null");
+                NotifyError("Internal authentication error.");
+                return RedirectToAction("Login");
+            }
+
+            var authRequest = new Squirrel.Wiki.Contracts.Authentication.AuthenticationRequest
+            {
+                Provider = Squirrel.Wiki.Contracts.Authentication.AuthenticationProvider.External,
+                ExternalId = sub,
+                Username = username,
+                Email = email,
+                DisplayName = displayName,
+                Groups = groups
+            };
+
+            var authResult = await strategy.AuthenticateAsync(authRequest);
+
+            if (!authResult.Success)
+            {
+                _logger.LogWarning("OIDC authentication failed: {Reason}", authResult.FailureReason);
+                NotifyError($"Authentication failed: {authResult.ErrorMessage}");
+                return RedirectToAction("Login");
+            }
+
+            // Create claims and sign in
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, authResult.UserId.ToString()),
+                new Claim(ClaimTypes.Name, authResult.Username!),
+                new Claim(ClaimTypes.Email, authResult.Email ?? ""),
+                new Claim("DisplayName", authResult.DisplayName ?? authResult.Username!)
+            };
+
+            if (authResult.IsAdmin)
+                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+            if (authResult.IsEditor)
+                claims.Add(new Claim(ClaimTypes.Role, "Editor"));
+
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
+
+            var sessionTimeoutMinutes = await _settingsService.GetSettingAsync<int>("SQUIRREL_SESSION_TIMEOUT_MINUTES");
+            if (sessionTimeoutMinutes <= 0)
+                sessionTimeoutMinutes = 480;
+
+            var authProperties = new AuthenticationProperties
+            {
+                IsPersistent = false,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(sessionTimeoutMinutes)
+            };
+
+            await HttpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                claimsPrincipal,
+                authProperties);
+
+            _logger.LogInformation("User {Username} logged in via OIDC", authResult.Username);
+
+            // Clear session data
+            HttpContext.Session.Remove("oidc_state");
+            HttpContext.Session.Remove("oidc_nonce");
+            HttpContext.Session.Remove("oidc_return_url");
+
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            {
+                return Redirect(returnUrl);
+            }
+
+            return RedirectToAction("Index", "Home");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during OIDC callback");
+            NotifyError("An error occurred during authentication.");
+            return RedirectToAction("Login");
+        }
     }
 
     #region Helper Methods - Result Pattern

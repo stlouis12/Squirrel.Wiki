@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Squirrel.Wiki.Contracts.Plugins;
 
 namespace Squirrel.Wiki.Web.Models;
 
@@ -17,4 +18,6 @@ public class LoginViewModel
     public bool RememberMe { get; set; }
 
     public string? ReturnUrl { get; set; }
+
+    public List<IAuthenticationPlugin> AuthenticationPlugins { get; set; } = new();
 }

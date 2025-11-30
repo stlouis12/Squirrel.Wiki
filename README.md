@@ -234,18 +234,18 @@ Provides OpenID Connect / OAuth 2.0 authentication support.
 | Environment Variable | Description | Required | Default |
 |---------------------|-------------|----------|---------|
 | `PLUGIN_SQUIRREL_AUTH_OIDC_ENABLED` | Enable the OIDC authentication plugin | No | `false` |
-| `PLUGIN_OIDC_AUTHORITY` | The URL of the OpenID Connect provider | Yes | - |
-| `PLUGIN_OIDC_CLIENT_ID` | The client ID registered with the OIDC provider | Yes | - |
-| `PLUGIN_OIDC_CLIENT_SECRET` | The client secret for authentication | Yes | - |
-| `PLUGIN_OIDC_SCOPE` | The OAuth scopes to request (space-separated) | No | `openid profile email` |
-| `PLUGIN_OIDC_USERNAME_CLAIM` | The claim to use for the username | No | `preferred_username` |
-| `PLUGIN_OIDC_EMAIL_CLAIM` | The claim to use for the email address | No | `email` |
-| `PLUGIN_OIDC_DISPLAY_NAME_CLAIM` | The claim to use for the display name | No | `name` |
-| `PLUGIN_OIDC_GROUPS_CLAIM` | The claim that contains group memberships | No | `groups` |
-| `PLUGIN_OIDC_ADMIN_GROUP` | The group name that grants admin privileges | No | `squirrel-admins` |
-| `PLUGIN_OIDC_EDITOR_GROUP` | The group name that grants editor privileges | No | `squirrel-editors` |
-| `PLUGIN_OIDC_AUTO_CREATE_USERS` | Automatically create user accounts on first login | No | `true` |
-| `PLUGIN_OIDC_REQUIRE_HTTPS_METADATA` | Require HTTPS for metadata endpoint | No | `true` |
+| `PLUGIN_SQUIRREL_AUTH_OIDC_AUTHORITY` | The URL of the OpenID Connect provider | Yes | - |
+| `PLUGIN_SQUIRREL_AUTH_OIDC_CLIENTID` | The client ID registered with the OIDC provider | Yes | - |
+| `PLUGIN_SQUIRREL_AUTH_OIDC_CLIENTSECRET` | The client secret for authentication | Yes | - |
+| `PLUGIN_SQUIRREL_AUTH_OIDC_SCOPE` | The OAuth scopes to request (space-separated) | No | `openid profile email` |
+| `PLUGIN_SQUIRREL_AUTH_OIDC_USERNAME_CLAIM` | The claim to use for the username | No | `preferred_username` |
+| `PLUGIN_SQUIRREL_AUTH_OIDC_EMAIL_CLAIM` | The claim to use for the email address | No | `email` |
+| `PLUGIN_SQUIRREL_AUTH_OIDC_DISPLAY_NAME_CLAIM` | The claim to use for the display name | No | `name` |
+| `PLUGIN_SQUIRREL_AUTH_OIDC_GROUPS_CLAIM` | The claim that contains group memberships | No | `groups` |
+| `PLUGIN_SQUIRREL_AUTH_OIDC_ADMIN_GROUP` | The group name that grants admin privileges | No | `squirrel-admins` |
+| `PLUGIN_SQUIRREL_AUTH_OIDC_EDITOR_GROUP` | The group name that grants editor privileges | No | `squirrel-editors` |
+| `PLUGIN_SQUIRREL_AUTH_OIDC_AUTO_CREATE_USERS` | Automatically create user accounts on first login | No | `true` |
+| `PLUGIN_SQUIRREL_AUTH_OIDC_REQUIRE_HTTPS_METADATA` | Require HTTPS for metadata endpoint | No | `true` |
 
 #### Example: Keycloak
 
@@ -254,12 +254,12 @@ docker run -d \
   --name squirrel-wiki \
   -p 8080:8080\
   -e PLUGIN_SQUIRREL_AUTH_OIDC_ENABLED=true \
-  -e PLUGIN_OIDC_AUTHORITY=https://keycloak.example.com/realms/myrealm \
-  -e PLUGIN_OIDC_CLIENT_ID=squirrel-wiki \
-  -e PLUGIN_OIDC_CLIENT_SECRET=your-client-secret \
-  -e PLUGIN_OIDC_SCOPE="openid profile email" \
-  -e PLUGIN_OIDC_ADMIN_GROUP=wiki-admins \
-  -e PLUGIN_OIDC_EDITOR_GROUP=wiki-editors \
+  -e PLUGIN_SQUIRREL_AUTH_OIDC_AUTHORITY=https://keycloak.example.com/realms/myrealm \
+  -e PLUGIN_SQUIRREL_AUTH_OIDC_CLIENTID=squirrel-wiki \
+  -e PLUGIN_SQUIRREL_AUTH_OIDC_CLIENTSECRET=your-client-secret \
+  -e PLUGIN_SQUIRREL_AUTH_OIDC_SCOPE="openid profile email" \
+  -e PLUGIN_SQUIRREL_AUTH_OIDC_ADMIN_GROUP=wiki-admins \
+  -e PLUGIN_SQUIRREL_AUTH_OIDC_EDITOR_GROUP=wiki-editors \
   -v squirrel-data:/app/App_Data \
   squirrel-wiki:latest
 ```
