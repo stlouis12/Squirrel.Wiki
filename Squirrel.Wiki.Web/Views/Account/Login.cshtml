@@ -51,7 +51,23 @@
                         </div>
                     </form>
 
-                    <hr class="my-4">
+                    @if (Model.AuthenticationPlugins != null && Model.AuthenticationPlugins.Any())
+                    {
+                        <hr class="my-4">
+                        
+                        <div class="text-center mb-3">
+                            <small class="text-muted">@Localizer["OrSignInWith"]</small>
+                        </div>
+
+                        @foreach (var plugin in Model.AuthenticationPlugins)
+                        {
+                            @Html.Raw(plugin.GetLoginButtonHtml(Model.ReturnUrl ?? "/"))
+                        }
+                    }
+                    else
+                    {
+                        <hr class="my-4">
+                    }
                 </div>
             </div>
 

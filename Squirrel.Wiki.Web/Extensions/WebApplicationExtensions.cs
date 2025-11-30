@@ -145,6 +145,10 @@ public static class WebApplicationExtensions
 
         app.UseRouting();
         app.UseSerilogRequestLogging();
+        
+        // Add session middleware (must be before authentication)
+        app.UseSession();
+        
         app.UseAuthentication();
         app.UseAuthorization();
 

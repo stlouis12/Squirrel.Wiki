@@ -48,6 +48,24 @@ builder.Services.AddResponseCaching();
 var startupLogger = LoggerFactory.Create(config => config.AddConsole()).CreateLogger<MinimalConfigurationService>();
 var minimalConfig = new MinimalConfigurationService(startupLogger);
 
+// Add session support for OIDC authentication
+var sessionTimeoutMinutes = int.TryParse(minimalConfig.GetValue("SQUIRREL_SESSION_TIMEOUT_MINUTES"), out var timeout) && timeout > 0 
+    ? timeout 
+    : 480; // Default to 8 hours
+
+Log.Information("Session timeout configured: {Minutes} minutes (from {Source})",
+    sessionTimeoutMinutes,
+    minimalConfig.GetSource("SQUIRREL_SESSION_TIMEOUT_MINUTES"));
+
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(sessionTimeoutMinutes);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+});
+
 // Get application data path
 var appDataPath = minimalConfig.GetValue("SQUIRREL_APP_DATA_PATH", "App_Data");
 var resolvedAppDataPath = PathHelper.ResolveAndEnsurePath(appDataPath);

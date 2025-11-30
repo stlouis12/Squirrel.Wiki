@@ -78,7 +78,7 @@
                                                value="@field.Value"
                                                placeholder="@field.Placeholder"
                                                @(field.IsRequired ? "required" : "")
-                                               @(!string.IsNullOrEmpty(field.ValidationPattern) ? $"pattern=\"{field.ValidationPattern}\"" : "") />
+                                               @(Html.Raw(!string.IsNullOrEmpty(field.ValidationPattern) ? $"pattern=\"{field.ValidationPattern}\"" : "")) />
                                     }
                                     else
                                     {
@@ -89,7 +89,7 @@
                                                value="@field.Value"
                                                placeholder="@field.Placeholder"
                                                @(field.IsRequired ? "required" : "")
-                                               @(!string.IsNullOrEmpty(field.ValidationPattern) ? $"pattern=\"{field.ValidationPattern}\"" : "") />
+                                               @(Html.Raw(!string.IsNullOrEmpty(field.ValidationPattern) ? $"pattern=\"{field.ValidationPattern}\"" : "")) />
                                     }
                                     
                                     @if (!string.IsNullOrEmpty(field.Description))

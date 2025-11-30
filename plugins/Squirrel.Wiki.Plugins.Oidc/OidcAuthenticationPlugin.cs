@@ -36,9 +36,9 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
                 Description = "The URL of the OpenID Connect provider (e.g., https://accounts.google.com)",
                 IsRequired = true,
                 IsSecret = false,
-                ValidationPattern = @"^https?://.*",
-                ValidationErrorMessage = "Must be a valid URL",
-                EnvironmentVariableName = "PLUGIN_OIDC_AUTHORITY"
+                ValidationPattern = @"^https?://[^\s]+$",
+                ValidationErrorMessage = "Must be a valid URL starting with http:// or https://",
+                EnvironmentVariableName = "PLUGIN_SQUIRREL_AUTH_OIDC_AUTHORITY"
             },
             new()
             {
@@ -47,7 +47,7 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
                 Description = "The client ID registered with the OIDC provider",
                 IsRequired = true,
                 IsSecret = false,
-                EnvironmentVariableName = "PLUGIN_OIDC_CLIENT_ID"
+                EnvironmentVariableName = "PLUGIN_SQUIRREL_AUTH_OIDC_CLIENTID"
             },
             new()
             {
@@ -56,7 +56,7 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
                 Description = "The client secret for authentication",
                 IsRequired = true,
                 IsSecret = true,
-                EnvironmentVariableName = "PLUGIN_OIDC_CLIENT_SECRET"
+                EnvironmentVariableName = "PLUGIN_SQUIRREL_AUTH_OIDC_CLIENTSECRET"
             },
             new()
             {
@@ -66,7 +66,7 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
                 IsRequired = false,
                 IsSecret = false,
                 DefaultValue = "openid profile email",
-                EnvironmentVariableName = "PLUGIN_OIDC_SCOPE"
+                EnvironmentVariableName = "PLUGIN_SQUIRREL_AUTH_OIDC_SCOPE"
             },
             new()
             {
@@ -76,7 +76,7 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
                 IsRequired = false,
                 IsSecret = false,
                 DefaultValue = "preferred_username",
-                EnvironmentVariableName = "PLUGIN_OIDC_USERNAME_CLAIM"
+                EnvironmentVariableName = "PLUGIN_SQUIRREL_AUTH_OIDC_USERNAMECLAIM"
             },
             new()
             {
@@ -86,7 +86,7 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
                 IsRequired = false,
                 IsSecret = false,
                 DefaultValue = "email",
-                EnvironmentVariableName = "PLUGIN_OIDC_EMAIL_CLAIM"
+                EnvironmentVariableName = "PLUGIN_SQUIRREL_AUTH_OIDC_EMAILCLAIM"
             },
             new()
             {
@@ -96,7 +96,7 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
                 IsRequired = false,
                 IsSecret = false,
                 DefaultValue = "name",
-                EnvironmentVariableName = "PLUGIN_OIDC_DISPLAY_NAME_CLAIM"
+                EnvironmentVariableName = "PLUGIN_SQUIRREL_AUTH_OIDC_DISPLAYNAMECLAIM"
             },
             new()
             {
@@ -106,7 +106,7 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
                 IsRequired = false,
                 IsSecret = false,
                 DefaultValue = "groups",
-                EnvironmentVariableName = "PLUGIN_OIDC_GROUPS_CLAIM"
+                EnvironmentVariableName = "PLUGIN_SQUIRREL_AUTH_OIDC_GROUPSCLAIM"
             },
             new()
             {
@@ -116,7 +116,7 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
                 IsRequired = false,
                 IsSecret = false,
                 DefaultValue = "squirrel-admins",
-                EnvironmentVariableName = "PLUGIN_OIDC_ADMIN_GROUP"
+                EnvironmentVariableName = "PLUGIN_SQUIRREL_AUTH_OIDC_ADMINGROUP"
             },
             new()
             {
@@ -126,7 +126,7 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
                 IsRequired = false,
                 IsSecret = false,
                 DefaultValue = "squirrel-editors",
-                EnvironmentVariableName = "PLUGIN_OIDC_EDITOR_GROUP"
+                EnvironmentVariableName = "PLUGIN_SQUIRREL_AUTH_OIDC_EDITORGROUP"
             },
             new()
             {
@@ -136,7 +136,7 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
                 IsRequired = false,
                 IsSecret = false,
                 DefaultValue = "true",
-                EnvironmentVariableName = "PLUGIN_OIDC_AUTO_CREATE_USERS"
+                EnvironmentVariableName = "PLUGIN_SQUIRREL_AUTH_OIDC_AUTOCREATEUSERS"
             },
             new()
             {
@@ -146,7 +146,7 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
                 IsRequired = false,
                 IsSecret = false,
                 DefaultValue = "true",
-                EnvironmentVariableName = "PLUGIN_OIDC_REQUIRE_HTTPS_METADATA"
+                EnvironmentVariableName = "PLUGIN_SQUIRREL_AUTH_OIDC_REQUIREHTTPSMETADATA"
             }
         };
     }
@@ -193,17 +193,25 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
 
     public override IAuthenticationStrategy CreateStrategy(Dictionary<string, string> config)
     {
-        if (_services == null)
-        {
-            throw new InvalidOperationException("Plugin has not been initialized. Call InitializeAsync first.");
-        }
+        // Note: This method is called with a disposed service provider from initialization.
+        // The actual service provider will be passed when creating the strategy in the controller.
+        // This is a placeholder that should not be used directly.
+        throw new InvalidOperationException(
+            "CreateStrategy() without service provider is not supported for OIDC plugin. " +
+            "Use CreateStrategy(IServiceProvider, Dictionary<string, string>) instead.");
+    }
 
-        // Get required services from the service provider
-        var loggerFactory = _services.GetRequiredService<ILoggerFactory>();
+    /// <summary>
+    /// Creates an authentication strategy with the current request's service provider
+    /// </summary>
+    public IAuthenticationStrategy CreateStrategy(IServiceProvider services, Dictionary<string, string> config)
+    {
+        // Get required services from the current request's service provider
+        var loggerFactory = services.GetRequiredService<ILoggerFactory>();
         var logger = loggerFactory.CreateLogger<OidcAuthenticationStrategy>();
 
         // Create and return the strategy with configuration
-        return new OidcAuthenticationStrategy(_services, config, logger);
+        return new OidcAuthenticationStrategy(services, config, logger);
     }
 
     public override string GetLoginButtonHtml(string returnUrl)
