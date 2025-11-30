@@ -1,0 +1,218 @@
+@using Squirrel.Wiki.Plugins
+@model Squirrel.Wiki.Web.Models.Admin.UserEditViewModel
+@{
+    ViewData["Title"] = $"{Localizer["EditUser"]} - {Model.Username}";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>@Localizer["EditUser"]</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-action="Index">@Localizer["Users"]</a></li>
+                    <li class="breadcrumb-item"><a asp-action="Details" asp-route-id="@Model.Id">@Model.Username</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">@Localizer["Edit"]</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form asp-action="Edit" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Id" />
+                        <input type="hidden" asp-for="Username" />
+                        <input type="hidden" asp-for="Provider" />
+                        
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                        <!-- Basic Information -->
+                        <h5 class="mb-3">@Localizer["UserInformation"]</h5>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">@Localizer["Username"]</label>
+                            <input type="text" class="form-control" value="@Model.Username" disabled />
+                            <small class="form-text text-muted">@Localizer["UsernameCannotBeChanged"]</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Email" class="form-label">@Localizer["Email"] <span class="text-danger">*</span></label>
+                            <input asp-for="Email" type="email" class="form-control" placeholder="user@example.com" />
+                            <span asp-validation-for="Email" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="DisplayName" class="form-label">@Localizer["DisplayName"] <span class="text-danger">*</span></label>
+                            <input asp-for="DisplayName" class="form-control" placeholder="@Localizer["DisplayName"]" />
+                            <span asp-validation-for="DisplayName" class="text-danger"></span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="FirstName" class="form-label">@Localizer["FirstName"]</label>
+                                <input asp-for="FirstName" class="form-control" placeholder="@Localizer["FirstName"]" />
+                                <span asp-validation-for="FirstName" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="LastName" class="form-label">@Localizer["LastName"]</label>
+                                <input asp-for="LastName" class="form-control" placeholder="@Localizer["LastName"]" />
+                                <span asp-validation-for="LastName" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        @if (Model.Provider == AuthenticationProvider.Local)
+                        {
+                            <hr class="my-4" />
+
+                            <!-- Password -->
+                            <h5 class="mb-3">@Localizer["ChangePassword"]</h5>
+                            <p class="text-muted small">@Localizer["LeaveBlankToKeepCurrentPassword"]</p>
+                            
+                            <div class="mb-3">
+                                <label asp-for="Password" class="form-label">@Localizer["NewPassword"]</label>
+                                <input asp-for="Password" type="password" class="form-control" />
+                                <span asp-validation-for="Password" class="text-danger"></span>
+                                <small class="form-text text-muted">
+                                    @Localizer["PasswordMustMeetRequirements"]
+                                </small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="ConfirmPassword" class="form-label">@Localizer["ConfirmNewPassword"]</label>
+                                <input asp-for="ConfirmPassword" type="password" class="form-control" />
+                                <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                            </div>
+                        }
+
+                        <hr class="my-4" />
+
+                        <!-- Roles and Permissions -->
+                        <h5 class="mb-3">@Localizer["RolesAndPermissions"]</h5>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">@Localizer["Roles"] <span class="text-danger">*</span></label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="Admin" id="roleAdmin" 
+                                       name="Roles" @(Model.Roles?.Contains("Admin") == true ? "checked" : "") />
+                                <label class="form-check-label" for="roleAdmin">
+                                    <strong>@Localizer["Admin"]</strong>
+                                    <br />
+                                    <small class="text-muted">@Localizer["AdminRoleDescription"]</small>
+                                </label>
+                            </div>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" value="Editor" id="roleEditor" 
+                                       name="Roles" @(Model.Roles?.Contains("Editor") == true ? "checked" : "") />
+                                <label class="form-check-label" for="roleEditor">
+                                    <strong>@Localizer["Editor"]</strong>
+                                    <br />
+                                    <small class="text-muted">@Localizer["EditorRoleDescription"]</small>
+                                </label>
+                            </div>
+                            <span asp-validation-for="Roles" class="text-danger"></span>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <!-- Account Status -->
+                        <h5 class="mb-3">@Localizer["AccountStatus"]</h5>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input asp-for="IsActive" class="form-check-input" type="checkbox" id="isActive" />
+                                <label class="form-check-label" for="isActive">
+                                    @Localizer["AccountIsActive"]
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">@Localizer["InactiveUsersCannotLogin"]</small>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> @Localizer["Cancel"]
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> @Localizer["SaveChanges"]
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Panel -->
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> @Localizer["UserInformation"]</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <strong>@Localizer["Provider"]:</strong>
+                        <span class="badge bg-info">@Model.Provider</span>
+                    </div>
+                    <div class="mb-2">
+                        <strong>@Localizer["UserId"]:</strong>
+                        <br />
+                        <small><code>@Model.Id</code></small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightbulb"></i> @Localizer["Help"]</h5>
+                </div>
+                <div class="card-body">
+                    <h6>@Localizer["EditingAUser"]</h6>
+                    <p class="small">
+                        @Localizer["EditingAUserDescription"]
+                    </p>
+
+                    @if (Model.Provider == AuthenticationProvider.Local)
+                    {
+                        <h6 class="mt-3">@Localizer["PasswordChange"]</h6>
+                        <p class="small">
+                            @Localizer["PasswordChangeDescription"]
+                        </p>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <small>
+                                <i class="bi bi-info-circle"></i>
+                                @Localizer["UserAuthenticatesViaProvider", Model.Provider]
+                            </small>
+                        </div>
+                    }
+
+                    <h6 class="mt-3">@Localizer["Roles"]</h6>
+                    <p class="small">
+                        <strong>@Localizer["Admin"]:</strong> @Localizer["FullSystemAccess"]
+                    </p>
+                    <p class="small">
+                        <strong>@Localizer["Editor"]:</strong> @Localizer["CanManageWikiContent"]
+                    </p>
+
+                    <div class="alert alert-warning mt-3">
+                        <small>
+                            <i class="bi bi-exclamation-triangle"></i> <strong>@Localizer["Warning"]:</strong> 
+                            @Localizer["BeCarefulModifyingAdminRoles"]
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

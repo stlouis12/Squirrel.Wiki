@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Lucene.Net" Version="4.8.0-beta00016" />
+    <PackageReference Include="Lucene.Net.Analysis.Common" Version="4.8.0-beta00016" />
+    <PackageReference Include="Lucene.Net.QueryParser" Version="4.8.0-beta00016" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Squirrel.Wiki.Contracts\Squirrel.Wiki.Contracts.csproj" />
+    <ProjectReference Include="..\..\Squirrel.Wiki.Plugins\Squirrel.Wiki.Plugins.csproj" />
+    <ProjectReference Include="..\..\Squirrel.Wiki.Core\Squirrel.Wiki.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,167 @@
+@using Squirrel.Wiki.Web.Extensions
+@model Squirrel.Wiki.Web.Models.PageHistoryListViewModel
+@{
+    ViewData["Title"] = !string.IsNullOrEmpty(Model.PageTitle) ? $"{Localizer["History"]}: {Model.PageTitle}" : Localizer["PageHistory"];
+    var pageTitle = Model.PageTitle;
+    var pageId = Model.PageId;
+}
+
+<div class="page-history">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="bi bi-clock-history"></i> @Localizer["PageHistory"]
+        </h1>
+        @if (pageId > 0)
+        {
+            <a href="@Url.Action("Index", "Wiki", new { id = pageId })" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> @Localizer["BackToPage"]
+            </a>
+        }
+    </div>
+
+    @if (Model.Versions.Any())
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> 
+            @Localizer["ViewingVersionHistoryFor"] <strong>@pageTitle</strong>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>@Localizer["Version"]</th>
+                        <th>@Localizer["EditedBy"]</th>
+                        <th>@Localizer["DateTime"]</th>
+                        <th>@Localizer["Comment"]</th>
+                        <th class="text-center">@Localizer["Actions"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var version in Model.Versions)
+                    {
+                        <tr>
+                            <td>
+                                <span class="badge bg-primary">v@(version.VersionNumber)</span>
+                                @if (version == Model.Versions.First())
+                                {
+                                    <span class="badge bg-success ms-1">@Localizer["Current"]</span>
+                                }
+                            </td>
+                            <td>
+                                <i class="bi bi-person"></i> @version.EditedBy
+                            </td>
+                            <td>
+                                @if (Model.TimezoneService != null)
+                                {
+                                    <span title="@await version.EditedOn.ToLocalTimeStringAsync(Model.TimezoneService, "F")">
+                                        @await version.EditedOn.ToLocalTimeStringAsync(Model.TimezoneService, "MMM dd, yyyy 'at' h:mm tt")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span title="@version.EditedOn.ToString("F")">
+                                        @version.EditedOn.ToString("MMM dd, yyyy 'at' HH:mm")
+                                    </span>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(version.ChangeComment))
+                                {
+                                    <span>@version.ChangeComment</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted fst-italic">@Localizer["NoComment"]</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="@Url.Action("Version", "Pages", new { id = version.PageId, versionId = version.VersionId })" 
+                                       class="btn btn-outline-primary" title="@Localizer["ViewThisVersion"]">
+                                        <i class="bi bi-eye"></i> @Localizer["View"]
+                                    </a>
+                                    @if (version != Model.Versions.First())
+                                    {
+                                        <button type="button" class="btn btn-outline-warning" 
+                                                onclick="confirmRevert(@version.VersionNumber)"
+                                                title="@Localizer["RevertToThisVersion"]">
+                                            <i class="bi bi-arrow-counterclockwise"></i> @Localizer["Revert"]
+                                        </button>
+                                    }
+                                    @if (Model.Versions.Count > 1 && version != Model.Versions.First())
+                                    {
+                                        <a href="@Url.Action("Compare", "Pages", new { id = version.PageId, version1 = Model.Versions.First().VersionId, version2 = version.VersionId })" 
+                                           class="btn btn-outline-info" title="@Localizer["CompareWithCurrent"]">
+                                            <i class="bi bi-file-diff"></i> @Localizer["Compare"]
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-3">
+            <p class="text-muted">
+                <i class="bi bi-info-circle"></i> 
+                <small>@Localizer["TotalVersions"] <strong>@Model.Versions.Count</strong></small>
+            </p>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> @Localizer["NoVersionHistoryAvailable"]
+        </div>
+    }
+</div>
+
+<!-- Revert Confirmation Modal -->
+<div class="modal fade" id="revertModal" tabindex="-1" aria-labelledby="revertModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="revertModalLabel">@Localizer["RevertToPreviousVersion"]</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+            </div>
+            <div class="modal-body">
+                <p>@Localizer["AreYouSureRevertToVersion"] <strong id="revertVersionNumber"></strong>?</p>
+                <p class="text-warning">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    @Localizer["RevertWillCreateNewVersion"]
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
+                <form method="post" id="revertForm" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-arrow-counterclockwise"></i> @Localizer["Revert"]
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function confirmRevert(versionNumber) {
+            document.getElementById('revertVersionNumber').textContent = versionNumber;
+            // Build the URL properly in JavaScript
+            document.getElementById('revertForm').action = '/Pages/Revert?id=@pageId&versionNumber=' + versionNumber;
+            
+            var modal = new bootstrap.Modal(document.getElementById('revertModal'));
+            modal.show();
+        }
+
+        // Add tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    </script>
+}

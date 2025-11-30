@@ -1,0 +1,200 @@
+@using Squirrel.Wiki.Web.Extensions
+@model Squirrel.Wiki.Web.Models.PageListViewModel
+@{
+    ViewData["Title"] = Localizer["AllPages"];
+}
+
+<div class="page-list">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="bi bi-file-earmark-text"></i> @Localizer["AllPages"]
+            @if (!string.IsNullOrEmpty(Model.FilterBy))
+            {
+                <small class="text-muted">
+                    - @Model.FilterBy: @Model.FilterValue
+                </small>
+            }
+        </h1>
+        <div class="btn-group" role="group">
+            @if (!string.IsNullOrEmpty(Model.FilterBy))
+            {
+                <a href="@Url.Action("AllPages", "Pages")" class="btn btn-outline-secondary">
+                    <i class="bi bi-list"></i> View All Pages
+                </a>
+                @if (Model.FilterBy.Contains("Tag"))
+                {
+                    <a href="@Url.Action("AllTags", "Pages")" class="btn btn-outline-info">
+                        <i class="bi bi-tags"></i> View All Tags
+                    </a>
+                }
+                @if (Model.FilterBy.Contains("Category"))
+                {
+                    <a href="@Url.Action("Category", "Pages")" class="btn btn-outline-primary">
+                        <i class="bi bi-folder-fill"></i> View All Categories
+                    </a>
+                }
+            }
+            @if (User.IsInRole("Admin") || User.IsInRole("Editor"))
+            {
+                <a href="@Url.Action("New", "Pages")" class="btn btn-success">
+                    <i class="bi bi-plus-circle"></i> @Localizer["NewPage"]
+                </a>
+            }
+        </div>
+    </div>
+
+    @if (Model.Pages.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>@Localizer["Title"]</th>
+                        <th>@Localizer["Category"]</th>
+                        <th>@Localizer["Tags"]</th>
+                        <th>@Localizer["CreatedBy"]</th>
+                        <th>@Localizer["LastModified"]</th>
+                        <th class="text-center">@Localizer["Actions"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var pageItem in Model.Pages)
+                    {
+                        <tr>
+                            <td>
+                                <a href="@Url.Action("Index", "Wiki", new { id = pageItem.Id, slug = pageItem.Slug })" class="fw-bold">
+                                    @pageItem.Title
+                                </a>
+                                @if (pageItem.IsLocked)
+                                {
+                                    <i class="bi bi-lock text-warning ms-1" title="@Localizer["ThisPageIsLocked"]"></i>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(pageItem.CategoryName))
+                                {
+                                    <span class="badge bg-secondary">@pageItem.CategoryName</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                @if (pageItem.Tags.Any())
+                                {
+                                    @foreach (var tag in pageItem.Tags)
+                                    {
+                                        <a href="@Url.Action("AllPages", "Pages", new { tag = tag })" class="badge bg-info text-decoration-none me-1">
+                                            @tag
+                                        </a>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                <a href="@Url.Action("AllPages", "Pages", new { user = pageItem.CreatedBy })">
+                                    @pageItem.CreatedBy
+                                </a>
+                            </td>
+                            <td>
+                                @if (Model.TimezoneService != null)
+                                {
+                                    <small class="text-muted" title="@await pageItem.ModifiedOn.ToLocalTimeStringAsync(Model.TimezoneService, "F")">
+                                        @await pageItem.ModifiedOn.ToRelativeTimeStringAsync(Model.TimezoneService, Localizer)
+                                    </small>
+                                }
+                                else
+                                {
+                                    <small class="text-muted" title="@pageItem.ModifiedOn.ToString("F")">
+                                        @pageItem.ModifiedOn.ToString("MMM dd, yyyy")
+                                    </small>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="@Url.Action("Index", "Wiki", new { id = pageItem.Id, slug = pageItem.Slug })" 
+                                       class="btn btn-outline-primary" title="@Localizer["View"]">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    @if (User.IsInRole("Admin") || (User.IsInRole("Editor") && !pageItem.IsLocked))
+                                    {
+                                        <a href="@Url.Action("Edit", "Pages", new { id = pageItem.Id })" 
+                                           class="btn btn-outline-secondary" title="@Localizer["Edit"]">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    }
+                                    <a href="@Url.Action("History", "Pages", new { id = pageItem.Id })" 
+                                       class="btn btn-outline-info" title="@Localizer["History"]">
+                                        <i class="bi bi-clock-history"></i>
+                                    </a>
+                                    @if (User.IsInRole("Admin") || (User.IsInRole("Editor") && !pageItem.IsLocked))
+                                    {
+                                        <button type="button" class="btn btn-outline-danger" title="@Localizer["Delete"]" 
+                                                onclick="confirmDelete(@pageItem.Id, '@pageItem.Title')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> @Localizer["NoPagesFound"]
+            <a href="@Url.Action("New", "Pages")" class="alert-link">@Localizer["CreateTheFirstPage"]</a>.
+        </div>
+    }
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deletePageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@Localizer["DeletePage"]</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+            </div>
+            <div class="modal-body">
+                <p>@Localizer["DeletePageConfirmation"] "<strong id="deletePageTitle"></strong>"?</p>
+                <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> @Localizer["ActionCannotBeUndone"]</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
+                <form id="deleteForm" method="post" asp-action="Delete" asp-controller="Pages" style="display: inline;">
+                    <input type="hidden" id="deletePageId" name="id" />
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> @Localizer["Delete"]
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Add tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+        
+        // Delete confirmation
+        function confirmDelete(pageId, pageTitle) {
+            document.getElementById('deletePageId').value = pageId;
+            document.getElementById('deletePageTitle').textContent = pageTitle;
+            var deleteModal = new bootstrap.Modal(document.getElementById('deletePageModal'));
+            deleteModal.show();
+        }
+    </script>
+}

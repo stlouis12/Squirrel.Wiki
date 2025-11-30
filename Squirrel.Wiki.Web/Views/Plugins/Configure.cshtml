@@ -1,0 +1,189 @@
+@model Squirrel.Wiki.Web.Models.PluginConfigureViewModel
+@{
+    ViewData["Title"] = $"{Localizer["Configure"]} {Model.Name}";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-action="Index">@Localizer["Plugins"]</a></li>
+                    <li class="breadcrumb-item"><a asp-action="Details" asp-route-id="@Model.Id">@Model.Name</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">@Localizer["Configure"]</li>
+                </ol>
+            </nav>
+            
+            <h1>
+                <i class="fas fa-cog"></i> @Localizer["Configure"] @Model.Name
+            </h1>
+            <p class="text-muted">@Localizer["SetUpPluginSettings"]</p>
+        </div>
+    </div>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle"></i> @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="@Localizer["Close"]"></button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-sliders-h"></i> @Localizer["ConfigurationSettings"]</h5>
+                </div>
+                <div class="card-body">
+                    @if (!Model.Fields.Any())
+                    {
+                        <div class="alert alert-info mb-0">
+                            <i class="fas fa-info-circle"></i> @Localizer["PluginDoesNotRequireConfiguration"]
+                        </div>
+                        <div class="mt-3">
+                            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> @Localizer["BackToDetails"]
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <form asp-action="Configure" asp-route-id="@Model.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            
+                            @foreach (var field in Model.Fields.OrderBy(f => f.DisplayName))
+                            {
+                                <div class="mb-3">
+                                    <label for="@field.Key" class="form-label">
+                                        @field.DisplayName
+                                        @if (field.IsRequired)
+                                        {
+                                            <span class="text-danger">*</span>
+                                        }
+                                        @if (field.IsSecret)
+                                        {
+                                            <span class="badge bg-warning text-dark ms-2">
+                                                <i class="fas fa-lock"></i> @Localizer["Secret"]
+                                            </span>
+                                        }
+                                    </label>
+                                    
+                                    @if (field.IsSecret)
+                                    {
+                                        <input type="password" 
+                                               class="form-control" 
+                                               id="@field.Key" 
+                                               name="configuration[@field.Key]" 
+                                               value="@field.Value"
+                                               placeholder="@field.Placeholder"
+                                               @(field.IsRequired ? "required" : "")
+                                               @(!string.IsNullOrEmpty(field.ValidationPattern) ? $"pattern=\"{field.ValidationPattern}\"" : "") />
+                                    }
+                                    else
+                                    {
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="@field.Key" 
+                                               name="configuration[@field.Key]" 
+                                               value="@field.Value"
+                                               placeholder="@field.Placeholder"
+                                               @(field.IsRequired ? "required" : "")
+                                               @(!string.IsNullOrEmpty(field.ValidationPattern) ? $"pattern=\"{field.ValidationPattern}\"" : "") />
+                                    }
+                                    
+                                    @if (!string.IsNullOrEmpty(field.Description))
+                                    {
+                                        <div class="form-text">@field.Description</div>
+                                    }
+                                    
+                                    @if (!string.IsNullOrEmpty(field.ValidationMessage))
+                                    {
+                                        <div class="invalid-feedback">@field.ValidationMessage</div>
+                                    }
+                                </div>
+                            }
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> @Localizer["SaveConfiguration"]
+                                </button>
+                                <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> @Localizer["Cancel"]
+                                </a>
+                            </div>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-question-circle"></i> @Localizer["Help"]</h5>
+                </div>
+                <div class="card-body">
+                    <h6>@Localizer["ConfigurationTips"]</h6>
+                    <ul class="small">
+                        <li>@Localizer["FieldsMarkedWithAsteriskRequired"]</li>
+                        <li>@Localizer["LeaveOptionalFieldsEmpty"]</li>
+                        <li>@Localizer["ConfigurationMustBeSavedBeforeEnable"]</li>
+                    </ul>
+
+                    <hr />
+
+                    <h6>@Localizer["CommonIssues"]</h6>
+                    <ul class="small">
+                        <li><strong>@Localizer["InvalidURL"]:</strong> @Localizer["EnsureURLsStartWithHttps"]</li>
+                        <li><strong>@Localizer["AuthenticationFails"]:</strong> @Localizer["DoubleCheckClientIDAndSecret"]</li>
+                        <li><strong>@Localizer["CallbackErrors"]:</strong> @Localizer["VerifyCallbackURLInProviderSettings"]</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> @Localizer["PluginInfo"]</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0 small">
+                        <dt class="col-sm-5">@Localizer["PluginID"]:</dt>
+                        <dd class="col-sm-7"><code class="small">@Model.PluginId</code></dd>
+
+                        <dt class="col-sm-5">@Localizer["Name"]:</dt>
+                        <dd class="col-sm-7">@Model.Name</dd>
+
+                        <dt class="col-sm-5">@Localizer["Fields"]:</dt>
+                        <dd class="col-sm-7">@Model.Fields.Count</dd>
+
+                        <dt class="col-sm-5">@Localizer["Required"]:</dt>
+                        <dd class="col-sm-7">@Model.Fields.Count(f => f.IsRequired)</dd>
+
+                        <dt class="col-sm-5">@Localizer["Secrets"]:</dt>
+                        <dd class="col-sm-7">@Model.Fields.Count(f => f.IsSecret)</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Add Bootstrap validation
+        (function() {
+            'use strict';
+            var forms = document.querySelectorAll('form');
+            Array.prototype.slice.call(forms).forEach(function(form) {
+                form.addEventListener('submit', function(event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+        })();
+    </script>
+}

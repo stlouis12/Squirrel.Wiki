@@ -1,0 +1,96 @@
+@model IEnumerable<Squirrel.Wiki.Core.Models.CategoryTreeDto>
+@{
+    ViewData["Title"] = Localizer["BrowseCategories"].Value;
+}
+
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="bi bi-folder-fill"></i> @Localizer["BrowseCategories"]</h1>
+            <p class="text-muted">@Localizer["ExplorePagesOrganizedByCategory"]</p>
+        </div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> @Localizer["NoCategoriesCreatedYet"]
+            @if (User.IsInRole("Admin"))
+            {
+                <a href="@Url.Action("Index", "Categories")" class="alert-link">@Localizer["CreateYourFirstCategory"]</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="category-tree">
+                            @foreach (var category in Model)
+                            {
+                                @await Html.PartialAsync("_CategoryBrowserNode", category)
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Styles {
+    <style>
+        .category-tree {
+            font-size: 1rem;
+        }
+        
+        .category-node {
+            margin-bottom: 0.5rem;
+        }
+        
+        .category-item {
+            padding: 0.75rem;
+            border-left: 3px solid #0d6efd;
+            background-color: #f8f9fa;
+            border-radius: 0.25rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s;
+        }
+        
+        .category-item:hover {
+            background-color: #e9ecef;
+            border-left-color: #0a58ca;
+            transform: translateX(2px);
+        }
+        
+        .category-item a {
+            text-decoration: none;
+            color: #212529;
+            font-weight: 500;
+        }
+        
+        .category-item a:hover {
+            color: #0d6efd;
+        }
+        
+        .category-children {
+            margin-left: 2rem;
+            margin-top: 0.5rem;
+            padding-left: 1rem;
+            border-left: 2px solid #dee2e6;
+        }
+        
+        .page-count-badge {
+            font-size: 0.875rem;
+            padding: 0.25rem 0.5rem;
+        }
+        
+        .category-description {
+            font-size: 0.875rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+    </style>
+}

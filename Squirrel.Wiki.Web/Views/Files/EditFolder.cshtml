@@ -1,0 +1,169 @@
+@model Squirrel.Wiki.Core.Models.FolderDto
+@using Squirrel.Wiki.Core.Services.Configuration
+@using Squirrel.Wiki.Web.Extensions
+@inject IStringLocalizer<SharedResources> Localizer
+@inject ITimezoneService TimezoneService
+@{
+    ViewData["Title"] = $"{Localizer["EditFolder"]}: {Model.Name}";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-folder-fill"></i> @Localizer["EditFolder"]</h4>
+                </div>
+                <div class="card-body">
+                    <nav aria-label="breadcrumb" class="mb-4">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a asp-action="Index">@Localizer["Files"]</a></li>
+                            <li class="breadcrumb-item"><a asp-action="Browse">@Localizer["Browse"]</a></li>
+                            @if (Model.ParentFolderId.HasValue)
+                            {
+                                <li class="breadcrumb-item">
+                                    <a asp-action="Browse" asp-route-folderId="@Model.ParentFolderId">
+                                        @Model.ParentFolderName
+                                    </a>
+                                </li>
+                            }
+                            <li class="breadcrumb-item active" aria-current="page">@Model.Name</li>
+                        </ol>
+                    </nav>
+
+                    <form asp-action="UpdateFolder" asp-route-id="@Model.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        
+                        <div class="mb-3">
+                            <label for="name" class="form-label">@Localizer["FolderName"] <span class="text-danger">*</span></label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="name" 
+                                   name="name" 
+                                   value="@Model.Name" 
+                                   required 
+                                   maxlength="200"
+                                   placeholder="@Localizer["EnterFolderName"]">
+                            <div class="form-text">
+                                @Localizer["FolderNameWillGenerateSlug"]
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">@Localizer["Description"]</label>
+                            <textarea class="form-control" 
+                                      id="description" 
+                                      name="description" 
+                                      rows="3"
+                                      maxlength="500"
+                                      placeholder="@Localizer["OptionalDescriptionForFolder"]">@Model.Description</textarea>
+                            <div class="form-text">
+                                @Localizer["BriefDescriptionOfFolder"]
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">@Localizer["CurrentLocation"]</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-folder"></i></span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       value="@(Model.ParentFolderName ?? Localizer["Root"])" 
+                                       readonly>
+                            </div>
+                            <div class="form-text">
+                                @Localizer["ToMoveFolderUseManagement"]
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">@Localizer["FolderInformation"]</label>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-4">@Localizer["FolderID"]:</dt>
+                                        <dd class="col-sm-8"><code>@Model.Id</code></dd>
+
+                                        <dt class="col-sm-4">@Localizer["Slug"]:</dt>
+                                        <dd class="col-sm-8"><code>@Model.Slug</code></dd>
+
+                                        <dt class="col-sm-4">@Localizer["Files"]:</dt>
+                                        <dd class="col-sm-8">@Model.FileCount @Localizer["FileCount"]</dd>
+
+                                        <dt class="col-sm-4">@Localizer["Subfolders"]:</dt>
+                                        <dd class="col-sm-8">@Model.SubFolderCount @Localizer["SubfolderCount"]</dd>
+
+                                        <dt class="col-sm-4">@Localizer["CreatedBy"]:</dt>
+                                        <dd class="col-sm-8">@Model.CreatedBy</dd>
+
+                                        <dt class="col-sm-4">@Localizer["CreatedOn"]:</dt>
+                                        <dd class="col-sm-8" title="@await Model.CreatedOn.ToLocalTimeStringAsync(TimezoneService, "F")">
+                                            @await Model.CreatedOn.ToLocalTimeStringAsync(TimezoneService, "g")
+                                        </dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-circle"></i> @Localizer["SaveChanges"]
+                                </button>
+                                <a asp-action="Browse" asp-route-folderId="@Model.Id" class="btn btn-secondary">
+                                    <i class="bi bi-x-circle"></i> @Localizer["Cancel"]
+                                </a>
+                            </div>
+                            <button type="button" 
+                                    class="btn btn-danger" 
+                                    onclick="confirmDelete(@Model.Id, '@Model.Name', @Model.FileCount, @Model.SubFolderCount)">
+                                <i class="bi bi-trash"></i> @Localizer["DeleteFolder"]
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Warning Card -->
+            @if (Model.FileCount > 0 || Model.SubFolderCount > 0)
+            {
+                <div class="card mt-3 border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0"><i class="bi bi-exclamation-triangle"></i> @Localizer["Important"]</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-0">
+                            @Localizer["FolderContainsWarning", Model.FileCount, Model.SubFolderCount]
+                        </p>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function confirmDelete(folderId, folderName, fileCount, subFolderCount) {
+            let message = `@Localizer["AreYouSureDeleteFolder"]`.replace('{0}', folderName);
+            
+            if (fileCount > 0 || subFolderCount > 0) {
+                message += `\n\n@Localizer["FolderContainsFiles"]`.replace('{0}', fileCount).replace('{1}', subFolderCount);
+            }
+            
+            if (confirm(message)) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/Files/DeleteFolder/${folderId}`;
+                
+                const token = document.querySelector('input[name="__RequestVerificationToken"]');
+                if (token) {
+                    form.appendChild(token.cloneNode());
+                }
+                
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+    </script>
+}

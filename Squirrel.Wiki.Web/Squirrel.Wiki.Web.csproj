@@ -1,0 +1,117 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ASP.NET Core -->
+    <PackageReference Include="MagicMapper" Version="14.0.0" />
+    <PackageReference Include="DiffPlex" Version="1.9.0" />
+    
+    <!-- Entity Framework Core Design (for migrations) -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    
+    <!-- Authentication -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="8.0.11" />
+    <PackageReference Include="IdentityModel.AspNetCore.OAuth2Introspection" Version="6.2.0" />
+    
+    <!-- Data Protection -->
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="8.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.Extensions" Version="8.0.11" />
+    
+    <!-- Observability -->
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.2" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.0.0-beta.12" />
+    <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.9.0-beta.2" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.9.0" />
+    
+    <!-- Health Checks -->
+    <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="8.0.1" />
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="8.0.2" />
+    <PackageReference Include="AspNetCore.HealthChecks.MySql" Version="8.0.1" />
+    <PackageReference Include="AspNetCore.HealthChecks.SqlServer" Version="8.0.2" />
+    <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Squirrel.Wiki.Contracts\Squirrel.Wiki.Contracts.csproj" />
+    <ProjectReference Include="..\Squirrel.Wiki.Core\Squirrel.Wiki.Core.csproj" />
+    <ProjectReference Include="..\Squirrel.Wiki.Plugins\Squirrel.Wiki.Plugins.csproj" />
+  </ItemGroup>
+
+  <!-- Copy OIDC plugin to Plugins folder after build -->
+  <Target Name="CopyOidcPlugin" AfterTargets="Build">
+    <PropertyGroup>
+      <PluginsDir>$(OutputPath)Plugins</PluginsDir>
+      <OidcPluginDir>$(PluginsDir)\Squirrel.Wiki.Plugins.Oidc</OidcPluginDir>
+      <OidcPluginSource>..\plugins\Squirrel.Wiki.Plugins.Oidc\bin\$(Configuration)\net8.0\Squirrel.Wiki.Plugins.Oidc.dll</OidcPluginSource>
+    </PropertyGroup>
+    
+    <!-- Create plugin subdirectory -->
+    <MakeDir Directories="$(OidcPluginDir)" Condition="!Exists('$(OidcPluginDir)')" />
+    
+    <!-- Copy plugin DLL to its subdirectory -->
+    <Copy SourceFiles="$(OidcPluginSource)" DestinationFolder="$(OidcPluginDir)" SkipUnchangedFiles="true" Condition="Exists('$(OidcPluginSource)')" />
+    
+    <Message Text="Copied OIDC plugin to $(OidcPluginDir)" Importance="high" Condition="Exists('$(OidcPluginSource)')" />
+    <Warning Text="OIDC plugin not found at $(OidcPluginSource)" Condition="!Exists('$(OidcPluginSource)')" />
+  </Target>
+
+  <!-- Copy Lucene plugin to Plugins folder after build -->
+  <Target Name="CopyLucenePlugin" AfterTargets="Build">
+    <PropertyGroup>
+      <PluginsDir>$(OutputPath)Plugins</PluginsDir>
+      <LucenePluginDir>$(PluginsDir)\Squirrel.Wiki.Plugins.Lucene</LucenePluginDir>
+      <LucenePluginSourceDir>..\plugins\Squirrel.Wiki.Plugins.Lucene\bin\$(Configuration)\net8.0</LucenePluginSourceDir>
+    </PropertyGroup>
+    
+    <!-- Create plugin subdirectory -->
+    <MakeDir Directories="$(LucenePluginDir)" Condition="!Exists('$(LucenePluginDir)')" />
+    
+    <!-- Only copy Lucene-specific files (plugin DLL and Lucene.NET dependencies) -->
+    <ItemGroup>
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\Squirrel.Wiki.Plugins.Lucene.dll" />
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\Squirrel.Wiki.Plugins.Lucene.pdb" />
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\Lucene.Net.dll" />
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\Lucene.Net.Analysis.Common.dll" />
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\Lucene.Net.QueryParser.dll" />
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\Lucene.Net.Queries.dll" />
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\Lucene.Net.Sandbox.dll" />
+      <LucenePluginFiles Include="$(LucenePluginSourceDir)\J2N.dll" />
+    </ItemGroup>
+    
+    <!-- Copy only Lucene-specific plugin files -->
+    <Copy SourceFiles="@(LucenePluginFiles)" DestinationFolder="$(LucenePluginDir)" SkipUnchangedFiles="true" />
+    
+    <Message Text="Copied Lucene plugin and Lucene-specific dependencies to $(LucenePluginDir)" Importance="high" />
+  </Target>
+
+  <!-- Copy Table of Contents plugin to Plugins folder after build -->
+  <Target Name="CopyTableOfContentsPlugin" AfterTargets="Build">
+    <PropertyGroup>
+      <PluginsDir>$(OutputPath)Plugins</PluginsDir>
+      <TocPluginDir>$(PluginsDir)\Squirrel.Wiki.Plugins.TableOfContents</TocPluginDir>
+      <TocPluginSource>..\plugins\Squirrel.Wiki.Plugins.TableOfContents\bin\$(Configuration)\net8.0\Squirrel.Wiki.Plugins.TableOfContents.dll</TocPluginSource>
+    </PropertyGroup>
+    
+    <!-- Create plugin subdirectory -->
+    <MakeDir Directories="$(TocPluginDir)" Condition="!Exists('$(TocPluginDir)')" />
+    
+    <!-- Copy plugin DLL to its subdirectory -->
+    <Copy SourceFiles="$(TocPluginSource)" DestinationFolder="$(TocPluginDir)" SkipUnchangedFiles="true" Condition="Exists('$(TocPluginSource)')" />
+    
+    <Message Text="Copied Table of Contents plugin to $(TocPluginDir)" Importance="high" Condition="Exists('$(TocPluginSource)')" />
+    <Warning Text="Table of Contents plugin not found at $(TocPluginSource)" Condition="!Exists('$(TocPluginSource)')" />
+  </Target>
+
+</Project>

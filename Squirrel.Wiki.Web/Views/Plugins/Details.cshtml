@@ -1,0 +1,310 @@
+@model Squirrel.Wiki.Web.Models.PluginDetailsViewModel
+@{
+    ViewData["Title"] = $"{Model.Name} - {Localizer["PluginDetails"]}";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-action="Index">@Localizer["Plugins"]</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">@Model.Name</li>
+                </ol>
+            </nav>
+            
+            <h1>
+                <i class="fas fa-plug"></i> @Model.Name
+            </h1>
+            <p class="text-muted">@Model.Description</p>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle"></i> @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="@Localizer["Close"]"></button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle"></i> @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="@Localizer["Close"]"></button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> @Localizer["PluginInformation"]</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">@Localizer["PluginID"]:</dt>
+                        <dd class="col-sm-8"><code>@Model.PluginId</code></dd>
+
+                        <dt class="col-sm-4">@Localizer["Version"]:</dt>
+                        <dd class="col-sm-8"><span class="badge bg-secondary">v@(Model.Version)</span></dd>
+
+                        <dt class="col-sm-4">@Localizer["Author"]:</dt>
+                        <dd class="col-sm-8">@Model.Author</dd>
+
+                        <dt class="col-sm-4">@Localizer["Type"]:</dt>
+                        <dd class="col-sm-8">
+                            @if (Model.IsCorePlugin)
+                            {
+                                <span class="badge bg-primary">
+                                    <i class="fas fa-shield-alt"></i> @Localizer["CorePlugin"]
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-puzzle-piece"></i> @Localizer["ThirdParty"]
+                                </span>
+                            }
+                        </dd>
+
+                        <dt class="col-sm-4">@Localizer["Status"]:</dt>
+                        <dd class="col-sm-8">
+                            @if (Model.IsEnabled)
+                            {
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle"></i> @Localizer["Enabled"]
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-times-circle"></i> @Localizer["Disabled"]
+                                </span>
+                            }
+                            @if (Model.IsEnabledLockedByEnvironment)
+                            {
+                                <br />
+                                <span class="badge bg-info mt-1" 
+                                      data-bs-toggle="tooltip" 
+                                      data-bs-placement="top" 
+                                      title="@Localizer["PluginConfiguredViaEnvironment"]">
+                                    <i class="bi bi-lock-fill"></i> @Localizer["Environment"]
+                                </span>
+                            }
+                        </dd>
+
+                        <dt class="col-sm-4">@Localizer["Configuration"]:</dt>
+                        <dd class="col-sm-8">
+                            @if (Model.IsConfigured)
+                            {
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check"></i> @Localizer["Configured"]
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning text-dark">
+                                    <i class="fas fa-exclamation-triangle"></i> @Localizer["NotConfigured"]
+                                </span>
+                            }
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cogs"></i> @Localizer["Actions"]</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a asp-action="Configure" asp-route-id="@Model.Id" class="btn btn-primary">
+                            <i class="fas fa-cog"></i> @Localizer["ConfigurePlugin"]
+                        </a>
+
+                        @if (Model.CanEnable)
+                        {
+                            <form asp-action="Enable" asp-route-id="@Model.Id" method="post">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-success w-100" onclick="return confirm('@Localizer["ConfirmEnablePlugin", Model.Name]');">
+                                    <i class="fas fa-toggle-on"></i> @Localizer["EnablePlugin"]
+                                </button>
+                            </form>
+                        }
+
+                        @if (Model.CanDisable)
+                        {
+                            <form asp-action="Disable" asp-route-id="@Model.Id" method="post">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-warning w-100" onclick="return confirm('@Localizer["ConfirmDisablePlugin", Model.Name]');">
+                                    <i class="fas fa-toggle-off"></i> @Localizer["DisablePlugin"]
+                                </button>
+                            </form>
+                        }
+
+                        @if (Model.CanDelete && !Model.IsEnabledLockedByEnvironment)
+                        {
+                            <form asp-action="Delete" asp-route-id="@Model.Id" method="post">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-danger w-100" onclick="return confirm('@Localizer["ConfirmDeletePlugin", Model.Name]');">
+                                    <i class="fas fa-trash"></i> @Localizer["DeletePlugin"]
+                                </button>
+                            </form>
+                        }
+
+                        <a asp-action="Index" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> @Localizer["BackToList"]
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            @if (Model.Actions.Any() && Model.IsEnabled)
+            {
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-bolt"></i> Plugin Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Execute actions provided by this plugin.</p>
+                        <div class="list-group">
+                            @foreach (var action in Model.Actions)
+                            {
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">
+                                                @if (!string.IsNullOrEmpty(action.IconClass))
+                                                {
+                                                    <i class="@action.IconClass"></i>
+                                                }
+                                                @action.Name
+                                            </h6>
+                                            <p class="mb-2 text-muted small">@action.Description</p>
+                                            @if (action.IsLongRunning)
+                                            {
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="fas fa-clock"></i> Long Running
+                                                </span>
+                                            }
+                                        </div>
+                                        <div class="ms-3">
+                                            <form asp-action="ExecuteAction" asp-route-id="@Model.Id" asp-route-actionId="@action.Id" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" 
+                                                        class="btn btn-sm btn-primary"
+                                                        @(action.RequiresConfirmation ? $"onclick=\"return confirm('{action.ConfirmationMessage}');\"" : "")>
+                                                    <i class="fas fa-play"></i> Execute
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-sliders-h"></i> @Localizer["CurrentConfiguration"]</h5>
+                </div>
+                <div class="card-body">
+                    @if (!Model.ConfigurationSchema.Any())
+                    {
+                        <div class="alert alert-info mb-0">
+                            <i class="fas fa-info-circle"></i> @Localizer["PluginDoesNotRequireConfiguration"]
+                        </div>
+                    }
+                    else if (!Model.IsConfigured)
+                    {
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> @Localizer["PluginNotConfiguredYet"] 
+                            <a asp-action="Configure" asp-route-id="@Model.Id" class="alert-link">@Localizer["ConfigureItNow"]</a> @Localizer["ToEnableIt"]
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>@Localizer["Setting"]</th>
+                                        <th>@Localizer["Value"]</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in Model.ConfigurationSchema.OrderBy(c => c.DisplayName))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@item.DisplayName</strong>
+                                                @if (item.IsRequired)
+                                                {
+                                                    <span class="badge bg-danger ms-1">@Localizer["Required"]</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary ms-1">@Localizer["Optional"]</span>
+                                                }
+                                                @if (item.IsSecret)
+                                                {
+                                                    <span class="badge bg-warning text-dark ms-1">
+                                                        <i class="fas fa-lock"></i> @Localizer["Secret"]
+                                                    </span>
+                                                }
+                                                @if (!string.IsNullOrEmpty(item.Description))
+                                                {
+                                                    <br />
+                                                    <small class="text-muted">@item.Description</small>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (Model.CurrentValues.ContainsKey(item.Key))
+                                                {
+                                                    if (item.IsSecret)
+                                                    {
+                                                        <code>@Model.CurrentValues[item.Key]</code>
+                                                    }
+                                                    else
+                                                    {
+                                                        <code>@Model.CurrentValues[item.Key]</code>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">@Localizer["NotSet"]</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-3">
+                            <a asp-action="Configure" asp-route-id="@Model.Id" class="btn btn-primary">
+                                <i class="fas fa-edit"></i> @Localizer["EditConfiguration"]
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    </script>
+}

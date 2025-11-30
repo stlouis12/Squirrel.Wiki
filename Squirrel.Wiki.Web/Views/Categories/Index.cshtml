@@ -1,0 +1,235 @@
+@using Squirrel.Wiki.Web.Extensions
+@model Squirrel.Wiki.Web.Models.Admin.CategoryViewModel
+@{
+    ViewData["Title"] = Localizer["CategoryManagement"].Value;
+}
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="bi bi-folder-fill"></i> @Localizer["CategoryManagement"]</h1>
+            <p class="text-muted">@Localizer["OrganizeWikiPagesWithCategories"]</p>
+        </div>
+        <div class="col-auto">
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> @Localizer["CreateRootCategory"]
+            </a>
+        </div>
+    </div>
+
+    @if (Model.Categories.Any())
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="category-tree">
+                    @foreach (var category in Model.Categories)
+                    {
+                        var viewData = new ViewDataDictionary(ViewData);
+                        viewData["TimezoneService"] = Model.TimezoneService;
+                        viewData["MaxCategoryDepth"] = Model.MaxCategoryDepth;
+                        @await Html.PartialAsync("_CategoryTreeNode", category, viewData)
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> @Localizer["CategoryStatistics"]</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="stat-box">
+                            <h3 class="text-primary">@Model.Categories.Count</h3>
+                            <p class="text-muted mb-0">@Localizer["RootCategories"]</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-box">
+                            <h3 class="text-success">@Model.Categories.Sum(c => CountAllCategories(c))</h3>
+                            <p class="text-muted mb-0">@Localizer["TotalCategoriesCount"]</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-box">
+                            <h3 class="text-info">@Model.Categories.Sum(c => c.PageCount + c.Children.Sum(ch => ch.PageCount))</h3>
+                            <p class="text-muted mb-0">@Localizer["CategorizedPages"]</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-box">
+                            <h3 class="text-warning">@Model.Categories.Max(c => GetMaxDepth(c, 1))</h3>
+                            <p class="text-muted mb-0">@Localizer["MaxDepth"]</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> @Localizer["NoCategoriesFound"] 
+            <a asp-action="Create" class="alert-link">@Localizer["CreateYourFirstCategory"]</a> @Localizer["CreateFirstCategoryToOrganize"]
+        </div>
+    }
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-question-circle"></i> @Localizer["AboutCategories"]</h5>
+        </div>
+        <div class="card-body">
+            <p class="lead">@Localizer["CategoriesHelpOrganize"]</p>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><i class="bi bi-check-circle text-success"></i> @Localizer["KeyFeatures"]</h6>
+                    <ul>
+                        <li><strong>@Localizer["HierarchicalStructure"]</strong> @Localizer["CreateNestedCategories"]</li>
+                        <li><strong>@Localizer["PageOrganization"]</strong> @Localizer["AssignPagesToCategories"]</li>
+                        <li><strong>@Localizer["BreadcrumbNavigation"]</strong> @Localizer["AutomaticBreadcrumbs"]</li>
+                        <li><strong>@Localizer["SmartURLs"]</strong> @Localizer["CategoryBasedURLs"]</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6><i class="bi bi-lightbulb text-warning"></i> @Localizer["BestPractices"]</h6>
+                    <ul>
+                        <li>@Localizer["UseClearDescriptiveNames"]</li>
+                        <li>@Localizer["KeepHierarchyReasonable"]</li>
+                        <li>@Localizer["GroupRelatedContent"]</li>
+                        <li>@Localizer["UseConsistentNaming"]</li>
+                        <li>@Localizer["ReviewAndReorganize"]</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-3">
+                <i class="bi bi-info-circle"></i> <strong>@Localizer["GettingStarted"]</strong> 
+                @Localizer["ClickCreateRootCategory"]
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteCategoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@Localizer["DeleteCategory"]</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+            </div>
+            <div class="modal-body">
+                <p>@Localizer["AreYouSureDeleteCategory"] "<strong id="deleteCategoryName"></strong>"?</p>
+                <div id="deleteCategoryWarnings"></div>
+                <p class="text-danger">
+                    <i class="bi bi-exclamation-triangle"></i> @Localizer["ActionCannotBeUndone"]
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
+                <form id="deleteCategoryForm" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> @Localizer["DeleteCategory"]
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    private int CountAllCategories(Squirrel.Wiki.Core.Services.Categories.CategoryTreeNode node)
+    {
+        return 1 + node.Children.Sum(c => CountAllCategories(c));
+    }
+
+    private int GetMaxDepth(Squirrel.Wiki.Core.Services.Categories.CategoryTreeNode node, int currentDepth)
+    {
+        if (!node.Children.Any())
+            return currentDepth;
+        
+        return node.Children.Max(c => GetMaxDepth(c, currentDepth + 1));
+    }
+}
+
+@section Scripts {
+    <script src="~/js/category-tree.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize category tree
+            CategoryTree.init();
+
+            // Delete category functionality
+            var deleteModal = new bootstrap.Modal(document.getElementById('deleteCategoryModal'));
+            var deleteForm = document.getElementById('deleteCategoryForm');
+            var deleteCategoryName = document.getElementById('deleteCategoryName');
+            var deleteCategoryWarnings = document.getElementById('deleteCategoryWarnings');
+
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.delete-category-btn')) {
+                    var button = e.target.closest('.delete-category-btn');
+                    var categoryId = button.getAttribute('data-category-id');
+                    var categoryName = button.getAttribute('data-category-name');
+                    var subcategoryCount = parseInt(button.getAttribute('data-subcategory-count') || '0');
+                    var pageCount = parseInt(button.getAttribute('data-page-count') || '0');
+                    
+                    // Set form action and category name
+                    deleteForm.action = '@Url.Action("Delete", "Categories")' + '/' + categoryId;
+                    deleteCategoryName.textContent = categoryName;
+                    
+                    // Show warnings if applicable
+                    var warnings = '';
+                    if (subcategoryCount > 0) {
+                        warnings += '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> @Html.Raw(Localizer["CategoryHasSubcategories"].Value.Replace("{0}", "' + subcategoryCount + '"))</div>';
+                    }
+                    if (pageCount > 0) {
+                        warnings += '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> @Html.Raw(Localizer["CategoryContainsPages"].Value.Replace("{0}", "' + pageCount + '"))</div>';
+                    }
+                    deleteCategoryWarnings.innerHTML = warnings;
+                    
+                    // Disable delete button if there are warnings
+                    var deleteButton = deleteForm.querySelector('button[type="submit"]');
+                    if (subcategoryCount > 0 || pageCount > 0) {
+                        deleteButton.disabled = true;
+                    } else {
+                        deleteButton.disabled = false;
+                    }
+                    
+                    // Show modal
+                    deleteModal.show();
+                }
+            });
+
+            // Handle delete form submission
+            deleteForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                var formData = new FormData(this);
+                
+                fetch(this.action, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Toast.success('@Localizer["CategoryDeleted"]', data.message || '@Localizer["CategoryDeletedSuccessfully"]');
+                        deleteModal.hide();
+                        // Reload page after short delay
+                        setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                        Toast.error('@Localizer["DeleteFailed"]', data.message || '@Localizer["FailedToDeleteCategory"]');
+                        deleteModal.hide();
+                    }
+                })
+                .catch(error => {
+                    Toast.error('@Localizer["DeleteFailed"]', '@Localizer["ErrorDeletingCategory"] ' + error.message);
+                    deleteModal.hide();
+                });
+            });
+        });
+    </script>
+}

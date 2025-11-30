@@ -1,0 +1,198 @@
+@model Squirrel.Wiki.Web.Models.Admin.EditSettingViewModel
+@{
+    ViewData["Title"] = $"{Localizer["Edit"]} {Model.DisplayName}";
+}
+
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="bi bi-pencil"></i> @Localizer["EditSetting"]</h1>
+            <p class="text-muted">@Model.DisplayName</p>
+        </div>
+        <div class="col-auto">
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> @Localizer["BackToSettings"]
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">@Model.DisplayName</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Edit" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Key" />
+                        <input type="hidden" asp-for="DisplayName" />
+                        <input type="hidden" asp-for="Description" />
+                        <input type="hidden" asp-for="Type" />
+                        <input type="hidden" asp-for="IsRequired" />
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <strong>@Model.DisplayName</strong>
+                                @if (Model.IsRequired)
+                                {
+                                    <span class="badge bg-danger ms-1">@Localizer["Required"]</span>
+                                }
+                            </label>
+                            <p class="text-muted small">@Model.Description</p>
+
+                            @switch (Model.Type)
+                            {
+                                case Squirrel.Wiki.Web.Models.Admin.SettingType.Boolean:
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="boolValue"
+                                               name="Value"
+                                               value="true"
+                                               @(Model.Value?.ToLower() == "true" ? "checked" : "")>
+                                        <label class="form-check-label" for="boolValue">
+                                            @Localizer["EnableThisSetting"]
+                                        </label>
+                                    </div>
+                                    break;
+
+                                case Squirrel.Wiki.Web.Models.Admin.SettingType.TextArea:
+                                    <textarea asp-for="Value" 
+                                              class="form-control" 
+                                              rows="5"
+                                              required="@Model.IsRequired"></textarea>
+                                    break;
+
+                                case Squirrel.Wiki.Web.Models.Admin.SettingType.Number:
+                                    <input asp-for="Value" 
+                                           type="number" 
+                                           class="form-control"
+                                           required="@Model.IsRequired" />
+                                    break;
+
+                                case Squirrel.Wiki.Web.Models.Admin.SettingType.Url:
+                                    <input asp-for="Value" 
+                                           type="url" 
+                                           class="form-control"
+                                           placeholder="https://example.com"
+                                           required="@Model.IsRequired" />
+                                    break;
+
+                                case Squirrel.Wiki.Web.Models.Admin.SettingType.Color:
+                                    <input asp-for="Value" 
+                                           type="color" 
+                                           class="form-control form-control-color"
+                                           required="@Model.IsRequired" />
+                                    break;
+
+                                case Squirrel.Wiki.Web.Models.Admin.SettingType.Date:
+                                    <input asp-for="Value" 
+                                           type="date" 
+                                           class="form-control"
+                                           required="@Model.IsRequired" />
+                                    break;
+
+                                case Squirrel.Wiki.Web.Models.Admin.SettingType.Dropdown:
+                                    <select asp-for="Value" class="form-select" required="@Model.IsRequired">
+                                        <option value="">@Localizer["Select"]</option>
+                                        @if (Model.Options != null)
+                                        {
+                                            var timezoneDisplayNames = ViewBag.TimezoneDisplayNames as Dictionary<string, string>;
+                                            foreach (var option in Model.Options)
+                                            {
+                                                var displayText = timezoneDisplayNames != null && timezoneDisplayNames.ContainsKey(option) 
+                                                    ? timezoneDisplayNames[option] 
+                                                    : option;
+                                                <option value="@option" selected="@(Model.Value == option)">@displayText</option>
+                                            }
+                                        }
+                                    </select>
+                                    break;
+
+                                case Squirrel.Wiki.Web.Models.Admin.SettingType.Radio:
+                                    @if (Model.Options != null)
+                                    {
+                                        foreach (var option in Model.Options)
+                                        {
+                                            <div class="form-check">
+                                                <input class="form-check-input" 
+                                                       type="radio" 
+                                                       name="Value" 
+                                                       id="radio_@option" 
+                                                       value="@option"
+                                                       checked="@(Model.Value == option)">
+                                                <label class="form-check-label" for="radio_@option">
+                                                    @option
+                                                </label>
+                                            </div>
+                                        }
+                                    }
+                                    break;
+
+                                default:
+                                    <input asp-for="Value" 
+                                           type="text" 
+                                           class="form-control"
+                                           required="@Model.IsRequired"
+                                           pattern="@Model.ValidationPattern" />
+                                    break;
+                            }
+
+                            <span asp-validation-for="Value" class="text-danger"></span>
+                        </div>
+
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> @Localizer["Cancel"]
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> @Localizer["SaveChanges"]
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Setting Information -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> @Localizer["SettingInformation"]</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-3">@Localizer["Key"]</dt>
+                        <dd class="col-sm-9"><code>@Model.Key</code></dd>
+
+                        <dt class="col-sm-3">@Localizer["Type"]</dt>
+                        <dd class="col-sm-9"><span class="badge bg-info">@Model.Type</span></dd>
+
+                        <dt class="col-sm-3">@Localizer["Required"]</dt>
+                        <dd class="col-sm-9">
+                            @if (Model.IsRequired)
+                            {
+                                <span class="badge bg-danger">@Localizer["Yes"]</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">@Localizer["No"]</span>
+                            }
+                        </dd>
+
+                        @if (!string.IsNullOrEmpty(Model.ValidationPattern))
+                        {
+                            <dt class="col-sm-3">@Localizer["Validation"]</dt>
+                            <dd class="col-sm-9"><code>@Model.ValidationPattern</code></dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

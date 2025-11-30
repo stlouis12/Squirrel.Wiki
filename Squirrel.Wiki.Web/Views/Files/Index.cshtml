@@ -1,0 +1,562 @@
+@using Squirrel.Wiki.Core.Models
+@using Squirrel.Wiki.Core.Database.Entities
+@using Squirrel.Wiki.Core.Services.Configuration
+@using Squirrel.Wiki.Web.Extensions
+@inject IStringLocalizer<SharedResources> Localizer
+@inject ITimezoneService TimezoneService
+@{
+    ViewData["Title"] = Localizer["FileManager"];
+    var currentFolder = ViewBag.CurrentFolder as FolderDto;
+    var folders = ViewBag.Folders as List<FolderDto> ?? new List<FolderDto>();
+    var files = ViewBag.Files as List<FileDto> ?? new List<FileDto>();
+    var breadcrumb = ViewBag.Breadcrumb as List<FolderDto> ?? new List<FolderDto>();
+    
+    // Authorization flags
+    var canUpload = ViewBag.CanUpload as bool? ?? false;
+    var canManageFolders = ViewBag.CanManageFolders as bool? ?? false;
+    var canEditFiles = ViewBag.CanEditFiles as Dictionary<Guid, bool> ?? new Dictionary<Guid, bool>();
+    var canDeleteFiles = ViewBag.CanDeleteFiles as Dictionary<Guid, bool> ?? new Dictionary<Guid, bool>();
+}
+
+<div class="file-manager">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="bi bi-folder2-open"></i> @Localizer["FileManager"]
+            @if (currentFolder != null)
+            {
+                <small class="text-muted">- @currentFolder.Name</small>
+            }
+        </h1>
+        <div class="btn-group" role="group">
+            @if (canUpload)
+            {
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                    <i class="bi bi-upload"></i> @Localizer["UploadFiles"]
+                </button>
+            }
+            @if (canManageFolders)
+            {
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createFolderModal">
+                    <i class="bi bi-folder-plus"></i> @Localizer["NewFolder"]
+                </button>
+            }
+            <a href="@Url.Action("Search", "Files")" class="btn btn-outline-secondary">
+                <i class="bi bi-search"></i> @Localizer["Search"]
+            </a>
+        </div>
+    </div>
+
+    <!-- Breadcrumb Navigation -->
+    @if (breadcrumb.Any() || currentFolder != null)
+    {
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="@Url.Action("Index", "Files")">
+                        <i class="bi bi-house-door"></i> @Localizer["Root"]
+                    </a>
+                </li>
+                @* Only show breadcrumb folders that are not the current folder *@
+                @foreach (var folder in breadcrumb.Where(f => currentFolder == null || f.Id != currentFolder.Id))
+                {
+                    <li class="breadcrumb-item">
+                        <a href="@Url.Action("Index", "Files", new { folderId = folder.Id })">
+                            @folder.Name
+                        </a>
+                    </li>
+                }
+                @if (currentFolder != null)
+                {
+                    <li class="breadcrumb-item active" aria-current="page">@currentFolder.Name</li>
+                }
+            </ol>
+        </nav>
+    }
+
+    <!-- Folders Section -->
+    @if (folders.Any())
+    {
+        <div class="mb-4">
+            <h5 class="mb-3"><i class="bi bi-folder"></i> @Localizer["Folders"]</h5>
+            <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-3">
+                @foreach (var folder in folders)
+                {
+                    <div class="col">
+                        <div class="card h-100 folder-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title mb-0">
+                                        <i class="bi bi-folder-fill text-warning"></i>
+                                        <a href="@Url.Action("Index", "Files", new { folderId = folder.Id })" class="text-decoration-none">
+                                            @folder.Name
+                                        </a>
+                                    </h6>
+                                    @if (canManageFolders)
+                                    {
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-link text-muted" type="button" data-bs-toggle="dropdown">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("EditFolder", "Files", new { id = folder.Id })">
+                                                        <i class="bi bi-pencil"></i> @Localizer["Edit"]
+                                                    </a>
+                                                </li>
+                                                @if (User.IsInRole("Admin"))
+                                                {
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li>
+                                                        <button class="dropdown-item text-danger" onclick="confirmDeleteFolder(@folder.Id, '@folder.Name')">
+                                                            <i class="bi bi-trash"></i> @Localizer["Delete"]
+                                                        </button>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrEmpty(folder.Description))
+                                {
+                                    <p class="card-text text-muted small">@folder.Description</p>
+                                }
+                                <small class="text-muted">
+                                    @Localizer["Created"] @await folder.CreatedOn.ToLocalDateStringAsync(TimezoneService)
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Files Section -->
+    @if (files.Any())
+    {
+        <div class="mb-4">
+            <h5 class="mb-3"><i class="bi bi-file-earmark"></i> @Localizer["Files"]</h5>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>@Localizer["Name"]</th>
+                            <th>@Localizer["Size"]</th>
+                            <th>@Localizer["Type"]</th>
+                            <th>@Localizer["UploadedBy"]</th>
+                            <th>@Localizer["UploadedOn"]</th>
+                            <th class="text-center">@Localizer["Actions"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var file in files)
+                        {
+                            <tr>
+                                <td>
+                                    <i class="bi @GetFileIcon(file.ContentType)"></i>
+                                    <a href="javascript:void(0)" onclick="showFileDetails('@file.Id')" class="text-decoration-none">
+                                        @file.FileName
+                                    </a>
+                                    @if (file.Visibility == FileVisibility.Private)
+                                    {
+                                        <i class="bi bi-lock text-warning ms-1" title="@Localizer["Private"]"></i>
+                                    }
+                                </td>
+                                <td>@FormatFileSize(file.FileSize)</td>
+                                <td><span class="badge bg-secondary">@file.ContentType</span></td>
+                                <td>@file.UploadedBy</td>
+                                <td>
+                                    <small class="text-muted" title="@await file.UploadedOn.ToLocalTimeStringAsync(TimezoneService, "F")">
+                                        @await file.UploadedOn.ToLocalTimeStringAsync(TimezoneService, "MMM dd, yyyy")
+                                    </small>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="@Url.Action("Download", "Files", new { id = file.Id })" 
+                                           class="btn btn-outline-primary" title="@Localizer["Download"]">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-info" title="@Localizer["Details"]"
+                                                onclick="showFileDetails('@file.Id')">
+                                            <i class="bi bi-info-circle"></i>
+                                        </button>
+                                        @if (canEditFiles.GetValueOrDefault<Guid, bool>(file.Id, false))
+                                        {
+                                            <button type="button" class="btn btn-outline-secondary" title="@Localizer["Edit"]"
+                                                    onclick="showEditFile('@file.Id')">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        }
+                                        @if (canDeleteFiles.GetValueOrDefault<Guid, bool>(file.Id, false))
+                                        {
+                                            <button type="button" class="btn btn-outline-danger" title="@Localizer["Delete"]" 
+                                                    onclick="confirmDeleteFile('@file.Id', '@file.FileName')">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    @if (!folders.Any() && !files.Any())
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> @Localizer["ThisFolderIsEmpty"]
+            @if (canUpload || canManageFolders)
+            {
+                <text>
+                    @if (canUpload)
+                    {
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#uploadModal" class="alert-link">@Localizer["UploadFilesToGetStarted"]</a>
+                    }
+                    @if (canUpload && canManageFolders)
+                    {
+                        <text> @Localizer["Or"] </text>
+                    }
+                    @if (canManageFolders)
+                    {
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#createFolderModal" class="alert-link">@Localizer["CreateFolderToGetStarted"]</a>
+                    }
+                    <text>.</text>
+                </text>
+            }
+        </div>
+    }
+</div>
+
+<!-- Upload Files Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-action="Upload" asp-controller="Files" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title">@Localizer["UploadFiles"]</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="folderId" value="@(currentFolder?.Id)" />
+                    
+                    <div class="mb-3">
+                        <label for="files" class="form-label">@Localizer["SelectFiles"]</label>
+                        <input type="file" class="form-control" id="files" name="files" required />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">@Localizer["Description"] (@Localizer["Optional"])</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> @Localizer["Upload"]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create Folder Modal -->
+<div class="modal fade" id="createFolderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-action="CreateFolder" asp-controller="Files">
+                <div class="modal-header">
+                    <h5 class="modal-title">@Localizer["CreateNewFolder"]</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="ParentFolderId" value="@(currentFolder?.Id)" />
+                    
+                    <div class="mb-3">
+                        <label for="folderName" class="form-label">@Localizer["FolderName"]</label>
+                        <input type="text" class="form-control" id="folderName" name="Name" required />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="folderDescription" class="form-label">@Localizer["Description"] (@Localizer["Optional"])</label>
+                        <textarea class="form-control" id="folderDescription" name="Description" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-folder-plus"></i> @Localizer["Create"]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete File Confirmation Modal -->
+<div class="modal fade" id="deleteFileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@Localizer["DeleteFile"]</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteFileMessage"></p>
+                <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> @Localizer["ActionCannotBeUndone"]</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
+                <form id="deleteFileForm" method="post" asp-action="Delete" asp-controller="Files" style="display: inline;">
+                    <input type="hidden" id="deleteFileId" name="id" />
+                    <input type="hidden" name="folderId" value="@(currentFolder?.Id)" />
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> @Localizer["Delete"]
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Folder Confirmation Modal -->
+<div class="modal fade" id="deleteFolderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@Localizer["DeleteFolder"]</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteFolderMessage"></p>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="deleteRecursive" name="recursive" value="true">
+                    <label class="form-check-label" for="deleteRecursive">
+                        @Localizer["DeleteAllContents"]
+                    </label>
+                </div>
+                <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> @Localizer["ActionCannotBeUndone"]</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
+                <form id="deleteFolderForm" method="post" asp-action="DeleteFolder" asp-controller="Files" style="display: inline;">
+                    <input type="hidden" id="deleteFolderId" name="id" />
+                    <input type="hidden" id="deleteFolderRecursive" name="recursive" value="false" />
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> @Localizer["Delete"]
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- File Details Modal -->
+<div class="modal fade" id="fileDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@Localizer["FileDetails"]</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+            </div>
+            <div class="modal-body">
+                <div id="fileDetailsContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">@Localizer["Loading"]...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Close"]</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit File Modal -->
+<div class="modal fade" id="editFileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="editFileForm" method="post" asp-action="UpdateMetadata" asp-controller="Files">
+                <div class="modal-header">
+                    <h5 class="modal-title">@Localizer["EditFile"]</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="editFileContent">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">@Localizer["Loading"]...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> @Localizer["Save"]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Delete file confirmation
+        function confirmDeleteFile(fileId, fileName) {
+            document.getElementById('deleteFileId').value = fileId;
+            document.getElementById('deleteFileMessage').innerHTML = '@Localizer["AreYouSureDeleteFile"]'.replace('{0}', '<strong>' + fileName + '</strong>');
+            var deleteModal = new bootstrap.Modal(document.getElementById('deleteFileModal'));
+            deleteModal.show();
+        }
+        
+        // Delete folder confirmation
+        function confirmDeleteFolder(folderId, folderName) {
+            document.getElementById('deleteFolderId').value = folderId;
+            document.getElementById('deleteFolderMessage').innerHTML = '@Localizer["AreYouSureDeleteFolder"]'.replace('{0}', '<strong>' + folderName + '</strong>');
+            var deleteModal = new bootstrap.Modal(document.getElementById('deleteFolderModal'));
+            deleteModal.show();
+        }
+        
+        // Update recursive checkbox value
+        document.getElementById('deleteRecursive')?.addEventListener('change', function() {
+            document.getElementById('deleteFolderRecursive').value = this.checked ? 'true' : 'false';
+        });
+        
+        // Show file details modal
+        async function showFileDetails(fileId) {
+            const modal = new bootstrap.Modal(document.getElementById('fileDetailsModal'));
+            const content = document.getElementById('fileDetailsContent');
+            
+            // Show loading spinner
+            content.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+            modal.show();
+            
+            try {
+                const response = await fetch(`/Files/GetFileDetails/${fileId}`);
+                if (response.ok) {
+                    const html = await response.text();
+                    content.innerHTML = html;
+                } else {
+                    content.innerHTML = '<div class="alert alert-danger">Failed to load file details.</div>';
+                }
+            } catch (error) {
+                content.innerHTML = '<div class="alert alert-danger">An error occurred while loading file details.</div>';
+            }
+        }
+        
+        // Show edit file modal
+        async function showEditFile(fileId) {
+            const modal = new bootstrap.Modal(document.getElementById('editFileModal'));
+            const content = document.getElementById('editFileContent');
+            
+            // Show loading spinner
+            content.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+            modal.show();
+            
+            try {
+                const response = await fetch(`/Files/GetEditForm/${fileId}`);
+                if (response.ok) {
+                    const html = await response.text();
+                    content.innerHTML = html;
+                } else {
+                    content.innerHTML = '<div class="alert alert-danger">Failed to load edit form.</div>';
+                }
+            } catch (error) {
+                content.innerHTML = '<div class="alert alert-danger">An error occurred while loading the edit form.</div>';
+            }
+        }
+        
+        // Copy markdown embed code to clipboard
+        document.addEventListener('click', async function(e) {
+            if (e.target.closest('.copy-markdown-btn')) {
+                const button = e.target.closest('.copy-markdown-btn');
+                const input = document.getElementById('markdownEmbed');
+                
+                if (!input) return;
+                
+                const originalHtml = button.innerHTML;
+                
+                try {
+                    // Use modern Clipboard API
+                    await navigator.clipboard.writeText(input.value);
+                    
+                    // Show success feedback
+                    button.innerHTML = '<i class="bi bi-check"></i>';
+                    setTimeout(() => {
+                        button.innerHTML = originalHtml;
+                    }, 2000);
+                } catch (err) {
+                    // Fallback to older method if Clipboard API fails
+                    try {
+                        input.select();
+                        document.execCommand('copy');
+                        
+                        // Show success feedback
+                        button.innerHTML = '<i class="bi bi-check"></i>';
+                        setTimeout(() => {
+                            button.innerHTML = originalHtml;
+                        }, 2000);
+                    } catch (fallbackErr) {
+                        // Show error feedback
+                        button.innerHTML = '<i class="bi bi-x"></i>';
+                        setTimeout(() => {
+                            button.innerHTML = originalHtml;
+                        }, 2000);
+                        console.error('Failed to copy:', fallbackErr);
+                    }
+                }
+            }
+        });
+    </script>
+}
+
+@functions {
+    string GetFileIcon(string contentType)
+    {
+        if (contentType.StartsWith("image/")) return "bi-file-image";
+        if (contentType.Contains("pdf")) return "bi-file-pdf";
+        if (contentType.Contains("word") || contentType.Contains("document")) return "bi-file-word";
+        if (contentType.Contains("excel") || contentType.Contains("spreadsheet")) return "bi-file-excel";
+        if (contentType.Contains("powerpoint") || contentType.Contains("presentation")) return "bi-file-ppt";
+        if (contentType.Contains("zip") || contentType.Contains("rar") || contentType.Contains("7z")) return "bi-file-zip";
+        if (contentType.Contains("text")) return "bi-file-text";
+        return "bi-file-earmark";
+    }
+    
+    string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+}
+
+<style>
+    .folder-card {
+        transition: transform 0.2s;
+    }
+    
+    .folder-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+</style>

@@ -1,0 +1,235 @@
+@using DiffPlex.DiffBuilder.Model
+@{
+    ViewData["Title"] = $"{Localizer["CompareVersions"]} - {ViewData["PageTitle"]}";
+    var pageTitle = ViewData["PageTitle"] as string;
+    var pageId = ViewData["PageId"];
+    var version1Number = ViewData["Version1Number"];
+    var version2Number = ViewData["Version2Number"];
+    var diff = ViewData["Diff"] as SideBySideDiffModel;
+}
+
+<div class="page-compare">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="bi bi-file-diff"></i> @Localizer["CompareVersions"]
+        </h1>
+        <a href="@Url.Action("History", "Pages", new { id = pageId })" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> @Localizer["BackToHistory"]
+        </a>
+    </div>
+
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        @Localizer["Comparing"] <strong>@pageTitle</strong>: @Localizer["Version"] <strong>@version1Number</strong> (@Localizer["Left"]) @Localizer["Vs"] @Localizer["Version"] <strong>@version2Number</strong> (@Localizer["Right"])
+    </div>
+
+    <div class="diff-container">
+        <div class="diff-header">
+            <div class="diff-column">
+                <h5 class="text-primary">
+                    <i class="bi bi-file-text"></i> @Localizer["Version"] @version1Number
+                </h5>
+            </div>
+            <div class="diff-column">
+                <h5 class="text-info">
+                    <i class="bi bi-file-text"></i> @Localizer["Version"] @version2Number
+                </h5>
+            </div>
+        </div>
+
+        <div class="diff-content">
+            <div class="diff-side">
+                @if (diff?.OldText?.Lines != null)
+                {
+                    <table class="diff-table">
+                        @foreach (var line in diff.OldText.Lines.Where(l => l.Type != ChangeType.Imaginary))
+                        {
+                            <tr class="@GetLineClass(line.Type)">
+                                <td class="line-number">@line.Position</td>
+                                <td class="line-content">@if (line.Type == ChangeType.Deleted || line.Type == ChangeType.Modified){<text>- </text>}@(string.IsNullOrWhiteSpace(line.Text) ? "" : line.Text)</td>
+                            </tr>
+                        }
+                    </table>
+                }
+            </div>
+
+            <div class="diff-side">
+                @if (diff?.NewText?.Lines != null)
+                {
+                    <table class="diff-table">
+                        @foreach (var line in diff.NewText.Lines.Where(l => l.Type != ChangeType.Imaginary))
+                        {
+                            <tr class="@GetLineClass(line.Type)">
+                                <td class="line-number">@line.Position</td>
+                                <td class="line-content">@if (line.Type == ChangeType.Inserted || line.Type == ChangeType.Modified){<text>+ </text>}@(string.IsNullOrWhiteSpace(line.Text) ? "" : line.Text)</td>
+                            </tr>
+                        }
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title">@Localizer["Legend"]</h6>
+                <div class="d-flex gap-3">
+                    <span><span class="badge bg-danger">@Localizer["Red"]</span> = @Localizer["DeletedLines"]</span>
+                    <span><span class="badge bg-success">@Localizer["Green"]</span> = @Localizer["AddedLines"]</span>
+                    <span><span class="badge bg-warning text-dark">@Localizer["Yellow"]</span> = @Localizer["ModifiedLines"]</span>
+                    <span><span class="badge bg-light text-dark">@Localizer["Gray"]</span> = @Localizer["UnchangedLines"]</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    private string GetLineClass(ChangeType changeType)
+    {
+        return changeType switch
+        {
+            ChangeType.Deleted => "diff-deleted",
+            ChangeType.Inserted => "diff-inserted",
+            ChangeType.Modified => "diff-modified",
+            ChangeType.Imaginary => "diff-imaginary",
+            _ => "diff-unchanged"
+        };
+    }
+}
+
+@section Styles {
+    <style>
+        .diff-container {
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            background: white;
+        }
+        
+        .diff-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            padding: 1rem;
+        }
+        
+        .diff-column {
+            text-align: center;
+        }
+        
+        .diff-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .diff-side {
+            border-right: 1px solid #dee2e6;
+            overflow-x: auto;
+        }
+        
+        .diff-side:last-child {
+            border-right: none;
+        }
+        
+        .diff-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.875rem;
+        }
+        
+        .diff-table tr {
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .line-number {
+            width: 50px;
+            padding: 0.25rem 0.5rem;
+            text-align: right;
+            color: #6c757d;
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            user-select: none;
+            vertical-align: top;
+        }
+        
+        .line-content {
+            padding: 0.25rem 0.5rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            vertical-align: top;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        
+        /* Diff line types */
+        .diff-deleted {
+            background-color: #ffebe9;
+        }
+        
+        .diff-deleted .line-number {
+            background-color: #ffd7d5;
+        }
+        
+        .diff-deleted .diff-marker {
+            color: #d73a49;
+        }
+        
+        .diff-inserted {
+            background-color: #e6ffed;
+        }
+        
+        .diff-inserted .line-number {
+            background-color: #cdffd8;
+        }
+        
+        .diff-inserted .diff-marker {
+            color: #28a745;
+        }
+        
+        .diff-modified {
+            background-color: #fff8c5;
+        }
+        
+        .diff-modified .line-number {
+            background-color: #ffed9e;
+        }
+        
+        .diff-modified .diff-marker {
+            color: #e36209;
+        }
+        
+        .diff-unchanged {
+            background-color: white;
+        }
+        
+        .diff-imaginary {
+            background-color: #f8f9fa;
+            opacity: 0.5;
+        }
+        
+        .diff-imaginary .line-number {
+            background-color: #e9ecef;
+        }
+        
+        /* Responsive adjustments */
+        @@media (max-width: 768px) {
+            .diff-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .diff-side {
+                border-right: none;
+                border-bottom: 2px solid #dee2e6;
+            }
+            
+            .diff-side:last-child {
+                border-bottom: none;
+            }
+        }
+    </style>
+}

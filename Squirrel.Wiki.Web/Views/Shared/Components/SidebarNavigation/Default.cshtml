@@ -1,0 +1,13 @@
+@model Squirrel.Wiki.Web.Models.SidebarViewModel
+
+@if (Model != null && Model.Items.Any())
+{
+    <nav class="sidebar-navigation" aria-label="Sidebar Navigation">
+        <ul class="sidebar-nav">
+            @foreach (var item in Model.Items)
+            {
+                @await Html.PartialAsync("_SidebarItem", item)
+            }
+        </ul>
+    </nav>
+}

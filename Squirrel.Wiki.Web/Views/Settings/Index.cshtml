@@ -1,0 +1,443 @@
+@model Squirrel.Wiki.Web.Models.Admin.SettingsViewModel
+@{
+    ViewData["Title"] = Localizer["Settings"];
+}
+
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="bi bi-sliders"></i> @Localizer["Settings"]</h1>
+            <p class="text-muted">@Localizer["ConfigureYourWiki"]</p>
+        </div>
+        <div class="col-auto">
+            <a asp-controller="Admin" asp-action="Index" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> @Localizer["BackToDashboard"]
+            </a>
+        </div>
+    </div>
+
+    <!-- Settings Groups -->
+    <div class="row">
+        <div class="col-md-3 mb-4">
+            <!-- Navigation -->
+            <div class="list-group sticky-top" style="top: 20px;">
+                @foreach (var group in Model.Groups)
+                {
+                    <a href="#group-@group.Name.ToLower()" class="list-group-item list-group-item-action">
+                        <i class="@group.Icon"></i> @group.Name
+                    </a>
+                }
+            </div>
+        </div>
+
+        <div class="col-md-9">
+            @foreach (var group in Model.Groups)
+            {
+                <div id="group-@group.Name.ToLower()" class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="@group.Icon"></i> @group.Name
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 25%;">@Localizer["Setting"]</th>
+                                        <th style="width: 35%;">@Localizer["Value"]</th>
+                                        <th style="width: 40%;">@Localizer["Description"]</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var setting in group.Settings)
+                                    {
+                                        <tr data-setting-key="@setting.Key">
+                                            <td>
+                                                <strong>@setting.DisplayName</strong>
+                                                @if (setting.IsFromEnvironment)
+                                                {
+                                                    <br>
+                                                    <span class="badge bg-info" 
+                                                          data-bs-toggle="tooltip" 
+                                                          data-bs-placement="top" 
+                                                          title="@Localizer["SettingConfiguredViaEnvironment", setting.EnvironmentVariableName]">
+                                                        <i class="bi bi-lock-fill"></i> @Localizer["Environment"]
+                                                    </span>
+                                                }
+                                                @if (setting.IsDisabled && !setting.IsFromEnvironment)
+                                                {
+                                                    <br>
+                                                    <span class="badge bg-secondary" 
+                                                          data-bs-toggle="tooltip" 
+                                                          data-bs-placement="top" 
+                                                          title="@setting.DisabledReason">
+                                                        <i class="bi bi-lock-fill"></i> Disabled
+                                                    </span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (setting.IsFromEnvironment || setting.IsDisabled)
+                                                {
+                                                    @* Read-only display for environment-controlled or disabled settings *@
+                                                    @if (setting.Type == Squirrel.Wiki.Web.Models.Admin.SettingType.Boolean)
+                                                    {
+                                                        var isChecked = setting.Value?.ToLower() == "true";
+                                                        <div class="form-check form-switch">
+                                                            <input class="form-check-input" type="checkbox" @(isChecked ? "checked" : "") disabled>
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <code class="text-muted">@(string.IsNullOrEmpty(setting.Value) ? Localizer["NotSet"] : setting.Value)</code>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    @* Inline editable controls *@
+                                                    @if (setting.Type == Squirrel.Wiki.Web.Models.Admin.SettingType.Boolean)
+                                                    {
+                                                        var isChecked = setting.Value?.ToLower() == "true";
+                                                        <div class="form-check form-switch">
+                                                            <input class="form-check-input inline-edit-toggle" 
+                                                                   type="checkbox" 
+                                                                   data-key="@setting.Key"
+                                                                   @(isChecked ? "checked" : "")>
+                                                        </div>
+                                                    }
+                                                    else if (setting.Type == Squirrel.Wiki.Web.Models.Admin.SettingType.Number)
+                                                    {
+                                                        <input type="number" 
+                                                               class="form-control form-control-sm inline-edit-input" 
+                                                               data-key="@setting.Key"
+                                                               data-type="number"
+                                                               value="@setting.Value"
+                                                               min="@setting.MinValue"
+                                                               max="@setting.MaxValue"
+                                                               title="@(setting.MinValue.HasValue ? $"Range: {setting.MinValue} - {setting.MaxValue}" : "")">
+                                                    }
+                                                    else if (setting.Type == Squirrel.Wiki.Web.Models.Admin.SettingType.Dropdown)
+                                                    {
+                                                        <select class="form-select form-select-sm inline-edit-select" 
+                                                                data-key="@setting.Key">
+                                                            @if (setting.Options != null)
+                                                            {
+                                                                @foreach (var option in setting.Options)
+                                                                {
+                                                                    <option value="@option" selected="@(setting.Value == option)">
+                                                                        @if (setting.Key == "SQUIRREL_TIMEZONE" && Model.TimezoneDisplayNames.ContainsKey(option))
+                                                                        {
+                                                                            @Model.TimezoneDisplayNames[option]
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            @option
+                                                                        }
+                                                                    </option>
+                                                                }
+                                                            }
+                                                        </select>
+                                                    }
+                                                    else if (setting.Type == Squirrel.Wiki.Web.Models.Admin.SettingType.TextArea)
+                                                    {
+                                                        @* Show truncated text with edit button *@
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <code class="flex-grow-1 text-truncate" style="max-width: 400px;" title="@setting.Value">
+                                                                @if (setting.Value?.Length > 255)
+                                                                {
+                                                                    @(setting.Value.Substring(0, 255) + "...")
+                                                                }
+                                                                else
+                                                                {
+                                                                    @setting.Value
+                                                                }
+                                                            </code>
+                                                            <button type="button" 
+                                                                    class="btn btn-sm btn-outline-primary"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#textareaModal"
+                                                                    data-key="@setting.Key"
+                                                                    data-display-name="@setting.DisplayName"
+                                                                    data-value="@setting.Value">
+                                                                <i class="bi bi-pencil"></i> Edit
+                                                            </button>
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <input type="text" 
+                                                               class="form-control form-control-sm inline-edit-input" 
+                                                               data-key="@setting.Key"
+                                                               data-type="@setting.Type.ToString().ToLower()"
+                                                               value="@setting.Value">
+                                                    }
+                                                }
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">@setting.Description</small>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- TextArea Edit Modal -->
+<div class="modal fade" id="textareaModal" tabindex="-1" aria-labelledby="textareaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="textareaModalLabel">Edit Setting</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="modalTextarea" class="form-label fw-bold" id="modalSettingName"></label>
+                    <textarea class="form-control font-monospace" id="modalTextarea" rows="15"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary" id="saveTextareaBtn">
+                    <i class="bi bi-check-circle"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Debounce function for text inputs
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Update setting via AJAX
+        async function updateSetting(key, value) {
+            try {
+                const response = await fetch('@Url.Action("QuickUpdate")', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                    },
+                    body: `key=${encodeURIComponent(key)}&value=${encodeURIComponent(value)}`
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('@Localizer["Success"]', result.message, 'success');
+                    return true;
+                } else {
+                    showToast('@Localizer["Error"]', result.message, 'danger');
+                    return false;
+                }
+            } catch (error) {
+                showToast('@Localizer["Error"]', '@Localizer["FailedToUpdateSetting"]', 'danger');
+                return false;
+            }
+        }
+
+        // Boolean toggle handler
+        document.querySelectorAll('.inline-edit-toggle').forEach(toggle => {
+            toggle.addEventListener('change', async function() {
+                const key = this.dataset.key;
+                const value = this.checked.toString();
+                const originalState = !this.checked;
+                
+                const success = await updateSetting(key, value);
+                
+                if (!success) {
+                    // Revert toggle on failure
+                    this.checked = originalState;
+                }
+            });
+        });
+
+        // Text/Number input handler (with debounce)
+        document.querySelectorAll('.inline-edit-input').forEach(input => {
+            const debouncedUpdate = debounce(async function() {
+                const key = input.dataset.key;
+                const value = input.value;
+                const originalValue = input.defaultValue;
+                
+                // Validate number ranges
+                if (input.type === 'number') {
+                    const min = input.min ? parseInt(input.min) : null;
+                    const max = input.max ? parseInt(input.max) : null;
+                    const numValue = parseInt(value);
+                    
+                    if (min !== null && numValue < min) {
+                        showToast('@Localizer["Error"]', `Value must be at least ${min}`, 'warning');
+                        input.value = originalValue;
+                        return;
+                    }
+                    if (max !== null && numValue > max) {
+                        showToast('@Localizer["Error"]', `Value must be at most ${max}`, 'warning');
+                        input.value = originalValue;
+                        return;
+                    }
+                }
+                
+                // Validate URL for SiteUrl setting
+                if (input.dataset.type === 'url' || key === 'SiteUrl') {
+                    if (value && value.trim() !== '') {
+                        try {
+                            const url = new URL(value);
+                            // Ensure it's http or https
+                            if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+                                showToast('@Localizer["Error"]', 'URL must use http:// or https:// protocol', 'warning');
+                                input.value = originalValue;
+                                return;
+                            }
+                        } catch (e) {
+                            showToast('@Localizer["Error"]', 'Please enter a valid URL (e.g., https://example.com)', 'warning');
+                            input.value = originalValue;
+                            return;
+                        }
+                    }
+                }
+                
+                const success = await updateSetting(key, value);
+                
+                if (success) {
+                    input.defaultValue = value; // Update default for future reverts
+                } else {
+                    input.value = originalValue;
+                }
+            }, 1000); // 1 second debounce
+            
+            input.addEventListener('input', debouncedUpdate);
+        });
+
+        // Textarea handler (with debounce)
+        document.querySelectorAll('.inline-edit-textarea').forEach(textarea => {
+            const debouncedUpdate = debounce(async function() {
+                const key = textarea.dataset.key;
+                const value = textarea.value;
+                const originalValue = textarea.defaultValue;
+                
+                const success = await updateSetting(key, value);
+                
+                if (success) {
+                    textarea.defaultValue = value;
+                } else {
+                    textarea.value = originalValue;
+                }
+            }, 1500); // 1.5 second debounce for textareas
+            
+            textarea.addEventListener('input', debouncedUpdate);
+        });
+
+        // Dropdown handler
+        document.querySelectorAll('.inline-edit-select').forEach(select => {
+            select.addEventListener('change', async function() {
+                const key = this.dataset.key;
+                const value = this.value;
+                const originalValue = this.dataset.originalValue || this.value;
+                
+                const success = await updateSetting(key, value);
+                
+                if (success) {
+                    this.dataset.originalValue = value;
+                    
+                    // If CacheProvider changed to Redis, reload page to show Redis settings
+                    if (key === 'SQUIRREL_CACHE_PROVIDER') {
+                        showToast('@Localizer["Success"]', 'Reloading page to update settings...', 'info');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    }
+                } else {
+                    this.value = originalValue;
+                }
+            });
+            
+            // Store original value
+            select.dataset.originalValue = select.value;
+        });
+        
+        function showToast(title, message, type) {
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            toast.innerHTML = `
+                <strong>${title}:</strong> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        // Modal handling for textarea settings
+        let currentTextareaKey = '';
+        let currentTextareaRow = null;
+        
+        const textareaModal = document.getElementById('textareaModal');
+        textareaModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            currentTextareaKey = button.getAttribute('data-key');
+            const displayName = button.getAttribute('data-display-name');
+            const value = button.getAttribute('data-value');
+            currentTextareaRow = button.closest('tr');
+            
+            // Update modal content
+            document.getElementById('modalSettingName').textContent = displayName;
+            document.getElementById('modalTextarea').value = value || '';
+        });
+        
+        // Save button handler
+        document.getElementById('saveTextareaBtn').addEventListener('click', async function() {
+            const value = document.getElementById('modalTextarea').value;
+            const success = await updateSetting(currentTextareaKey, value);
+            
+            if (success) {
+                // Update the truncated display in the table
+                const codeElement = currentTextareaRow.querySelector('code');
+                const editButton = currentTextareaRow.querySelector('button[data-bs-target="#textareaModal"]');
+                
+                if (value.length > 255) {
+                    codeElement.textContent = value.substring(0, 255) + '...';
+                } else {
+                    codeElement.textContent = value;
+                }
+                codeElement.title = value;
+                editButton.setAttribute('data-value', value);
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(textareaModal);
+                modal.hide();
+            }
+        });
+    </script>
+}
+
+@* Hidden anti-forgery token for AJAX requests *@
+@Html.AntiForgeryToken()

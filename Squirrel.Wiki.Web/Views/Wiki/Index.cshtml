@@ -1,0 +1,178 @@
+@using Squirrel.Wiki.Web.Extensions
+@model Squirrel.Wiki.Web.Models.PageViewModel
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<div class="wiki-page">
+    @if (!Model.IsHomePage)
+    {
+        <div class="page-header mb-4">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h1 class="page-title">@Model.Title</h1>
+                    @if (Model.CategoryPath.Any())
+                    {
+                        <div class="page-category">
+                            <i class="bi bi-folder text-secondary"></i>
+                            @for (int i = 0; i < Model.CategoryPath.Count; i++)
+                            {
+                                var category = Model.CategoryPath[i];
+                                <a href="@Url.Action("Category", "Pages", new { id = category.Id })" 
+                                   class="badge bg-secondary text-decoration-none" 
+                                   title="@Localizer["ViewAllPagesIn"] @category.Name">@category.Name</a>
+                                @if (i < Model.CategoryPath.Count - 1)
+                                {
+                                    <span class="text-muted mx-1">\</span>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+            
+                @if (Model.CanEdit || Model.CanDelete)
+                {
+                    <div class="page-actions">
+                        @if (Model.CanEdit)
+                        {
+                            <a href="@Url.Action("Edit", "Pages", new { id = Model.Id })" class="btn btn-primary">
+                                <i class="bi bi-pencil"></i> @Localizer["Edit"]
+                            </a>
+                        }
+                        @if (Model.CanDelete)
+                        {
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                <i class="bi bi-trash"></i> @Localizer["Delete"]
+                            </button>
+                        }
+                        <a href="@Url.Action("History", "Pages", new { id = Model.Id })" class="btn btn-outline-secondary">
+                            <i class="bi bi-clock-history"></i> @Localizer["History"]
+                        </a>
+                    </div>
+                }
+            </div>
+            
+            @if (Model.Tags.Any())
+            {
+                <div class="page-tags mt-3">
+                    @foreach (var tag in Model.Tags)
+                    {
+                        <a href="@Url.Action("Tag", "Pages", new { tagName = tag })" class="badge bg-info text-decoration-none me-1">
+                            <i class="bi bi-tag"></i> @tag
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        @* For home page, only show edit/delete actions if user has permissions *@
+        @if (Model.CanEdit || Model.CanDelete)
+        {
+            <div class="page-actions mb-3 text-end">
+                @if (Model.CanEdit)
+                {
+                    <a href="@Url.Action("Edit", "Pages", new { id = Model.Id })" class="btn btn-sm btn-primary">
+                        <i class="bi bi-pencil"></i> @Localizer["Edit"]
+                    </a>
+                }
+                @if (Model.CanDelete)
+                {
+                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                        <i class="bi bi-trash"></i> @Localizer["Delete"]
+                    </button>
+                }
+                <a href="@Url.Action("History", "Pages", new { id = Model.Id })" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-clock-history"></i> @Localizer["History"]
+                </a>
+            </div>
+        }
+    }
+
+    <div class="page-content">
+        @Html.Raw(Model.HtmlContent)
+    </div>
+
+    @if (!Model.IsHomePage)
+    {
+        <div class="page-footer mt-4 pt-3 border-top">
+            <div class="row">
+                <div class="col-md-6">
+                    <small class="text-muted">
+                        <i class="bi bi-person"></i> @Localizer["CreatedByOn"] <strong>@Model.CreatedBy</strong> @Localizer["On"].ToString().ToLower() 
+                        @if (Model.TimezoneService != null)
+                        {
+                            @await Model.CreatedOn.ToLocalDateStringAsync(Model.TimezoneService)
+                        }
+                        else
+                        {
+                            @Model.CreatedOn.ToString("MMMM dd, yyyy")
+                        }
+                    </small>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <small class="text-muted">
+                        <i class="bi bi-clock"></i> @Localizer["LastModifiedByOn"] <strong>@Model.ModifiedBy</strong> @Localizer["On"].ToString().ToLower() 
+                        @if (Model.TimezoneService != null)
+                        {
+                            <span title="@await Model.ModifiedOn.ToLocalTimeStringAsync(Model.TimezoneService, "F")">
+                                @await Model.ModifiedOn.ToLocalTimeStringAsync(Model.TimezoneService, "MMMM dd, yyyy 'at' h:mm tt")
+                            </span>
+                        }
+                        else
+                        {
+                            @Model.ModifiedOn.ToString("MMMM dd, yyyy 'at' HH:mm")
+                        }
+                    </small>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@if (Model.CanDelete)
+{
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">@Localizer["DeletePage"]</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+                </div>
+                <div class="modal-body">
+                    <p>@Localizer["DeletePageConfirmation"] "<strong>@Model.Title</strong>"?</p>
+                    <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> @Localizer["ActionCannotBeUndone"]</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
+                    <form method="post" action="@Url.Action("Delete", "Pages", new { id = Model.Id })" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-danger">@Localizer["DeletePage"]</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script type="module">
+        // Import Mermaid for diagram rendering
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+        
+        // Initialize Mermaid with configuration
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            fontFamily: 'inherit'
+        });
+        
+        // Add syntax highlighting if code blocks are present
+        document.querySelectorAll('pre code').forEach((block) => {
+            block.classList.add('language-auto');
+        });
+    </script>
+}

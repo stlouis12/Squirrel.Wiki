@@ -1,0 +1,143 @@
+@model List<Squirrel.Wiki.Web.Models.TagViewModel>
+@{
+    ViewData["Title"] = Localizer["AllTags"];
+}
+
+<div class="tags-page">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="bi bi-tags"></i> @Localizer["AllTags"]</h1>
+        <a href="@Url.Action("AllPages", "Pages")" class="btn btn-outline-secondary">
+            <i class="bi bi-file-earmark-text"></i> @Localizer["ViewAllPages"]
+        </a>
+    </div>
+
+    @if (Model.Any())
+    {
+        <div class="alert alert-info mb-4">
+            <i class="bi bi-info-circle"></i> 
+            @Localizer["Found"] <strong>@Model.Count</strong> @(Model.Count != 1 ? Localizer["Tags"] : Localizer["Tags"]) @Localizer["InTheWiki"]
+        </div>
+
+        <!-- Tag Cloud View -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-cloud"></i> @Localizer["TagCloud"]
+            </div>
+            <div class="card-body">
+                <div class="tag-cloud">
+                    @foreach (var tag in Model.OrderBy(t => t.Name))
+                    {
+                        var fontSize = Math.Min(2.5, 1 + (tag.PageCount / 10.0));
+                        <a href="@Url.Action("AllPages", "Pages", new { tag = tag.Name })" 
+                           class="tag-cloud-item me-2 mb-2 d-inline-block"
+                           style="font-size: @(fontSize)rem;"
+                           title="@tag.PageCount @(tag.PageCount != 1 ? Localizer["Pages"] : Localizer["Page"])">
+                            @tag.Name
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Tag List View -->
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-list-ul"></i> @Localizer["TagList"]
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>@Localizer["TagName"]</th>
+                                <th class="text-center">@Localizer["PageCount"]</th>
+                                <th class="text-center">@Localizer["Actions"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var tag in Model.OrderByDescending(t => t.PageCount).ThenBy(t => t.Name))
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="@Url.Action("AllPages", "Pages", new { tag = tag.Name })" class="fw-bold">
+                                            <i class="bi bi-tag"></i> @tag.Name
+                                        </a>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">@tag.PageCount</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="@Url.Action("AllPages", "Pages", new { tag = tag.Name })" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> @Localizer["ViewPages"]
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-primary">@Model.Count</h3>
+                        <p class="text-muted mb-0">@Localizer["TotalTags"]</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-success">@Model.Sum(t => t.PageCount)</h3>
+                        <p class="text-muted mb-0">@Localizer["TaggedPages"]</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-info">@(Model.Any() ? Model.Average(t => t.PageCount).ToString("F1") : "0")</h3>
+                        <p class="text-muted mb-0">@Localizer["AvgPagesPerTag"]</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> 
+            @Localizer["NoTagsFound"]
+            <hr />
+            <p class="mb-0">
+                @Localizer["TagsCreatedWhenAdded"] 
+                <a href="@Url.Action("New", "Pages")" class="alert-link">@Localizer["CreatePageAndAddTags"]</a> @Localizer["AndAddSomeTags"]
+            </p>
+        </div>
+    }
+</div>
+
+@section Styles {
+    <style>
+        .tag-cloud {
+            line-height: 2.5;
+        }
+        
+        .tag-cloud-item {
+            color: #0d6efd;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        
+        .tag-cloud-item:hover {
+            color: #0a58ca;
+            text-decoration: underline;
+            transform: scale(1.1);
+        }
+    </style>
+}

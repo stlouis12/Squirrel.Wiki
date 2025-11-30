@@ -1,0 +1,72 @@
+@{
+    ViewData["Title"] = Localizer["AccessDenied"].Value;
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow border-danger">
+                <div class="card-body text-center p-5">
+                    <div class="mb-4">
+                        <i class="bi bi-shield-x text-danger" style="font-size: 5rem;"></i>
+                    </div>
+                    
+                    <h1 class="display-4 text-danger mb-3">@Localizer["AccessDenied"]</h1>
+                    
+                    <p class="lead text-muted mb-4">
+                        @Localizer["AccessDeniedMessage"]
+                    </p>
+
+                    <div class="alert alert-warning" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>@Localizer["AuthorizationRequired"]</strong> @Localizer["PageRequiresSpecificPermissions"]
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex flex-column gap-3">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <div class="alert alert-info mb-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                @Localizer["YouAreCurrentlyLoggedInAs"] <strong>@User.Identity.Name</strong>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <a asp-action="Index" asp-controller="Home" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-house-door me-2"></i>@Localizer["GoToHomePage"]
+                                </a>
+                                <a asp-action="Profile" asp-controller="Account" class="btn btn-outline-secondary">
+                                    <i class="bi bi-person-circle me-2"></i>@Localizer["ViewYourProfile"]
+                                </a>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info mb-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                @Localizer["YouNeedToSignIn"]
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <a asp-action="Login" asp-controller="Account" asp-route-returnUrl="@ViewBag.ReturnUrl" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-box-arrow-in-right me-2"></i>@Localizer["SignIn"]
+                                </a>
+                                <a asp-action="Index" asp-controller="Home" class="btn btn-outline-secondary">
+                                    <i class="bi bi-house-door me-2"></i>@Localizer["GoToHomePage"]
+                                </a>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mt-4 text-muted small">
+                        <p class="mb-1">
+                            <i class="bi bi-question-circle me-1"></i>
+                            @Localizer["IfYouBelieveYouShouldHaveAccess"]
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

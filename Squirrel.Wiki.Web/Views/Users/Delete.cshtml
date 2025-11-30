@@ -1,0 +1,132 @@
+@model Squirrel.Wiki.Core.Models.UserDto
+@{
+    ViewData["Title"] = $"Delete User - {Model.Username}";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>Delete User</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-action="Index">Users</a></li>
+                    <li class="breadcrumb-item"><a asp-action="Details" asp-route-id="@Model.Id">@Model.Username</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Delete</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> Confirm User Deletion
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger" role="alert">
+                        <h5 class="alert-heading">
+                            <i class="bi bi-exclamation-triangle-fill"></i> Warning
+                        </h5>
+                        <p>
+                            You are about to delete the user account for <strong>@Model.Username</strong>. 
+                            This action will deactivate the account.
+                        </p>
+                        <hr />
+                        <p class="mb-0">
+                            <strong>Note:</strong> Currently, user deletion deactivates the account rather than 
+                            permanently removing it from the database. This preserves data integrity and audit trails.
+                        </p>
+                    </div>
+
+                    <h6 class="mt-4">User Information</h6>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <tbody>
+                                <tr>
+                                    <th style="width: 30%;">Username</th>
+                                    <td>@Model.Username</td>
+                                </tr>
+                                <tr>
+                                    <th>Display Name</th>
+                                    <td>@Model.DisplayName</td>
+                                </tr>
+                                <tr>
+                                    <th>Email</th>
+                                    <td>@Model.Email</td>
+                                </tr>
+                                <tr>
+                                    <th>Roles</th>
+                                    <td>
+                                        @foreach (var role in Model.Roles)
+                                        {
+                                            <span class="badge bg-primary me-1">@role</span>
+                                        }
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Provider</th>
+                                    <td>
+                                        <span class="badge bg-info">@Model.Provider</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Account Status</th>
+                                    <td>
+                                        @if (Model.IsActive)
+                                        {
+                                            <span class="badge bg-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning">Inactive</span>
+                                        }
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Created On</th>
+                                    <td>@Model.CreatedOn.ToString("yyyy-MM-dd HH:mm")</td>
+                                </tr>
+                                @if (Model.LastLoginOn.HasValue)
+                                {
+                                    <tr>
+                                        <th>Last Login</th>
+                                        <td>@Model.LastLoginOn.Value.ToString("yyyy-MM-dd HH:mm")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-warning mt-4" role="alert">
+                        <h6 class="alert-heading">
+                            <i class="bi bi-info-circle"></i> What happens when you delete this user?
+                        </h6>
+                        <ul class="mb-0">
+                            <li>The user account will be deactivated</li>
+                            <li>The user will no longer be able to log in</li>
+                            <li>User data and history will be preserved</li>
+                            <li>The account can be reactivated later if needed</li>
+                        </ul>
+                    </div>
+
+                    <form asp-action="Delete" method="post" class="mt-4">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Id" />
+                        
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash"></i> Confirm Deletion
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

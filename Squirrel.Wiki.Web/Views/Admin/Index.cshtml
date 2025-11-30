@@ -1,0 +1,251 @@
+@using Squirrel.Wiki.Web.Extensions
+@model Squirrel.Wiki.Web.Models.Admin.DashboardViewModel
+@{
+    ViewData["Title"] = Localizer["AdminDashboard"];
+}
+
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="bi bi-speedometer2"></i> @Localizer["AdminDashboard"]</h1>
+            <p class="text-muted">@Localizer["SystemOverview"]</p>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">@Localizer["TotalPages"]</h6>
+                            <h2 class="card-title mb-0">@Model.Statistics.TotalPages</h2>
+                        </div>
+                        <div class="text-primary">
+                            <i class="bi bi-file-text" style="font-size: 2.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">@Localizer["TotalUsers"]</h6>
+                            <h2 class="card-title mb-0">@Model.Statistics.TotalUsers</h2>
+                        </div>
+                        <div class="text-success">
+                            <i class="bi bi-people" style="font-size: 2.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">@Localizer["TotalCategories"]</h6>
+                            <h2 class="card-title mb-0">@Model.Statistics.TotalCategories</h2>
+                        </div>
+                        <div class="text-info">
+                            <i class="bi bi-folder" style="font-size: 2.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">@Localizer["TotalTags"]</h6>
+                            <h2 class="card-title mb-0">@Model.Statistics.TotalTags</h2>
+                        </div>
+                        <div class="text-warning">
+                            <i class="bi bi-tags" style="font-size: 2.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Links -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> @Localizer["Administration"]</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Settings")" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-sliders"></i> @Localizer["SiteSettings"]
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Menus")" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-palette"></i> @Localizer["SiteCustomization"]
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Categories")" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-folder-fill"></i> @Localizer["ManageCategories"]
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Files")" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-file-earmark-text"></i> @Localizer["FileManager"]
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Users")" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-people"></i> @Localizer["ManageUsers"]
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Plugins")" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-plug"></i> @Localizer["Plugins"]
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("SystemInfo", "Admin")" class="btn btn-outline-secondary w-100">
+                                <i class="bi bi-info-circle"></i> @Localizer["SystemInformation"]
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="/health" class="btn btn-outline-secondary w-100" target="_blank">
+                                <i class="bi bi-heart-pulse"></i> @Localizer["HealthChecks"]
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Health -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-heart-pulse"></i> @Localizer["SystemHealth"]</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi @Model.Health.Database.StatusIcon text-@Model.Health.Database.StatusClass me-2" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <strong>@Localizer["Database"]</strong>
+                                    <br>
+                                    <small class="text-muted">@Model.Health.Database.Message</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi @Model.Health.DiskSpace.StatusIcon text-@Model.Health.DiskSpace.StatusClass me-2" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <strong>@Localizer["DiskSpace"]</strong>
+                                    <br>
+                                    <small class="text-muted">@Model.Health.DiskSpace.Message</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi @Model.Health.Memory.StatusIcon text-@Model.Health.Memory.StatusClass me-2" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <strong>@Localizer["Memory"]</strong>
+                                    <br>
+                                    <small class="text-muted">@Model.Health.Memory.Message</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activities -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> @Localizer["RecentActivities"]</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.RecentActivities.Any())
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var activity in Model.RecentActivities)
+                            {
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <div>
+                                            <i class="bi @(activity.Type == "PageCreated" ? "bi-file-plus" : "bi-pencil") text-primary"></i>
+                                            @if (!string.IsNullOrEmpty(activity.Url))
+                                            {
+                                                <a href="@activity.Url">@activity.Description</a>
+                                            }
+                                            else
+                                            {
+                                                <span>@activity.Description</span>
+                                            }
+                                            <br>
+                                            <small class="text-muted">@Localizer["By"] @activity.User</small>
+                                        </div>
+                                        <small class="text-muted">
+                                            @if (Model.TimezoneService != null)
+                                            {
+                                                @await activity.Timestamp.ToLocalTimeStringAsync(Model.TimezoneService, "g")
+                                            }
+                                            else
+                                            {
+                                                @activity.Timestamp.ToString("g")
+                                            }
+                                        </small>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">@Localizer["NoRecentActivities"]</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

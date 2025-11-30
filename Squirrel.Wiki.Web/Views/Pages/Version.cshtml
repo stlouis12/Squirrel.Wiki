@@ -1,0 +1,149 @@
+@using Squirrel.Wiki.Web.Extensions
+@model Squirrel.Wiki.Web.Models.PageViewModel
+@{
+    ViewData["Title"] = $"{Model.Title} - {Localizer["Version"]} {ViewData["VersionNumber"]}";
+    var versionNumber = ViewData["VersionNumber"];
+    var isHistorical = ViewData["IsHistoricalVersion"] as bool? ?? false;
+}
+
+<div class="page-version-view">
+    <div class="alert alert-info mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-clock-history"></i>
+                <strong>@Localizer["HistoricalVersion"]</strong> @Localizer["YouAreViewingVersion"] <strong>@versionNumber</strong> @Localizer["OfThisPage"]
+                <br>
+                <small class="text-muted">
+                    @Localizer["LastModifiedByOn"] <strong>@Model.ModifiedBy</strong> @Localizer["On"].ToString().ToLower() 
+                    @if (Model.TimezoneService != null)
+                    {
+                        <span title="@await Model.ModifiedOn.ToLocalTimeStringAsync(Model.TimezoneService, "F")">
+                            @await Model.ModifiedOn.ToLocalTimeStringAsync(Model.TimezoneService, "MMM dd, yyyy 'at' h:mm tt")
+                        </span>
+                    }
+                    else
+                    {
+                        @Model.ModifiedOn.ToString("MMM dd, yyyy 'at' HH:mm")
+                    }
+                </small>
+            </div>
+            <div>
+                <a href="@Url.Action("Index", "Wiki", new { id = Model.Id })" class="btn btn-sm btn-primary">
+                    <i class="bi bi-file-text"></i> @Localizer["ViewCurrentVersion"]
+                </a>
+                <a href="@Url.Action("History", "Pages", new { id = Model.Id })" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-clock-history"></i> @Localizer["ViewHistory"]
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <article class="wiki-page">
+        <header class="page-header mb-4">
+            <h1 class="page-title">@Model.Title</h1>
+            
+            <div class="page-meta text-muted">
+                <span>
+                    <i class="bi bi-person"></i> @Localizer["CreatedByOn"] <strong>@Model.CreatedBy</strong>
+                </span>
+                <span class="ms-3">
+                    <i class="bi bi-calendar"></i> 
+                    @if (Model.TimezoneService != null)
+                    {
+                        @await Model.CreatedOn.ToLocalDateStringAsync(Model.TimezoneService)
+                    }
+                    else
+                    {
+                        @Model.CreatedOn.ToString("MMM dd, yyyy")
+                    }
+                </span>
+                @if (Model.CategoryId.HasValue && !string.IsNullOrEmpty(Model.CategoryName))
+                {
+                    <span class="ms-3">
+                        <i class="bi bi-folder"></i>
+                        <a href="@Url.Action("Category", "Pages", new { id = Model.CategoryId })">@Model.CategoryName</a>
+                    </span>
+                }
+            </div>
+        </header>
+
+        <div class="page-content">
+            @Html.Raw(Model.HtmlContent)
+        </div>
+
+        @if (Model.Tags.Any())
+        {
+            <footer class="page-footer mt-4">
+                <div class="page-tags">
+                    <i class="bi bi-tags"></i>
+                    @foreach (var tag in Model.Tags)
+                    {
+                        <a href="@Url.Action("Tag", "Pages", new { tagName = tag })" class="badge bg-secondary text-decoration-none">
+                            @tag
+                        </a>
+                    }
+                </div>
+            </footer>
+        }
+    </article>
+</div>
+
+@section Styles {
+    <style>
+        .page-version-view .alert-info {
+            border-left: 4px solid #0dcaf0;
+        }
+        
+        .wiki-page {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+        }
+        
+        .page-header {
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 1rem;
+        }
+        
+        .page-title {
+            margin-bottom: 0.5rem;
+            color: #212529;
+        }
+        
+        .page-meta {
+            font-size: 0.9rem;
+        }
+        
+        .page-content {
+            margin-top: 2rem;
+            line-height: 1.6;
+        }
+        
+        .page-footer {
+            border-top: 1px solid #e9ecef;
+            padding-top: 1rem;
+        }
+        
+        .page-tags .badge {
+            margin-right: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            font-weight: normal;
+        }
+    </style>
+}
+
+@section Scripts {
+    <script type="module">
+        // Import Mermaid for diagram rendering
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+        
+        // Initialize Mermaid with configuration
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            fontFamily: 'inherit'
+        });
+    </script>
+}

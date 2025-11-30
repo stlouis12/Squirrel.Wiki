@@ -1,0 +1,78 @@
+using Squirrel.Wiki.Core.Services;
+
+namespace Squirrel.Wiki.Web.Models.Admin;
+
+/// <summary>
+/// View model for settings management
+/// </summary>
+public class SettingsViewModel : BaseViewModel
+{
+    public List<SettingGroup> Groups { get; set; } = new();
+    public Dictionary<string, string> TimezoneDisplayNames { get; set; } = new();
+}
+
+/// <summary>
+/// Group of related settings
+/// </summary>
+public class SettingGroup
+{
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Icon { get; set; } = "bi-gear";
+    public List<SettingItem> Settings { get; set; } = new();
+}
+
+/// <summary>
+/// Individual setting item
+/// </summary>
+public class SettingItem
+{
+    public string Key { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+    public SettingType Type { get; set; } = SettingType.Text;
+    public bool IsRequired { get; set; }
+    public string? ValidationPattern { get; set; }
+    public List<string>? Options { get; set; } // For dropdown/radio
+    public bool IsFromEnvironment { get; set; }
+    public string? EnvironmentVariableName { get; set; }
+    public int? MinValue { get; set; } // For number type
+    public int? MaxValue { get; set; } // For number type
+    public bool IsDisabled { get; set; } // For conditionally disabled settings
+    public string? DisabledReason { get; set; } // Tooltip explaining why it's disabled
+}
+
+/// <summary>
+/// Setting input type
+/// </summary>
+public enum SettingType
+{
+    Text,
+    Number,
+    Boolean,
+    Email,
+    Url,
+    TextArea,
+    Dropdown,
+    Radio,
+    Color,
+    Date
+}
+
+/// <summary>
+/// View model for editing a single setting
+/// </summary>
+public class EditSettingViewModel
+{
+    public string Key { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+    public SettingType Type { get; set; } = SettingType.Text;
+    public bool IsRequired { get; set; }
+    public string? ValidationPattern { get; set; }
+    public List<string>? Options { get; set; }
+    public int? MinValue { get; set; } // For number type
+    public int? MaxValue { get; set; } // For number type
+}

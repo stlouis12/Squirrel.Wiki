@@ -1,0 +1,287 @@
+@using Squirrel.Wiki.Web.Extensions
+@model Squirrel.Wiki.Web.Models.Admin.MenuViewModel
+@{
+    ViewData["Title"] = Localizer["SiteCustomization"].Value;
+}
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1><i class="bi bi-palette"></i> @Localizer["SiteCustomization"]</h1>
+            <p class="text-muted">@Localizer["CustomizeNavigationBars"]</p>
+        </div>
+        <div class="col-auto">
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> @Localizer["CreateNewMenu"]
+            </a>
+        </div>
+    </div>
+
+    @if (Model.Menus.Any())
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>@Localizer["Name"]</th>
+                                <th>@Localizer["Type"]</th>
+                                <th>@Localizer["Description"]</th>
+                                <th class="text-center">@Localizer["Items"]</th>
+                                <th class="text-center">@Localizer["Status"]</th>
+                                <th>@Localizer["LastModified"]</th>
+                                <th>@Localizer["ModifiedBy"]</th>
+                                <th class="text-end">@Localizer["Actions"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var menu in Model.Menus)
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="@Url.Action("Edit", new { id = menu.Id })" class="text-decoration-none text-dark">
+                                            <strong>@menu.Name</strong>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">@menu.MenuType</span>
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(menu.Description))
+                                        {
+                                            <span class="text-muted">@menu.Description</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted fst-italic">@Localizer["NoDescription"]</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">@menu.ItemCount</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="form-check form-switch d-inline-block">
+                                            <input class="form-check-input menu-status-toggle" 
+                                                   type="checkbox" 
+                                                   id="menu_@menu.Id" 
+                                                   data-menu-id="@menu.Id"
+                                                   data-menu-name="@menu.Name"
+                                                   @(menu.IsEnabled ? "checked" : "")
+                                                   title="@Localizer["EnableDisableMenu"]">
+                                            <label class="form-check-label visually-hidden" for="menu_@menu.Id">
+                                                @Localizer["MenuStatus"]
+                                            </label>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            @if (Model.TimezoneService != null)
+                                            {
+                            <span title="@await menu.ModifiedOn.ToLocalTimeStringAsync(Model.TimezoneService, "F")">
+                                                    @await menu.ModifiedOn.ToRelativeTimeStringAsync(Model.TimezoneService, Localizer)
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                @menu.ModifiedOn.ToString("MMM dd, yyyy HH:mm")
+                                            }
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">@menu.ModifiedBy</small>
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" 
+                                                class="btn btn-outline-danger btn-sm delete-menu-btn" 
+                                                data-menu-id="@menu.Id"
+                                                data-menu-name="@menu.Name"
+                                                title="@Localizer["Delete"]">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> @Localizer["NoMenusFound"] 
+            <a asp-action="Create" class="alert-link">@Localizer["CreateYourFirstMenu"]</a> @Localizer["ToGetStarted"]
+        </div>
+    }
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-question-circle"></i> @Localizer["AboutMenuMarkup"]</h5>
+        </div>
+        <div class="card-body">
+            <p class="lead">@Localizer["MenuMarkupDescription"]</p>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><i class="bi bi-check-circle text-success"></i> @Localizer["KeyFeatures"]</h6>
+                    <ul>
+                        <li><strong>@Localizer["SimpleSyntax"]</strong> @Localizer["UseAsterisksAndMarkdown"]</li>
+                        <li><strong>@Localizer["NestedMenus"]</strong> @Localizer["CreateDropdownsMultipleLevels"]</li>
+                        <li><strong>@Localizer["SmartURLs"]</strong> @Localizer["SupportForTokens"]</li>
+                        <li><strong>@Localizer["BootstrapIntegration"]</strong> @Localizer["RendersAsBootstrap5"]</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6><i class="bi bi-lightbulb text-warning"></i> @Localizer["SpecialURLTokens"]</h6>
+                    <ul class="small">
+                        <li><code>%ALLPAGES%</code> - @Localizer["AllPages"]</li>
+                        <li><code>%ALLTAGS%</code> - @Localizer["AllTags"]</li>
+                        <li><code>%ALLCATEGORIES%</code> - @Localizer["Categories"]</li>
+                        <li><code>%SEARCH%</code> - @Localizer["Search"]</li>
+                        <li><code>%EMBEDDED_SEARCH%</code> - @Localizer["Search"] (sidebar)</li>
+                        <li><code>%NEWPAGE%</code> - @Localizer["NewPage"]</li>
+                        <li><code>%RECENTLYUPDATED%</code> - @Localizer["RecentActivity"]</li>
+                        <li><code>tag:name</code> - @Localizer["Tags"]</li>
+                        <li><code>category:name</code> - @Localizer["Category"]</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-3">
+                <i class="bi bi-info-circle"></i> <strong>@Localizer["GettingStarted"]</strong> 
+                @Localizer["ClickCreateNewMenu"]
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteMenuModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@Localizer["DeleteMenu"]</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Localizer["Close"]"></button>
+            </div>
+            <div class="modal-body">
+                <p>@Localizer["AreYouSureDeleteMenu"] "<strong id="deleteMenuName"></strong>"?</p>
+                <p class="text-danger">
+                    <i class="bi bi-exclamation-triangle"></i> @Localizer["ActionCannotBeUndone"]
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Cancel"]</button>
+                <form id="deleteMenuForm" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> @Localizer["DeleteMenu"]
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Menu status toggle functionality
+            document.querySelectorAll('.menu-status-toggle').forEach(function(checkbox) {
+                checkbox.addEventListener('change', function() {
+                    var menuId = this.getAttribute('data-menu-id');
+                    var menuName = this.getAttribute('data-menu-name');
+                    var isEnabled = this.checked;
+                    var checkboxElement = this;
+                    
+                    // Show loading state
+                    this.disabled = true;
+                    
+                    // Create form data with anti-forgery token
+                    var formData = new FormData();
+                    formData.append('id', menuId);
+                    var token = document.querySelector('input[name="__RequestVerificationToken"]');
+                    if (token) {
+                        formData.append('__RequestVerificationToken', token.value);
+                    }
+                    
+                    fetch('@Url.Action("ToggleActivation", "Menus")', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Show success toast
+                            var message = isEnabled ? '@Localizer["MenuEnabledSuccessfully"]' : '@Localizer["MenuDisabledSuccessfully"]';
+                            message = message.replace('{0}', menuName);
+                            Toast.success('@Localizer["MenuStatusUpdated"]', message);
+                            
+                            // Reload the page to refresh both the table and the navigation bar
+                            setTimeout(() => window.location.reload(), 500);
+                        } else {
+                            // Revert checkbox state on error
+                            checkboxElement.checked = !isEnabled;
+                            Toast.error('@Localizer["MenuStatusUpdated"]', data.message || '@Localizer["FailedToUpdateMenuStatus"]');
+                            checkboxElement.disabled = false;
+                        }
+                    })
+                    .catch(error => {
+                        // Revert checkbox state on error
+                        checkboxElement.checked = !isEnabled;
+                        Toast.error('@Localizer["MenuStatusUpdated"]', '@Localizer["ErrorUpdatingMenuStatus"]' + ' ' + error.message);
+                        checkboxElement.disabled = false;
+                    });
+                });
+            });
+
+            // Delete menu functionality
+            var deleteModal = new bootstrap.Modal(document.getElementById('deleteMenuModal'));
+            var deleteForm = document.getElementById('deleteMenuForm');
+            var deleteMenuName = document.getElementById('deleteMenuName');
+
+            document.querySelectorAll('.delete-menu-btn').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    var menuId = this.getAttribute('data-menu-id');
+                    var menuName = this.getAttribute('data-menu-name');
+                    
+                    // Set form action and menu name
+                    deleteForm.action = '@Url.Action("Delete", "Menus")' + '/' + menuId;
+                    deleteMenuName.textContent = menuName;
+                    
+                    // Show modal
+                    deleteModal.show();
+                });
+            });
+
+            // Handle delete form submission
+            deleteForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                var formData = new FormData(this);
+                
+                fetch(this.action, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Toast.success('@Localizer["MenuDeleted"]', data.message || '@Localizer["MenuDeletedSuccessfully"]');
+                        deleteModal.hide();
+                        // Reload page after short delay
+                        setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                        Toast.error('@Localizer["DeleteFailed"]', data.message || '@Localizer["FailedToDeleteMenu"]');
+                        deleteModal.hide();
+                    }
+                })
+                .catch(error => {
+                    Toast.error('@Localizer["DeleteFailed"]', '@Localizer["ErrorDeletingMenu"]' + ' ' + error.message);
+                    deleteModal.hide();
+                });
+            });
+        });
+    </script>
+}
