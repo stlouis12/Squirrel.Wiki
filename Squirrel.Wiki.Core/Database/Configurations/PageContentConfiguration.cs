@@ -9,6 +9,9 @@ public class PageContentConfiguration : IEntityTypeConfiguration<PageContent>
     public void Configure(EntityTypeBuilder<PageContent> builder)
     {
         builder.HasKey(pc => pc.Id);
+        
+        builder.Property(pc => pc.Id)
+            .ValueGeneratedOnAdd();
 
         builder.Property(pc => pc.Text)
             .IsRequired();

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -16,15 +16,17 @@ namespace Squirrel.Wiki.Core.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Sqlite:Autoincrement", true)
+                        .Annotation("Npgsql:ValueGenerationStrategy", Npgsql.EntityFrameworkCore.PostgreSQL.Metadata.NpgsqlValueGenerationStrategy.IdentityByDefaultColumn)
+                        .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
                     Slug = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
                     Description = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true),
                     ParentCategoryId = table.Column<int>(type: "INTEGER", nullable: true),
                     DisplayOrder = table.Column<int>(type: "INTEGER", nullable: false),
-                    CreatedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    CreatedOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedBy = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
-                    ModifiedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    ModifiedOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedBy = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false)
                 },
                 constraints: table =>
@@ -43,7 +45,9 @@ namespace Squirrel.Wiki.Core.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Sqlite:Autoincrement", true)
+                        .Annotation("Npgsql:ValueGenerationStrategy", Npgsql.EntityFrameworkCore.PostgreSQL.Metadata.NpgsqlValueGenerationStrategy.IdentityByDefaultColumn)
+                        .Annotation("SqlServer:Identity", "1, 1"),
                     FriendlyName = table.Column<string>(type: "TEXT", nullable: true),
                     Xml = table.Column<string>(type: "TEXT", nullable: true)
                 },
@@ -61,7 +65,7 @@ namespace Squirrel.Wiki.Core.Migrations
                     FileSize = table.Column<long>(type: "INTEGER", nullable: false),
                     StorageProvider = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false, defaultValue: "Local"),
                     ReferenceCount = table.Column<int>(type: "INTEGER", nullable: false, defaultValue: 0),
-                    CreatedOn = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    CreatedOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -73,15 +77,17 @@ namespace Squirrel.Wiki.Core.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Sqlite:Autoincrement", true)
+                        .Annotation("Npgsql:ValueGenerationStrategy", Npgsql.EntityFrameworkCore.PostgreSQL.Metadata.NpgsqlValueGenerationStrategy.IdentityByDefaultColumn)
+                        .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
                     Slug = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
                     Description = table.Column<string>(type: "TEXT", nullable: true),
                     ParentFolderId = table.Column<int>(type: "INTEGER", nullable: true),
                     DisplayOrder = table.Column<int>(type: "INTEGER", nullable: false),
                     CreatedBy = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
-                    CreatedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    IsDeleted = table.Column<bool>(type: "INTEGER", nullable: false)
+                    CreatedOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -99,7 +105,9 @@ namespace Squirrel.Wiki.Core.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Sqlite:Autoincrement", true)
+                        .Annotation("Npgsql:ValueGenerationStrategy", Npgsql.EntityFrameworkCore.PostgreSQL.Metadata.NpgsqlValueGenerationStrategy.IdentityByDefaultColumn)
+                        .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
                     MenuType = table.Column<int>(type: "INTEGER", nullable: false),
                     Description = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true),
@@ -107,8 +115,8 @@ namespace Squirrel.Wiki.Core.Migrations
                     FooterLeftZone = table.Column<string>(type: "TEXT", nullable: true),
                     FooterRightZone = table.Column<string>(type: "TEXT", nullable: true),
                     DisplayOrder = table.Column<int>(type: "INTEGER", nullable: false),
-                    IsEnabled = table.Column<bool>(type: "INTEGER", nullable: false),
-                    ModifiedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    ModifiedOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedBy = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false)
                 },
                 constraints: table =>
@@ -120,17 +128,17 @@ namespace Squirrel.Wiki.Core.Migrations
                 name: "squirrel_plugins",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
                     PluginId = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
                     Name = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
                     Version = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
                     PluginType = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    IsEnabled = table.Column<bool>(type: "INTEGER", nullable: false),
-                    IsConfigured = table.Column<bool>(type: "INTEGER", nullable: false),
+                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    IsConfigured = table.Column<bool>(type: "boolean", nullable: false),
                     LoadOrder = table.Column<int>(type: "INTEGER", nullable: false),
-                    IsCorePlugin = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    IsCorePlugin = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -141,12 +149,12 @@ namespace Squirrel.Wiki.Core.Migrations
                 name: "squirrel_site_configurations",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Key = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
                     Value = table.Column<string>(type: "TEXT", nullable: false),
-                    ModifiedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    ModifiedOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedBy = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
-                    IsFromEnvironment = table.Column<bool>(type: "INTEGER", nullable: false),
+                    IsFromEnvironment = table.Column<bool>(type: "boolean", nullable: false),
                     EnvironmentVariableName = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
@@ -159,7 +167,9 @@ namespace Squirrel.Wiki.Core.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Sqlite:Autoincrement", true)
+                        .Annotation("Npgsql:ValueGenerationStrategy", Npgsql.EntityFrameworkCore.PostgreSQL.Metadata.NpgsqlValueGenerationStrategy.IdentityByDefaultColumn)
+                        .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
                     NormalizedName = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false)
                 },
@@ -172,7 +182,7 @@ namespace Squirrel.Wiki.Core.Migrations
                 name: "squirrel_users",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Email = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
                     Username = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
                     PasswordHash = table.Column<string>(type: "TEXT", maxLength: 255, nullable: true),
@@ -181,17 +191,17 @@ namespace Squirrel.Wiki.Core.Migrations
                     DisplayName = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
                     FirstName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
                     LastName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false, defaultValue: true),
-                    IsLocked = table.Column<bool>(type: "INTEGER", nullable: false, defaultValue: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
+                    IsLocked = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
                     FailedLoginAttempts = table.Column<int>(type: "INTEGER", nullable: false, defaultValue: 0),
-                    LockedUntil = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    LockedUntil = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     PasswordResetToken = table.Column<string>(type: "TEXT", maxLength: 255, nullable: true),
-                    PasswordResetExpiry = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    CreatedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    LastLoginOn = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    LastPasswordChangeOn = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    IsAdmin = table.Column<bool>(type: "INTEGER", nullable: false),
-                    IsEditor = table.Column<bool>(type: "INTEGER", nullable: false)
+                    PasswordResetExpiry = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    LastLoginOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastPasswordChangeOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    IsAdmin = table.Column<bool>(type: "boolean", nullable: false),
+                    IsEditor = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -203,16 +213,18 @@ namespace Squirrel.Wiki.Core.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Sqlite:Autoincrement", true)
+                        .Annotation("Npgsql:ValueGenerationStrategy", Npgsql.EntityFrameworkCore.PostgreSQL.Metadata.NpgsqlValueGenerationStrategy.IdentityByDefaultColumn)
+                        .Annotation("SqlServer:Identity", "1, 1"),
                     Title = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
                     Slug = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
                     CategoryId = table.Column<int>(type: "INTEGER", nullable: true),
                     CreatedBy = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
-                    CreatedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    CreatedOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedBy = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
-                    ModifiedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    IsLocked = table.Column<bool>(type: "INTEGER", nullable: false),
-                    IsDeleted = table.Column<bool>(type: "INTEGER", nullable: false),
+                    ModifiedOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    IsLocked = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
                     Visibility = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
@@ -230,7 +242,7 @@ namespace Squirrel.Wiki.Core.Migrations
                 name: "squirrel_files",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
                     FileHash = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
                     FileName = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
                     FilePath = table.Column<string>(type: "TEXT", maxLength: 1000, nullable: false),
@@ -240,9 +252,9 @@ namespace Squirrel.Wiki.Core.Migrations
                     FolderId = table.Column<int>(type: "INTEGER", nullable: true),
                     StorageProvider = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false, defaultValue: "Local"),
                     UploadedBy = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
-                    UploadedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    UploadedOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Visibility = table.Column<int>(type: "INTEGER", nullable: false, defaultValue: 0),
-                    IsDeleted = table.Column<bool>(type: "INTEGER", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
                     ThumbnailPath = table.Column<string>(type: "TEXT", maxLength: 1000, nullable: true),
                     CurrentVersion = table.Column<int>(type: "INTEGER", nullable: false, defaultValue: 1)
                 },
@@ -267,15 +279,15 @@ namespace Squirrel.Wiki.Core.Migrations
                 name: "squirrel_plugin_settings",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    PluginId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    PluginId = table.Column<Guid>(type: "uuid", nullable: false),
                     Key = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
                     Value = table.Column<string>(type: "TEXT", maxLength: 4000, nullable: true),
-                    IsFromEnvironment = table.Column<bool>(type: "INTEGER", nullable: false),
+                    IsFromEnvironment = table.Column<bool>(type: "boolean", nullable: false),
                     EnvironmentVariableName = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true),
-                    IsSecret = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    IsSecret = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -292,18 +304,18 @@ namespace Squirrel.Wiki.Core.Migrations
                 name: "squirrel_plugin_audit_logs",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    PluginId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    PluginId = table.Column<Guid>(type: "uuid", nullable: false),
                     PluginIdentifier = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
                     PluginName = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
                     Operation = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    UserId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: true),
                     Username = table.Column<string>(type: "TEXT", maxLength: 256, nullable: false),
                     Changes = table.Column<string>(type: "text", nullable: true),
                     IpAddress = table.Column<string>(type: "TEXT", maxLength: 45, nullable: true),
                     UserAgent = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true),
-                    Timestamp = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    Success = table.Column<bool>(type: "INTEGER", nullable: false),
+                    Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Success = table.Column<bool>(type: "boolean", nullable: false),
                     ErrorMessage = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),
                     Notes = table.Column<string>(type: "TEXT", maxLength: 1000, nullable: true)
                 },
@@ -328,10 +340,10 @@ namespace Squirrel.Wiki.Core.Migrations
                 name: "squirrel_user_roles",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
                     Role = table.Column<int>(type: "INTEGER", nullable: false),
-                    AssignedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    AssignedOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     AssignedBy = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false)
                 },
                 constraints: table =>
@@ -349,11 +361,11 @@ namespace Squirrel.Wiki.Core.Migrations
                 name: "squirrel_page_contents",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
                     PageId = table.Column<int>(type: "INTEGER", nullable: false),
                     Text = table.Column<string>(type: "TEXT", nullable: false),
                     EditedBy = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
-                    EditedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    EditedOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     VersionNumber = table.Column<int>(type: "INTEGER", nullable: false),
                     ChangeComment = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true)
                 },
@@ -397,13 +409,15 @@ namespace Squirrel.Wiki.Core.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    FileId = table.Column<Guid>(type: "TEXT", nullable: false),
+                        .Annotation("Sqlite:Autoincrement", true)
+                        .Annotation("Npgsql:ValueGenerationStrategy", Npgsql.EntityFrameworkCore.PostgreSQL.Metadata.NpgsqlValueGenerationStrategy.IdentityByDefaultColumn)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    FileId = table.Column<Guid>(type: "uuid", nullable: false),
                     VersionNumber = table.Column<int>(type: "INTEGER", nullable: false),
                     FileHash = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
                     FileSize = table.Column<long>(type: "INTEGER", nullable: false),
                     CreatedBy = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
-                    CreatedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    CreatedOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ChangeDescription = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>

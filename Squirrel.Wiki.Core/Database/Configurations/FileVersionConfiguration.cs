@@ -9,6 +9,9 @@ public class FileVersionConfiguration : IEntityTypeConfiguration<FileVersion>
     public void Configure(EntityTypeBuilder<FileVersion> builder)
     {
         builder.HasKey(v => v.Id);
+        
+        builder.Property(v => v.Id)
+            .ValueGeneratedOnAdd();
 
         builder.Property(v => v.FileHash)
             .HasMaxLength(64)
