@@ -9,6 +9,9 @@ public class MenuConfiguration : IEntityTypeConfiguration<Menu>
     public void Configure(EntityTypeBuilder<Menu> builder)
     {
         builder.HasKey(m => m.Id);
+        
+        builder.Property(m => m.Id)
+            .ValueGeneratedOnAdd();
 
         builder.Property(m => m.Name)
             .IsRequired()

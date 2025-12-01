@@ -9,6 +9,9 @@ public class SiteConfigurationConfiguration : IEntityTypeConfiguration<SiteConfi
     public void Configure(EntityTypeBuilder<SiteConfiguration> builder)
     {
         builder.HasKey(sc => sc.Id);
+        
+        builder.Property(sc => sc.Id)
+            .ValueGeneratedOnAdd();
 
         builder.Property(sc => sc.Key)
             .IsRequired()

@@ -9,6 +9,9 @@ public class FolderConfiguration : IEntityTypeConfiguration<Folder>
     public void Configure(EntityTypeBuilder<Folder> builder)
     {
         builder.HasKey(f => f.Id);
+        
+        builder.Property(f => f.Id)
+            .ValueGeneratedOnAdd();
 
         builder.Property(f => f.Name)
             .IsRequired()

@@ -10,6 +10,9 @@ public class FileConfiguration : IEntityTypeConfiguration<FileEntity>
     public void Configure(EntityTypeBuilder<FileEntity> builder)
     {
         builder.HasKey(f => f.Id);
+        
+        builder.Property(f => f.Id)
+            .ValueGeneratedOnAdd();
 
         builder.Property(f => f.FileHash)
             .HasMaxLength(64)

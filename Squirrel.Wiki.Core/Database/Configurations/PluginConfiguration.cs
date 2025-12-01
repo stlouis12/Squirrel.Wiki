@@ -14,6 +14,9 @@ public class PluginConfiguration : IEntityTypeConfiguration<Plugin>
         builder.ToTable("Plugins");
 
         builder.HasKey(p => p.Id);
+        
+        builder.Property(p => p.Id)
+            .ValueGeneratedOnAdd();
 
         builder.Property(p => p.PluginId)
             .IsRequired()

@@ -9,6 +9,9 @@ public class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
     public void Configure(EntityTypeBuilder<UserRole> builder)
     {
         builder.HasKey(ur => ur.Id);
+        
+        builder.Property(ur => ur.Id)
+            .ValueGeneratedOnAdd();
 
         builder.Property(ur => ur.UserId)
             .IsRequired();
