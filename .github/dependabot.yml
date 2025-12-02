@@ -4,7 +4,16 @@
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
 version: 2
+registries:
+  public-nuget-packages:
+    type: nuget-feed
+    url: https://api.nuget.org/v3/index.json
 updates:
+  - package-ecosystem: "nuget" # See documentation for possible values
+    registries: "*"
+    directory: "/" # Location of package manifests
+    schedule:
+      interval: "weekly"
   - package-ecosystem: "dotnet-sdk" # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:

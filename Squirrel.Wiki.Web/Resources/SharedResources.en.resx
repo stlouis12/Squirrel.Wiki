@@ -351,13 +351,13 @@
     <value>Welcome to Squirrel Wiki v1.0</value>
   </data>
   <data name="ModernWikiApplication" xml:space="preserve">
-    <value>A modern, .NET 8.0 LTS wiki application</value>
+    <value>A modern, .NET 10.0 wiki application</value>
   </data>
   <data name="ModernStack" xml:space="preserve">
     <value>Modern Stack</value>
   </data>
   <data name="ModernStackDescription" xml:space="preserve">
-    <value>Built on .NET 8.0 LTS with ASP.NET Core, Entity Framework Core, and Bootstrap 5.</value>
+    <value>Built on .NET 10.0 with ASP.NET Core, Entity Framework Core, and Bootstrap 5.</value>
   </data>
   <data name="MarkdownSupport" xml:space="preserve">
     <value>Markdown Support</value>
