@@ -415,14 +415,47 @@ public class SettingsController : BaseController
         Dictionary<string, string> existingSettings,
         Dictionary<string, (bool IsFromEnvironment, string? EnvironmentVariableName)> envInfo)
     {
-        existingSettings.TryGetValue(metadata.Key, out var value);
         envInfo.TryGetValue(metadata.Key, out var env);
 
-        // Get the display value
-        string displayValue = value ?? metadata.DefaultValue?.ToString() ?? string.Empty;
-        if (!string.IsNullOrEmpty(value))
+        // Get the actual value from ConfigurationService (which respects environment variables)
+        string displayValue;
+        try
         {
-            displayValue = DeserializeValue(value) ?? value;
+            // Get the value with the correct type from ConfigurationService
+            object? actualValue = null;
+            
+            if (metadata.ValueType == typeof(int))
+            {
+                actualValue = _configurationService.GetValueAsync<int>(metadata.Key).Result;
+            }
+            else if (metadata.ValueType == typeof(bool))
+            {
+                actualValue = _configurationService.GetValueAsync<bool>(metadata.Key).Result;
+            }
+            else if (metadata.ValueType == typeof(long))
+            {
+                actualValue = _configurationService.GetValueAsync<long>(metadata.Key).Result;
+            }
+            else if (metadata.ValueType == typeof(double))
+            {
+                actualValue = _configurationService.GetValueAsync<double>(metadata.Key).Result;
+            }
+            else
+            {
+                actualValue = _configurationService.GetValueAsync<string>(metadata.Key).Result;
+            }
+            
+            displayValue = actualValue?.ToString() ?? metadata.DefaultValue?.ToString() ?? string.Empty;
+        }
+        catch
+        {
+            // Fallback to database value if ConfigurationService fails
+            existingSettings.TryGetValue(metadata.Key, out var value);
+            displayValue = value ?? metadata.DefaultValue?.ToString() ?? string.Empty;
+            if (!string.IsNullOrEmpty(value))
+            {
+                displayValue = DeserializeValue(value) ?? value;
+            }
         }
 
         // Determine the setting type

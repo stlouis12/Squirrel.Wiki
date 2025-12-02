@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Localization;
+using MySql.EntityFrameworkCore.Extensions;
 using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Configuration;
 using Squirrel.Wiki.Core.Database;
@@ -69,22 +71,35 @@ public static class ServiceCollectionExtensions
             switch (databaseProvider.ToLowerInvariant())
             {
                 case "postgresql":
-                    options.UseNpgsql(connectionString);
+                    options.UseNpgsql(connectionString, npgsqlOptions =>
+                    {
+                        npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "public");
+                        npgsqlOptions.MigrationsAssembly("Squirrel.Wiki.EF.PostgreSql");
+                    });
                     break;
                 case "mysql":
                 case "mariadb":
-                    var serverVersion = ServerVersion.AutoDetect(connectionString);
-                    options.UseMySql(connectionString, serverVersion);
+                    options.UseMySQL(connectionString, mysqlOptions =>
+                    {
+                        mysqlOptions.MigrationsAssembly("Squirrel.Wiki.EF.MySql");
+                    });
                     break;
                 case "sqlserver":
-                    options.UseSqlServer(connectionString);
+                    options.UseSqlServer(connectionString, sqlServerOptions =>
+                    {
+                        sqlServerOptions.MigrationsHistoryTable("__EFMigrationsHistory", "dbo");
+                        sqlServerOptions.MigrationsAssembly("Squirrel.Wiki.EF.SqlServer");
+                    });
                     break;
                 case "sqlite":
-                    options.UseSqlite(connectionString);
+                    options.UseSqlite(connectionString, sqliteOptions =>
+                    {
+                        sqliteOptions.MigrationsAssembly("Squirrel.Wiki.EF.Sqlite");
+                    });
                     break;
                 default:
                     throw new ConfigurationException(
-                        $"The configured database provider '{databaseProvider}' is not supported. Supported providers are: PostgreSQL, MySQL, MariaDB, SQLServer, SQLite.",
+                        $"The configured database provider '{databaseProvider}' is not supported. Supported providers are PostgreSQL, MySQL, MariaDB, SQLServer, SQLite.",
                         "UNSUPPORTED_DATABASE_PROVIDER"
                     ).WithContext("ConfiguredProvider", databaseProvider)
                      .WithContext("SupportedProviders", "PostgreSQL, MySQL, MariaDB, SQLServer, SQLite");
@@ -264,6 +279,28 @@ public static class ServiceCollectionExtensions
             var configuration = sp.GetRequiredService<IConfigurationService>();
             return new PluginService(context, pluginLoader, pluginLogger, cache, eventPublisher, encryptionService, auditService, userContext, httpContextAccessor, sp, pluginsPath, configuration);
         });
+
+        return services;
+    }
+
+    public static IServiceCollection AddSquirrelWikiRequestSizeLimits(
+        this IServiceCollection services,
+        ILogger logger)
+    {
+        // Set a generous hard-coded limit for form options (10 GB)
+        // The actual file size limit is enforced by FileService using ConfigurationService
+        // which reads from the database setting SQUIRREL_FILE_MAX_SIZE_MB
+        const long maxRequestBodySize = 10L * 1024L * 1024L * 1024L; // 10 GB in bytes
+
+        // Configure form options for large file uploads
+        services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+        {
+            options.MultipartBodyLengthLimit = maxRequestBodySize;
+            options.ValueLengthLimit = int.MaxValue; // ~2GB max for int
+            options.MultipartHeadersLengthLimit = int.MaxValue; // ~2GB max for int
+        });
+
+        logger.LogInformation("Form options configured: 10 GB multipart body limit (actual file size limit enforced by FileService)");
 
         return services;
     }

@@ -67,9 +67,30 @@
                                                 <i class="fas fa-lock"></i> @Localizer["Secret"]
                                             </span>
                                         }
+                                        @if (field.IsFromEnvironment)
+                                        {
+                                            <span class="badge bg-info text-white ms-2">
+                                                <i class="fas fa-server"></i> Environment Variable
+                                            </span>
+                                        }
                                     </label>
                                     
-                                    @if (field.IsSecret)
+                                    @if (field.IsFromEnvironment)
+                                    {
+                                        <!-- Read-only field for environment variable -->
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="@field.Key" 
+                                               value="@field.Value"
+                                               readonly
+                                               disabled
+                                               title="This value is set via environment variable: @field.EnvironmentVariableName" />
+                                        <div class="form-text">
+                                            <i class="fas fa-info-circle"></i> 
+                                            This setting is controlled by environment variable <code>@field.EnvironmentVariableName</code> and cannot be changed via the UI.
+                                        </div>
+                                    }
+                                    else if (field.IsSecret)
                                     {
                                         <input type="password" 
                                                class="form-control" 
@@ -79,6 +100,10 @@
                                                placeholder="@field.Placeholder"
                                                @(field.IsRequired ? "required" : "")
                                                @(Html.Raw(!string.IsNullOrEmpty(field.ValidationPattern) ? $"pattern=\"{field.ValidationPattern}\"" : "")) />
+                                        @if (!string.IsNullOrEmpty(field.Description))
+                                        {
+                                            <div class="form-text">@field.Description</div>
+                                        }
                                     }
                                     else
                                     {
@@ -90,11 +115,10 @@
                                                placeholder="@field.Placeholder"
                                                @(field.IsRequired ? "required" : "")
                                                @(Html.Raw(!string.IsNullOrEmpty(field.ValidationPattern) ? $"pattern=\"{field.ValidationPattern}\"" : "")) />
-                                    }
-                                    
-                                    @if (!string.IsNullOrEmpty(field.Description))
-                                    {
-                                        <div class="form-text">@field.Description</div>
+                                        @if (!string.IsNullOrEmpty(field.Description))
+                                        {
+                                            <div class="form-text">@field.Description</div>
+                                        }
                                     }
                                     
                                     @if (!string.IsNullOrEmpty(field.ValidationMessage))

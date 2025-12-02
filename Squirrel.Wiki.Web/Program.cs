@@ -48,6 +48,9 @@ builder.Services.AddResponseCaching();
 var startupLogger = LoggerFactory.Create(config => config.AddConsole()).CreateLogger<MinimalConfigurationService>();
 var minimalConfig = new MinimalConfigurationService(startupLogger);
 
+// Configure Kestrel server limits
+builder.WebHost.ConfigureSquirrelWikiKestrel(startupLogger);
+
 // Add session support for OIDC authentication
 var sessionTimeoutMinutes = int.TryParse(minimalConfig.GetValue("SQUIRREL_SESSION_TIMEOUT_MINUTES"), out var timeout) && timeout > 0 
     ? timeout 
@@ -74,6 +77,7 @@ Log.Information("Application data path: {AppDataPath} (from {Source})",
     minimalConfig.GetSource("SQUIRREL_APP_DATA_PATH"));
 
 // Configure Squirrel Wiki services using extension methods
+builder.Services.AddSquirrelWikiRequestSizeLimits(startupLogger);
 builder.Services.AddSquirrelWikiDatabase(minimalConfig, appDataPath, startupLogger);
 builder.Services.AddSquirrelWikiCaching(minimalConfig, startupLogger);
 builder.Services.AddSquirrelWikiAuthentication(startupLogger);

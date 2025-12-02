@@ -2,20 +2,23 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Squirrel.Wiki.Core.Database;
 
 #nullable disable
 
-namespace Squirrel.Wiki.Core.Migrations
+namespace Squirrel.Wiki.EF.Sqlite.Migrations
 {
     [DbContext(typeof(SquirrelDbContext))]
-    partial class SquirrelDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251202172502_InitialCreate_Sqlite")]
+    partial class InitialCreate_Sqlite
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "8.0.11");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.0");
 
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
                 {

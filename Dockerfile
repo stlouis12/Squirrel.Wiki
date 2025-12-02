@@ -1,12 +1,12 @@
 # Multi-stage build for Squirrel.Wiki
 # See https://aka.ms/containerfastmode to understand how Visual Studio uses this Dockerfile to build your images for faster debugging.
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 EXPOSE 80
 EXPOSE 443
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy solution file
@@ -20,6 +20,10 @@ COPY ["Squirrel.Wiki.Web/Squirrel.Wiki.Web.csproj", "Squirrel.Wiki.Web/"]
 COPY ["plugins/Squirrel.Wiki.Plugins.Oidc/Squirrel.Wiki.Plugins.Oidc.csproj", "plugins/Squirrel.Wiki.Plugins.Oidc/"]
 COPY ["plugins/Squirrel.Wiki.Plugins.Lucene/Squirrel.Wiki.Plugins.Lucene.csproj", "plugins/Squirrel.Wiki.Plugins.Lucene/"]
 COPY ["plugins/Squirrel.Wiki.Plugins.TableOfContents/Squirrel.Wiki.Plugins.TableOfContents.csproj", "plugins/Squirrel.Wiki.Plugins.TableOfContents/"]
+COPY ["migrations/Squirrel.Wiki.EF.PostgreSql/Squirrel.Wiki.EF.PostgreSql.csproj", "migrations/Squirrel.Wiki.EF.PostgreSql/"]
+COPY ["migrations/Squirrel.Wiki.EF.MySql/Squirrel.Wiki.EF.MySql.csproj", "migrations/Squirrel.Wiki.EF.MySql/"]
+COPY ["migrations/Squirrel.Wiki.EF.Sqlite/Squirrel.Wiki.EF.Sqlite.csproj", "migrations/Squirrel.Wiki.EF.Sqlite/"]
+COPY ["migrations/Squirrel.Wiki.EF.SqlServer/Squirrel.Wiki.EF.SqlServer.csproj", "migrations/Squirrel.Wiki.EF.SqlServer/"]
 
 # Restore dependencies
 RUN dotnet restore "Squirrel.Wiki.sln"
@@ -37,6 +41,19 @@ RUN dotnet build "Squirrel.Wiki.Plugins.Lucene.csproj" -c Release
 WORKDIR "/src/plugins/Squirrel.Wiki.Plugins.TableOfContents"
 RUN dotnet build "Squirrel.Wiki.Plugins.TableOfContents.csproj" -c Release
 
+# Build the migration projects
+WORKDIR "/src/migrations/Squirrel.Wiki.EF.PostgreSql"
+RUN dotnet build "Squirrel.Wiki.EF.PostgreSql.csproj" -c Release
+
+WORKDIR "/src/migrations/Squirrel.Wiki.EF.MySql"
+RUN dotnet build "Squirrel.Wiki.EF.MySql.csproj" -c Release
+
+WORKDIR "/src/migrations/Squirrel.Wiki.EF.Sqlite"
+RUN dotnet build "Squirrel.Wiki.EF.Sqlite.csproj" -c Release
+
+WORKDIR "/src/migrations/Squirrel.Wiki.EF.SqlServer"
+RUN dotnet build "Squirrel.Wiki.EF.SqlServer.csproj" -c Release
+
 # Build the main projects
 WORKDIR "/src"
 RUN dotnet build "Squirrel.Wiki.Contracts/Squirrel.Wiki.Contracts.csproj" -c Release
@@ -48,16 +65,19 @@ WORKDIR "/src"
 RUN dotnet publish "Squirrel.Wiki.Web/Squirrel.Wiki.Web.csproj" -c Release -o /app/publish
 
 # Copy plugins to publish output
-# The build targets copy plugins to bin/Release/net8.0/Plugins, so we need to copy them to the publish output
+# The build targets copy plugins to bin/Release/net10.0/Plugins, so we need to copy them to the publish output
 RUN mkdir -p /app/publish/Plugins && \
-    cp -r /src/Squirrel.Wiki.Web/bin/Release/net8.0/Plugins/* /app/publish/Plugins/ 2>/dev/null || true
+    cp -r /src/Squirrel.Wiki.Web/bin/Release/net10.0/Plugins/* /app/publish/Plugins/ 2>/dev/null || true
 
 FROM base AS final
 WORKDIR /app
 
-# Update base image packages for security
+# Update base image packages for security and install required libraries for PostgreSQL
 RUN apt-get update && \
     apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+        libgssapi-krb5-2 \
+        krb5-locales && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get clean
 
