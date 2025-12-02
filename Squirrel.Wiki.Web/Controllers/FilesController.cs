@@ -176,6 +176,41 @@ public class FilesController : BaseController
                 return RedirectToAction(nameof(Index), new { folderId });
             }
 
+            // Early validation: Check file sizes and extensions BEFORE processing to avoid wasting bandwidth
+            var maxFileSizeMB = await _configurationService.GetValueAsync<int>("SQUIRREL_FILE_MAX_SIZE_MB");
+            var maxFileSize = maxFileSizeMB * 1024L * 1024L; // Convert MB to bytes
+            
+            var oversizedFiles = files.Where(f => f.Length > maxFileSize).ToList();
+            if (oversizedFiles.Any())
+            {
+                var fileNames = string.Join(", ", oversizedFiles.Select(f => f.FileName));
+                _logger.LogWarning("User {Username} attempted to upload oversized file(s): {FileNames} (max: {MaxSizeMB} MB)", 
+                    _userContext.Username ?? "Anonymous", fileNames, maxFileSizeMB);
+                NotifyError($"File(s) exceed maximum size of {maxFileSizeMB} MB: {fileNames}");
+                return RedirectToAction(nameof(Index), new { folderId });
+            }
+
+            // Validate file extensions
+            var allowedExtensionsString = await _configurationService.GetValueAsync<string>("SQUIRREL_FILE_ALLOWED_EXTENSIONS");
+            var allowedExtensions = allowedExtensionsString
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(e => e.Trim().ToLowerInvariant())
+                .ToArray();
+
+            var disallowedFiles = files
+                .Where(f => !allowedExtensions.Contains(Path.GetExtension(f.FileName).ToLowerInvariant(), StringComparer.OrdinalIgnoreCase))
+                .ToList();
+
+            if (disallowedFiles.Any())
+            {
+                var fileNames = string.Join(", ", disallowedFiles.Select(f => f.FileName));
+                var extensions = string.Join(", ", disallowedFiles.Select(f => Path.GetExtension(f.FileName)));
+                _logger.LogWarning("User {Username} attempted to upload file(s) with disallowed extension(s): {FileNames} ({Extensions})", 
+                    _userContext.Username ?? "Anonymous", fileNames, extensions);
+                NotifyError($"File type(s) not allowed: {fileNames}. Allowed extensions: {allowedExtensionsString}");
+                return RedirectToAction(nameof(Index), new { folderId });
+            }
+
             // Upload files individually to handle errors properly
             int successCount = 0;
             int duplicateCount = 0;

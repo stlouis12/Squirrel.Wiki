@@ -17,11 +17,9 @@ namespace Squirrel.Wiki.Core.Services.Pages;
 public class PageContentService : BaseService, IPageContentService
 {
     private readonly IPageRepository _pageRepository;
-    private readonly ISettingsService _settingsService;
 
     public PageContentService(
         IPageRepository pageRepository,
-        ISettingsService settingsService,
         ILogger<PageContentService> logger,
         ICacheService cacheService,
         IEventPublisher eventPublisher,
@@ -29,7 +27,6 @@ public class PageContentService : BaseService, IPageContentService
         : base(logger, cacheService, eventPublisher, null, configuration)
     {
         _pageRepository = pageRepository;
-        _settingsService = settingsService;
     }
 
     public async Task<PageContentDto> GetLatestContentAsync(int pageId, CancellationToken cancellationToken = default)

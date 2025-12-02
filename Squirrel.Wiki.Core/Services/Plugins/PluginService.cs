@@ -821,6 +821,7 @@ public class PluginService : BaseService, IPluginService
 
                 // Remove ALL existing settings (environment variables take precedence)
                 _context.PluginSettings.RemoveRange(dbPlugin.Settings);
+                await _context.SaveChangesAsync(cancellationToken);
 
                 // Create settings pointing to environment variables
                 var secretKeys = schema.Where(c => c.IsSecret).Select(c => c.Key).ToHashSet();
@@ -843,6 +844,11 @@ public class PluginService : BaseService, IPluginService
                     _context.PluginSettings.Add(setting);
                 }
 
+                await _context.SaveChangesAsync(cancellationToken);
+                
+                // Reload the plugin with updated settings
+                await _context.Entry(dbPlugin).Collection(p => p.Settings).LoadAsync(cancellationToken);
+                
                 LogInfo("Plugin {PluginId} configured from environment variables", dbPlugin.PluginId);
             }
 
@@ -985,8 +991,8 @@ public class PluginService : BaseService, IPluginService
         var envPrefix = $"PLUGIN_{plugin.PluginId.ToUpperInvariant().Replace("-", "_").Replace(".", "_")}_";
         
         // Check which settings come from environment variables
-        var envVarNames = new Dictionary<string, string>();
-        var defaultValues = new Dictionary<string, string>();
+        var envVarNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var defaultValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         
         foreach (var configItem in schema)
         {
@@ -1009,8 +1015,28 @@ public class PluginService : BaseService, IPluginService
             }
         }
 
-        var secretKeys = schema.Where(c => c.IsSecret).Select(c => c.Key).ToHashSet();
-        var existingSettings = plugin.Settings.ToDictionary(s => s.Key, s => s);
+        var secretKeys = schema.Where(c => c.IsSecret).Select(c => c.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        
+        // Group by key (case-insensitive) and take first occurrence to handle any existing duplicates in database
+        var existingSettings = plugin.Settings
+            .GroupBy(s => s.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        
+        // If there were duplicates, remove them from database
+        var duplicateSettings = plugin.Settings
+            .GroupBy(s => s.Key, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .SelectMany(g => g.Skip(1))
+            .ToList();
+        
+        if (duplicateSettings.Any())
+        {
+            LogWarning("Found {Count} duplicate plugin settings for {PluginId}, removing duplicates", 
+                duplicateSettings.Count, plugin.PluginId);
+            _context.PluginSettings.RemoveRange(duplicateSettings);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        
         var settingsToUpdate = new List<PluginSetting>();
         var settingsToAdd = new List<PluginSetting>();
         

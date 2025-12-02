@@ -2809,8 +2809,8 @@
   <data name="UploadedBefore" xml:space="preserve">
     <value>Uploaded Before</value>
   </data>
-  <data name="SearchResults" xml:space="preserve">
-    <value>Search Results</value>
+  <data name="OrSignInWith" xml:space="preserve">
+    <value>Or Sign In With</value>
   </data>
   <data name="FilesFound" xml:space="preserve">
     <value>files found</value>

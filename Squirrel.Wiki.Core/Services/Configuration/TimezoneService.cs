@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Squirrel.Wiki.Contracts.Configuration;
 
 namespace Squirrel.Wiki.Core.Services.Configuration;
 
@@ -7,15 +8,15 @@ namespace Squirrel.Wiki.Core.Services.Configuration;
 /// </summary>
 public class TimezoneService : MinimalBaseService, ITimezoneService
 {
-    private readonly ISettingsService _settingsService;
+    private readonly IConfigurationService _configurationService;
     private TimeZoneInfo? _cachedTimezone;
     private DateTime _cacheExpiry = DateTime.MinValue;
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
 
-    public TimezoneService(ISettingsService settingsService, ILogger<TimezoneService> logger)
+    public TimezoneService(IConfigurationService configurationService, ILogger<TimezoneService> logger)
         : base(logger)
     {
-        _settingsService = settingsService;
+        _configurationService = configurationService;
     }
 
     /// <inheritdoc/>
@@ -27,8 +28,8 @@ public class TimezoneService : MinimalBaseService, ITimezoneService
             return _cachedTimezone;
         }
 
-        // Get timezone ID from settings
-        var timezoneId = await _settingsService.GetSettingAsync<string>("SQUIRREL_TIMEZONE", cancellationToken);
+        // Get timezone ID from configuration (respects environment variables)
+        var timezoneId = await _configurationService.GetValueAsync<string>("SQUIRREL_TIMEZONE", cancellationToken);
         
         if (string.IsNullOrEmpty(timezoneId))
         {

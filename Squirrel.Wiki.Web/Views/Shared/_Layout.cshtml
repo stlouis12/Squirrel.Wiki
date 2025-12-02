@@ -1,8 +1,6 @@
-@inject Squirrel.Wiki.Core.Services.Configuration.ISettingsService SettingsService
+@inject Squirrel.Wiki.Contracts.Configuration.IConfigurationService ConfigurationService
 @{
-    var siteName = await SettingsService.GetSettingAsync<string>("SQUIRREL_SITE_NAME") ?? "Squirrel Wiki";
-    // Remove quotes if present (settings are stored as JSON)
-    siteName = siteName.Trim('"');
+    var siteName = await ConfigurationService.GetValueAsync<string>("SQUIRREL_SITE_NAME") ?? "Squirrel Wiki";
 }
 <!DOCTYPE html>
 <html lang="en">

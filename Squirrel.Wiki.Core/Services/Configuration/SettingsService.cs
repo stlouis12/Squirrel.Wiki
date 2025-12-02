@@ -41,20 +41,20 @@ public class SettingsService : BaseService, ISettingsService
         if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentException("Setting key cannot be null or empty", nameof(key));
 
-        // Try cache first (cache as string since T might be a value type)
+        // Try cache first (cache as plain string, not JSON)
         var cacheKey = GetCacheKey(key);
-        var cachedJson = await Cache.GetAsync<string>(cacheKey, cancellationToken);
+        var cachedValue = await Cache.GetAsync<string>(cacheKey, cancellationToken);
 
-        if (cachedJson != null)
+        if (cachedValue != null)
         {
             LogDebug("Cache hit for setting {Key}", key);
             try
             {
-                return JsonSerializer.Deserialize<T>(cachedJson);
+                return ConvertPlainValue<T>(cachedValue);
             }
-            catch (JsonException)
+            catch (Exception)
             {
-                LogWarning("Failed to deserialize cached setting {Key}", key);
+                LogWarning("Failed to convert cached setting {Key}", key);
                 // Continue to database lookup
             }
         }
@@ -71,26 +71,17 @@ public class SettingsService : BaseService, ISettingsService
 
         try
         {
-            // Try to deserialize as JSON first
-            T? value;
-            try
-            {
-                value = JsonSerializer.Deserialize<T>(setting.Value);
-            }
-            catch (JsonException)
-            {
-                // If JSON deserialization fails, try to convert the plain string value
-                value = ConvertPlainValue<T>(setting.Value);
-            }
+            // Convert the plain string value to the target type
+            T? value = ConvertPlainValue<T>(setting.Value);
 
-            // Cache the result as JSON string
+            // Cache the result as plain string (not JSON)
             await Cache.SetAsync(cacheKey, setting.Value, CacheExpiration, cancellationToken);
 
             return value;
         }
         catch (Exception ex)
         {
-            LogError(ex, "Failed to deserialize setting {Key}", key);
+            LogError(ex, "Failed to convert setting {Key}", key);
             return default;
         }
     }

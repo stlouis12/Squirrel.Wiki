@@ -13,6 +13,7 @@ using Squirrel.Wiki.Core.Services.Users;
 using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models;
 using Squirrel.Wiki.Web.Services;
+using Squirrel.Wiki.Contracts.Configuration;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -20,13 +21,13 @@ public class AccountController : BaseController
 {
     private readonly IUserContext _userContext;
     private readonly IUserService _userService;
-    private readonly ISettingsService _settingsService;
+    private readonly IConfigurationService _configurationService;
     private readonly IPluginService _pluginService;
 
     public AccountController(
         IUserContext userContext,
         IUserService userService,
-        ISettingsService settingsService,
+        IConfigurationService configurationService,
         IPluginService pluginService,
         ITimezoneService timezoneService,
         ILogger<AccountController> logger,
@@ -35,7 +36,7 @@ public class AccountController : BaseController
     {
         _userContext = userContext;
         _userService = userService;
-        _settingsService = settingsService;
+        _configurationService = configurationService;
         _pluginService = pluginService;
     }
 
@@ -107,8 +108,8 @@ public class AccountController : BaseController
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
 
-            // Get session timeout from settings (default to 480 minutes / 8 hours if not set)
-            var sessionTimeoutMinutes = await _settingsService.GetSettingAsync<int>("SQUIRREL_SESSION_TIMEOUT_MINUTES");
+            // Get session timeout from configuration (default to 480 minutes / 8 hours if not set)
+            var sessionTimeoutMinutes = await _configurationService.GetValueAsync<int>("SQUIRREL_SESSION_TIMEOUT_MINUTES");
             if (sessionTimeoutMinutes <= 0)
             {
                 sessionTimeoutMinutes = 480; // Default to 8 hours
@@ -504,7 +505,7 @@ public class AccountController : BaseController
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
 
-            var sessionTimeoutMinutes = await _settingsService.GetSettingAsync<int>("SQUIRREL_SESSION_TIMEOUT_MINUTES");
+            var sessionTimeoutMinutes = await _configurationService.GetValueAsync<int>("SQUIRREL_SESSION_TIMEOUT_MINUTES");
             if (sessionTimeoutMinutes <= 0)
                 sessionTimeoutMinutes = 480;
 

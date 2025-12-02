@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
+using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Services;
-using Squirrel.Wiki.Core.Services.Configuration;
 
 namespace Squirrel.Wiki.Core.Security;
 
@@ -11,16 +11,16 @@ namespace Squirrel.Wiki.Core.Security;
 public class AuthorizationService : IAuthorizationService
 {
     private readonly IUserContext _userContext;
-    private readonly ISettingsService _settingsService;
+    private readonly IConfigurationService _configurationService;
     private readonly ILogger<AuthorizationService> _logger;
 
     public AuthorizationService(
         IUserContext userContext,
-        ISettingsService settingsService,
+        IConfigurationService configurationService,
         ILogger<AuthorizationService> logger)
     {
         _userContext = userContext;
-        _settingsService = settingsService;
+        _configurationService = configurationService;
         _logger = logger;
     }
 
@@ -51,7 +51,7 @@ public class AuthorizationService : IAuthorizationService
             case PageVisibility.Inherit:
             default:
                 // Inherit from global setting
-                var allowAnonymousReading = await _settingsService.GetSettingAsync<bool>(
+                var allowAnonymousReading = await _configurationService.GetValueAsync<bool>(
                     "SQUIRREL_ALLOW_ANONYMOUS_READING", cancellationToken);
                 
                 if (allowAnonymousReading)
@@ -85,7 +85,7 @@ public class AuthorizationService : IAuthorizationService
         _logger.LogDebug("Batch authorization check for {Count} pages", pagesList.Count);
 
         // Get the global setting once for all pages that inherit
-        var allowAnonymousReading = await _settingsService.GetSettingAsync<bool>(
+        var allowAnonymousReading = await _configurationService.GetValueAsync<bool>(
             "SQUIRREL_ALLOW_ANONYMOUS_READING", cancellationToken);
         var isAuthenticated = IsAuthenticated();
 
@@ -194,7 +194,7 @@ public class AuthorizationService : IAuthorizationService
             case Database.Entities.FileVisibility.Inherit:
             default:
                 // Inherit from global setting
-                var allowAnonymousReading = await _settingsService.GetSettingAsync<bool>(
+                var allowAnonymousReading = await _configurationService.GetValueAsync<bool>(
                     "SQUIRREL_ALLOW_ANONYMOUS_READING", cancellationToken);
                 
                 if (allowAnonymousReading)
@@ -271,7 +271,7 @@ public class AuthorizationService : IAuthorizationService
         }
 
         // Get allow anonymous reading setting once for all files
-        var allowAnonymousReading = await _settingsService.GetSettingAsync<bool>(
+        var allowAnonymousReading = await _configurationService.GetValueAsync<bool>(
             "SQUIRREL_ALLOW_ANONYMOUS_READING");
         
         var isAuthenticated = IsAuthenticated();

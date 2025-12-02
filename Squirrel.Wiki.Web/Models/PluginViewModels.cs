@@ -107,6 +107,8 @@ public class PluginConfigurationFieldViewModel
     public string Value { get; set; } = string.Empty;
     public bool IsRequired { get; set; }
     public bool IsSecret { get; set; }
+    public bool IsFromEnvironment { get; set; }
+    public string? EnvironmentVariableName { get; set; }
     public string DefaultValue { get; set; } = string.Empty;
     public string ValidationPattern { get; set; } = string.Empty;
     public string ValidationMessage { get; set; } = string.Empty;

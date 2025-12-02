@@ -16,6 +16,7 @@ using Squirrel.Wiki.Core.Services.Categories;
 using Squirrel.Wiki.Core.Services.Content;
 using Squirrel.Wiki.Core.Services.Search;
 using Squirrel.Wiki.Core.Services.Configuration;
+using Squirrel.Wiki.Contracts.Configuration;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -33,7 +34,7 @@ public class PagesController : BaseController
     private readonly Microsoft.AspNetCore.Authorization.IAuthorizationService _authorizationService;
     private readonly IPageRepository _pageRepository;
     private readonly IPageContentService _pageContent;
-    private readonly ISettingsService _settingsService;
+    private readonly IConfigurationService _configurationService;
 
     public PagesController(
         IPageService pageService,
@@ -45,7 +46,7 @@ public class PagesController : BaseController
         Microsoft.AspNetCore.Authorization.IAuthorizationService authorizationService,
         IPageRepository pageRepository,
         IPageContentService pageContent,
-        ISettingsService settingsService,
+        IConfigurationService configurationService,
         ITimezoneService timezoneService,
         ILogger<PagesController> logger,
         INotificationService notifications)
@@ -60,7 +61,7 @@ public class PagesController : BaseController
         _authorizationService = authorizationService;
         _pageRepository = pageRepository;
         _pageContent = pageContent;
-        _settingsService = settingsService;
+        _configurationService = configurationService;
     }
 
     /// <summary>
@@ -334,8 +335,8 @@ public class PagesController : BaseController
             var allCategories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
 
             // Load settings
-            var defaultTemplate = await _settingsService.GetSettingAsync<string>("SQUIRREL_DEFAULT_PAGE_TEMPLATE", cancellationToken);
-            var maxTitleLength = await _settingsService.GetSettingAsync<int?>("SQUIRREL_MAX_PAGE_TITLE_LENGTH", cancellationToken);
+            var defaultTemplate = await _configurationService.GetValueAsync<string>("SQUIRREL_DEFAULT_PAGE_TEMPLATE", cancellationToken);
+            var maxTitleLength = await _configurationService.GetValueAsync<int>("SQUIRREL_MAX_PAGE_TITLE_LENGTH", cancellationToken);
 
             var viewModel = new PageViewModel
             {
@@ -344,7 +345,7 @@ public class PagesController : BaseController
                 RawTags = tags,
                 AllTags = allTags.Select(t => new TagViewModel { Id = t.Id, Name = t.Name }).ToList(),
                 AllCategories = MapCategoriesToViewModel(allCategories),
-                MaxTitleLength = maxTitleLength ?? 200
+                MaxTitleLength = maxTitleLength > 0 ? maxTitleLength : 200
             };
 
             return View("Edit", viewModel);
@@ -428,7 +429,7 @@ public class PagesController : BaseController
             var allCategories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
 
             // Load settings
-            var maxTitleLength = await _settingsService.GetSettingAsync<int?>("SQUIRREL_MAX_PAGE_TITLE_LENGTH", cancellationToken);
+            var maxTitleLength = await _configurationService.GetValueAsync<int>("SQUIRREL_MAX_PAGE_TITLE_LENGTH", cancellationToken);
 
             // Get full category path if page has a category
             string? categoryFullPath = null;
@@ -457,7 +458,7 @@ public class PagesController : BaseController
                 ModifiedOn = page.ModifiedOn,
                 AllTags = allTags.Select(t => new TagViewModel { Id = t.Id, Name = t.Name }).ToList(),
                 AllCategories = MapCategoriesToViewModel(allCategories),
-                MaxTitleLength = maxTitleLength ?? 200
+                MaxTitleLength = maxTitleLength > 0 ? maxTitleLength : 200
             };
 
             return View(viewModel);

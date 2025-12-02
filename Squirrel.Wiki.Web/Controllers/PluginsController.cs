@@ -148,23 +148,33 @@ public class PluginsController : BaseController
             var loadedPlugin = _pluginService.GetLoadedPlugin<IPlugin>(plugin.PluginId);
             var currentConfig = await _pluginService.GetPluginConfigurationAsync(id);
 
+            // Create a dictionary of settings for quick lookup
+            var settingsLookup = plugin.Settings.ToDictionary(s => s.Key, s => s, StringComparer.OrdinalIgnoreCase);
+
             var viewModel = new PluginConfigureViewModel
             {
                 Id = plugin.Id,
                 PluginId = plugin.PluginId,
                 Name = plugin.Name,
-                Fields = loadedPlugin?.Metadata.Configuration.Select(c => new PluginConfigurationFieldViewModel
+                Fields = loadedPlugin?.Metadata.Configuration.Select(c =>
                 {
-                    Key = c.Key,
-                    DisplayName = c.DisplayName,
-                    Description = c.Description,
-                    Value = currentConfig.ContainsKey(c.Key) ? currentConfig[c.Key] : (c.DefaultValue ?? string.Empty),
-                    IsRequired = c.IsRequired,
-                    IsSecret = c.IsSecret,
-                    DefaultValue = c.DefaultValue ?? string.Empty,
-                    ValidationPattern = c.ValidationPattern ?? string.Empty,
-                    ValidationMessage = c.ValidationErrorMessage ?? string.Empty,
-                    Placeholder = c.DefaultValue ?? string.Empty
+                    var setting = settingsLookup.GetValueOrDefault(c.Key);
+                    
+                    return new PluginConfigurationFieldViewModel
+                    {
+                        Key = c.Key,
+                        DisplayName = c.DisplayName,
+                        Description = c.Description,
+                        Value = currentConfig.ContainsKey(c.Key) ? currentConfig[c.Key] : (c.DefaultValue ?? string.Empty),
+                        IsRequired = c.IsRequired,
+                        IsSecret = c.IsSecret,
+                        IsFromEnvironment = setting?.IsFromEnvironment ?? false,
+                        EnvironmentVariableName = setting?.EnvironmentVariableName,
+                        DefaultValue = c.DefaultValue ?? string.Empty,
+                        ValidationPattern = c.ValidationPattern ?? string.Empty,
+                        ValidationMessage = c.ValidationErrorMessage ?? string.Empty,
+                        Placeholder = c.DefaultValue ?? string.Empty
+                    };
                 }).ToList() ?? new List<PluginConfigurationFieldViewModel>()
             };
 

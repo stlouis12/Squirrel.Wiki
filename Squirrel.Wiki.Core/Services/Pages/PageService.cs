@@ -24,7 +24,6 @@ public class PageService : BaseService, IPageService
     private readonly IPageContentService _pageContentService;
     private readonly IPageRenderingService _pageRenderingService;
     private readonly IPageLinkService _pageLinkService;
-    private readonly ISettingsService _settingsService;
     private readonly ITagService _tagService;
     private readonly ISlugGenerator _slugGenerator;
 
@@ -38,7 +37,6 @@ public class PageService : BaseService, IPageService
         IPageContentService pageContentService,
         IPageRenderingService pageRenderingService,
         IPageLinkService pageLinkService,
-        ISettingsService settingsService,
         ITagService tagService,
         ISlugGenerator slugGenerator,
         ICacheService cacheService,
@@ -53,7 +51,6 @@ public class PageService : BaseService, IPageService
         _pageContentService = pageContentService;
         _pageRenderingService = pageRenderingService;
         _pageLinkService = pageLinkService;
-        _settingsService = settingsService;
         _tagService = tagService;
         _slugGenerator = slugGenerator;
     }
@@ -283,7 +280,7 @@ public class PageService : BaseService, IPageService
         await _pageRepository.UpdateAsync(page, cancellationToken);
 
         // Check if page versioning is enabled
-        var enableVersioning = await _settingsService.GetSettingAsync<bool>("SQUIRREL_ENABLE_PAGE_VERSIONING", cancellationToken);
+        var enableVersioning = await Configuration.GetValueAsync<bool>("SQUIRREL_ENABLE_PAGE_VERSIONING", cancellationToken);
 
         if (enableVersioning)
         {
