@@ -9,6 +9,7 @@ using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services.Caching;
 using Squirrel.Wiki.Core.Services.Content;
+using static Squirrel.Wiki.Core.Services.Files.FileServiceErrorCodes;
 
 namespace Squirrel.Wiki.Core.Services.Files;
 
@@ -119,7 +120,7 @@ public class FolderService : BaseService, IFolderService
             var folder = await _folderRepository.GetByIdAsync(folderId, cancellationToken);
             if (folder == null)
             {
-                return Result<FolderDto>.Failure($"Folder with ID {folderId} not found", "NOT_FOUND");
+                return Result<FolderDto>.Failure($"Folder with ID {folderId} not found", NOT_FOUND);
             }
 
             var dto = await MapToDtoAsync(folder, cancellationToken);
@@ -130,7 +131,7 @@ public class FolderService : BaseService, IFolderService
         catch (Exception ex)
         {
             LogError(ex, "Error getting folder by ID {FolderId}", folderId);
-            return Result<FolderDto>.Failure($"Error retrieving folder: {ex.Message}", "GET_ERROR");
+            return Result<FolderDto>.Failure($"Error retrieving folder: {ex.Message}", GET_ERROR);
         }
     }
 
@@ -141,7 +142,7 @@ public class FolderService : BaseService, IFolderService
             var folder = await _folderRepository.GetBySlugAsync(slug, cancellationToken);
             if (folder == null)
             {
-                return Result<FolderDto>.Failure($"Folder with slug '{slug}' not found", "NOT_FOUND");
+                return Result<FolderDto>.Failure($"Folder with slug '{slug}' not found", NOT_FOUND);
             }
 
             var dto = await MapToDtoAsync(folder, cancellationToken);
@@ -150,7 +151,7 @@ public class FolderService : BaseService, IFolderService
         catch (Exception ex)
         {
             LogError(ex, "Error getting folder by slug {Slug}", slug);
-            return Result<FolderDto>.Failure($"Error retrieving folder: {ex.Message}", "GET_ERROR");
+            return Result<FolderDto>.Failure($"Error retrieving folder: {ex.Message}", GET_ERROR);
         }
     }
 
@@ -171,7 +172,7 @@ public class FolderService : BaseService, IFolderService
         catch (Exception ex)
         {
             LogError(ex, "Error getting root folders");
-            return Result<List<FolderDto>>.Failure($"Error retrieving root folders: {ex.Message}", "GET_ERROR");
+            return Result<List<FolderDto>>.Failure($"Error retrieving root folders: {ex.Message}", GET_ERROR);
         }
     }
 
@@ -192,7 +193,7 @@ public class FolderService : BaseService, IFolderService
         catch (Exception ex)
         {
             LogError(ex, "Error getting child folders for parent {ParentId}", parentFolderId);
-            return Result<List<FolderDto>>.Failure($"Error retrieving child folders: {ex.Message}", "GET_ERROR");
+            return Result<List<FolderDto>>.Failure($"Error retrieving child folders: {ex.Message}", GET_ERROR);
         }
     }
 
@@ -231,7 +232,7 @@ public class FolderService : BaseService, IFolderService
             var folder = await _folderRepository.GetByIdAsync(folderId, cancellationToken);
             if (folder == null)
             {
-                return Result<FolderDto>.Failure($"Folder with ID {folderId} not found", "NOT_FOUND");
+                return Result<FolderDto>.Failure($"Folder with ID {folderId} not found", NOT_FOUND);
             }
 
             var changes = new Dictionary<string, object>();
@@ -294,7 +295,7 @@ public class FolderService : BaseService, IFolderService
             var folder = await _folderRepository.GetByIdAsync(folderId, cancellationToken);
             if (folder == null)
             {
-                return Result<FolderDto>.Failure($"Folder with ID {folderId} not found", "NOT_FOUND");
+                return Result<FolderDto>.Failure($"Folder with ID {folderId} not found", NOT_FOUND);
             }
 
             // Validate new parent exists if specified
@@ -356,7 +357,7 @@ public class FolderService : BaseService, IFolderService
             var folder = await _folderRepository.GetByIdAsync(folderId, cancellationToken);
             if (folder == null)
             {
-                return Result.Failure($"Folder with ID {folderId} not found", "NOT_FOUND");
+                return Result.Failure($"Folder with ID {folderId} not found", NOT_FOUND);
             }
 
             // Check for child folders

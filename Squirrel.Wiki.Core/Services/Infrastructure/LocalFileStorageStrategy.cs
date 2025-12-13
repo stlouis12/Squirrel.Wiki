@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Contracts.Storage;
 using Squirrel.Wiki.Core.Exceptions;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
 
 namespace Squirrel.Wiki.Core.Services.Infrastructure;
 
@@ -26,8 +27,8 @@ public class LocalFileStorageStrategy : IFileStorageStrategy
         _configurationService = configurationService;
         
         // Get base path from configuration service (synchronously in constructor)
-        var configuredPath = _configurationService.GetValueAsync<string>("SQUIRREL_FILE_STORAGE_PATH").GetAwaiter().GetResult();
-        var appDataPath = _configurationService.GetValueAsync<string>("SQUIRREL_APP_DATA_PATH").GetAwaiter().GetResult();
+        var configuredPath = _configurationService.GetValueAsync<string>(SQUIRREL_FILE_STORAGE_PATH).GetAwaiter().GetResult();
+        var appDataPath = _configurationService.GetValueAsync<string>(SQUIRREL_APP_DATA_PATH).GetAwaiter().GetResult();
         
         // Resolve and ensure the path exists using PathHelper
         _basePath = PathHelper.ResolveAndEnsurePath(configuredPath, appDataPath);

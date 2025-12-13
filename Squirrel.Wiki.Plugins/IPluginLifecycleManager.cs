@@ -13,13 +13,13 @@ public interface IPluginLifecycleManager
     /// </summary>
     /// <param name="plugin">The plugin to initialize</param>
     /// <param name="configuration">The plugin configuration</param>
-    /// <param name="services">The service provider for dependency injection</param>
+    /// <param name="serviceProvider">The service provider for dependency injection</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Result indicating success or failure with details</returns>
     Task<PluginLifecycleResult> InitializePluginAsync(
         IPlugin plugin,
         Dictionary<string, string> configuration,
-        IServiceProvider services,
+        IServiceProvider serviceProvider,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -47,13 +47,13 @@ public interface IPluginLifecycleManager
     /// </summary>
     /// <param name="plugin">The plugin to restart</param>
     /// <param name="configuration">The plugin configuration</param>
-    /// <param name="services">The service provider for dependency injection</param>
+    /// <param name="serviceProvider">The service provider for dependency injection</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Result indicating success or failure with details</returns>
     Task<PluginLifecycleResult> RestartPluginAsync(
         IPlugin plugin,
         Dictionary<string, string> configuration,
-        IServiceProvider services,
+        IServiceProvider serviceProvider,
         CancellationToken cancellationToken = default);
 }
 

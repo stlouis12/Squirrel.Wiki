@@ -25,6 +25,7 @@ using Squirrel.Wiki.Core.Services.Tags;
 using Squirrel.Wiki.Core.Services.Users;
 using Squirrel.Wiki.Web.Resources;
 using PathHelper = Squirrel.Wiki.Core.Services.Infrastructure.PathHelper;
+using static Squirrel.Wiki.Core.Constants.UserRoles;
 
 namespace Squirrel.Wiki.Web.Extensions;
 
@@ -167,8 +168,8 @@ public static class ServiceCollectionExtensions
 
         services.AddAuthorization(options =>
         {
-            options.AddPolicy("RequireAdmin", policy => policy.RequireRole("Admin"));
-            options.AddPolicy("RequireEditor", policy => policy.RequireRole("Editor", "Admin"));
+            options.AddPolicy("RequireAdmin", policy => policy.RequireRole(ADMIN_ROLE));
+            options.AddPolicy("RequireEditor", policy => policy.RequireRole(EDITOR_ROLE, ADMIN_ROLE));
             options.AddPolicy("CanViewPage", policy =>
                 policy.Requirements.Add(new Squirrel.Wiki.Core.Security.Authorization.PageAccessRequirement(
                     Squirrel.Wiki.Core.Security.Authorization.PageAccessType.View)));
@@ -201,6 +202,10 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddSquirrelWikiServices(this IServiceCollection services, string pluginsPath, ILogger logger)
     {
+        // HTTP Client Factory
+        services.AddHttpClient();
+        logger.LogInformation("HttpClient factory registered");
+
         // Configuration System
         services.AddScoped<Squirrel.Wiki.Core.Configuration.IConfigurationProvider, DefaultConfigurationProvider>();
         services.AddScoped<Squirrel.Wiki.Core.Configuration.IConfigurationProvider, EnvironmentVariableConfigurationProvider>();

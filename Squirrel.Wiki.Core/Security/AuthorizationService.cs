@@ -2,6 +2,9 @@ using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Services;
+using Microsoft.Extensions.Configuration;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
+using static Squirrel.Wiki.Core.Constants.UserRoles;
 
 namespace Squirrel.Wiki.Core.Security;
 
@@ -52,7 +55,7 @@ public class AuthorizationService : IAuthorizationService
             default:
                 // Inherit from global setting
                 var allowAnonymousReading = await _configurationService.GetValueAsync<bool>(
-                    "SQUIRREL_ALLOW_ANONYMOUS_READING", cancellationToken);
+                    SQUIRREL_ALLOW_ANONYMOUS_READING, cancellationToken);
                 
                 if (allowAnonymousReading)
                 {
@@ -86,7 +89,7 @@ public class AuthorizationService : IAuthorizationService
 
         // Get the global setting once for all pages that inherit
         var allowAnonymousReading = await _configurationService.GetValueAsync<bool>(
-            "SQUIRREL_ALLOW_ANONYMOUS_READING", cancellationToken);
+            SQUIRREL_ALLOW_ANONYMOUS_READING, cancellationToken);
         var isAuthenticated = IsAuthenticated();
 
         // Process each page using the same logic as CanViewPageAsync
@@ -148,11 +151,11 @@ public class AuthorizationService : IAuthorizationService
         // If page is locked, only admins can edit
         if (page.IsLocked)
         {
-            return Task.FromResult(userRole == "Admin");
+            return Task.FromResult(userRole == ADMIN_ROLE);
         }
 
         // Otherwise, admins and editors can edit
-        return Task.FromResult(userRole == "Admin" || userRole == "Editor");
+        return Task.FromResult(userRole == ADMIN_ROLE || userRole == EDITOR_ROLE);
     }
 
     public Task<bool> CanDeletePageAsync(Models.PageDto page, string? userRole)
@@ -160,11 +163,11 @@ public class AuthorizationService : IAuthorizationService
         // If page is locked, only admins can delete
         if (page.IsLocked)
         {
-            return Task.FromResult(userRole == "Admin");
+            return Task.FromResult(userRole == ADMIN_ROLE);
         }
 
         // Otherwise, admins and editors can delete
-        return Task.FromResult(userRole == "Admin" || userRole == "Editor");
+        return Task.FromResult(userRole == ADMIN_ROLE || userRole == EDITOR_ROLE);
     }
 
     public async Task<bool> CanViewFileAsync(Database.Entities.File file, CancellationToken cancellationToken = default)
@@ -195,7 +198,7 @@ public class AuthorizationService : IAuthorizationService
             default:
                 // Inherit from global setting
                 var allowAnonymousReading = await _configurationService.GetValueAsync<bool>(
-                    "SQUIRREL_ALLOW_ANONYMOUS_READING", cancellationToken);
+                    SQUIRREL_ALLOW_ANONYMOUS_READING, cancellationToken);
                 
                 if (allowAnonymousReading)
                 {
@@ -272,7 +275,7 @@ public class AuthorizationService : IAuthorizationService
 
         // Get allow anonymous reading setting once for all files
         var allowAnonymousReading = await _configurationService.GetValueAsync<bool>(
-            "SQUIRREL_ALLOW_ANONYMOUS_READING");
+            SQUIRREL_ALLOW_ANONYMOUS_READING);
         
         var isAuthenticated = IsAuthenticated();
         var username = _userContext.Username ?? "Anonymous";

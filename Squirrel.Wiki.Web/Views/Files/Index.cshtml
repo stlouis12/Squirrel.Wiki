@@ -2,6 +2,7 @@
 @using Squirrel.Wiki.Core.Database.Entities
 @using Squirrel.Wiki.Core.Services.Configuration
 @using Squirrel.Wiki.Web.Extensions
+@using static Squirrel.Wiki.Core.Constants.SystemUserConstants
 @inject IStringLocalizer<SharedResources> Localizer
 @inject ITimezoneService TimezoneService
 @{
@@ -103,7 +104,7 @@
                                                         <i class="bi bi-pencil"></i> @Localizer["Edit"]
                                                     </a>
                                                 </li>
-                                                @if (User.IsInRole("Admin"))
+                                                @if (User.IsInRole(ADMIN_ROLE))
                                                 {
                                                     <li><hr class="dropdown-divider"></li>
                                                     <li>
@@ -524,7 +525,7 @@
 }
 
 @functions {
-    string GetFileIcon(string contentType)
+    static string GetFileIcon(string contentType)
     {
         if (contentType.StartsWith("image/")) return "bi-file-image";
         if (contentType.Contains("pdf")) return "bi-file-pdf";
@@ -536,7 +537,7 @@
         return "bi-file-earmark";
     }
     
-    string FormatFileSize(long bytes)
+    static string FormatFileSize(long bytes)
     {
         string[] sizes = { "B", "KB", "MB", "GB", "TB" };
         double len = bytes;

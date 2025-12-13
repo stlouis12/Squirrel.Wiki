@@ -23,7 +23,7 @@ public class PluginLifecycleManager : IPluginLifecycleManager
     public async Task<PluginLifecycleResult> InitializePluginAsync(
         IPlugin plugin,
         Dictionary<string, string> configuration,
-        IServiceProvider services,
+        IServiceProvider serviceProvider,
         CancellationToken cancellationToken = default)
     {
         if (plugin == null)
@@ -36,9 +36,9 @@ public class PluginLifecycleManager : IPluginLifecycleManager
             throw new ArgumentNullException(nameof(configuration));
         }
 
-        if (services == null)
+        if (serviceProvider == null)
         {
-            throw new ArgumentNullException(nameof(services));
+            throw new ArgumentNullException(nameof(serviceProvider));
         }
 
         var stopwatch = Stopwatch.StartNew();
@@ -59,7 +59,7 @@ public class PluginLifecycleManager : IPluginLifecycleManager
             }
 
             // Initialize the plugin
-            await plugin.InitializeAsync(services, cancellationToken);
+            await plugin.InitializeAsync(serviceProvider, cancellationToken);
 
             stopwatch.Stop();
 
@@ -258,7 +258,7 @@ public class PluginLifecycleManager : IPluginLifecycleManager
     public async Task<PluginLifecycleResult> RestartPluginAsync(
         IPlugin plugin,
         Dictionary<string, string> configuration,
-        IServiceProvider services,
+        IServiceProvider serviceProvider,
         CancellationToken cancellationToken = default)
     {
         if (plugin == null)
@@ -271,9 +271,9 @@ public class PluginLifecycleManager : IPluginLifecycleManager
             throw new ArgumentNullException(nameof(configuration));
         }
 
-        if (services == null)
+        if (serviceProvider == null)
         {
-            throw new ArgumentNullException(nameof(services));
+            throw new ArgumentNullException(nameof(serviceProvider));
         }
 
         var stopwatch = Stopwatch.StartNew();
@@ -300,7 +300,7 @@ public class PluginLifecycleManager : IPluginLifecycleManager
             await Task.Delay(100, cancellationToken);
 
             // Initialize again
-            var initResult = await InitializePluginAsync(plugin, configuration, services, cancellationToken);
+            var initResult = await InitializePluginAsync(plugin, configuration, serviceProvider, cancellationToken);
 
             stopwatch.Stop();
 

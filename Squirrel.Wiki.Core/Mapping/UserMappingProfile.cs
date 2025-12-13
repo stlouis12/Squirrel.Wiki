@@ -1,6 +1,7 @@
 using AutoMapper;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Models;
+using static Squirrel.Wiki.Core.Constants.UserRoles;
 
 namespace Squirrel.Wiki.Core.Mapping;
 
@@ -55,8 +56,8 @@ public class UserMappingProfile : Profile
     private static List<string> GetRoles(User user)
     {
         var roles = new List<string>();
-        if (user.IsAdmin) roles.Add("Admin");
-        if (user.IsEditor) roles.Add("Editor");
+        if (user.IsAdmin) roles.Add(ADMIN_ROLE);
+        if (user.IsEditor) roles.Add(EDITOR_ROLE);
         return roles;
     }
 }

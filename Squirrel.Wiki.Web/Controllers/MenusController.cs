@@ -8,6 +8,7 @@ using Squirrel.Wiki.Core.Services.Configuration;
 using Squirrel.Wiki.Core.Services.Menus;
 using Squirrel.Wiki.Web.Models.Admin;
 using Squirrel.Wiki.Web.Services;
+using static Squirrel.Wiki.Core.Constants.SystemUserConstants;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -52,7 +53,7 @@ public class MenusController : BaseController
                 ItemCount = CountMenuItems(m.MenuMarkup),
                 IsEnabled = m.IsEnabled,
                 ModifiedOn = m.ModifiedOn,
-                ModifiedBy = m.ModifiedBy ?? "System"
+                ModifiedBy = m.ModifiedBy ?? SYSTEM_USERNAME
             }).ToList();
 
             PopulateBaseViewModel(model);
@@ -114,6 +115,11 @@ public class MenusController : BaseController
     [HttpPost]
     public async Task<IActionResult> CheckActiveConflict([FromBody] CheckConflictRequest request)
     {
+        if (!ModelState.IsValid)
+        {
+            return Json(new { hasConflict = false, error = "Invalid request data" });
+        }
+
         try
         {
             if (!request.IsActive)
@@ -175,7 +181,7 @@ public class MenusController : BaseController
             var notificationKey = model.IsNew ? "Notification_MenuCreated" : "Notification_MenuUpdated";
             
             _logger.LogInformation("{Action} menu '{MenuName}' (ID: {MenuId}) by {User}", 
-                action, result.Value!.Name, result.Value.Id, _userContext.Username ?? "System");
+                action, result.Value!.Name, result.Value.Id, _userContext.Username ?? SYSTEM_USERNAME);
             
             NotifyLocalizedSuccess(notificationKey, result.Value.Name);
             
@@ -266,6 +272,15 @@ public class MenusController : BaseController
     [HttpPost]
     public async Task<IActionResult> Preview([FromBody] MenuPreviewViewModel model)
     {
+        if (!ModelState.IsValid)
+        {
+            return Json(new
+            {
+                success = false,
+                error = "Invalid menu data"
+            });
+        }
+
         try
         {
             // Render as Bootstrap navbar HTML for accurate preview
@@ -308,7 +323,7 @@ public class MenusController : BaseController
     {
         try
         {
-            var username = _userContext.Username ?? "System";
+            var username = _userContext.Username ?? SYSTEM_USERNAME;
             
             var createDto = new MenuCreateDto
             {
@@ -346,7 +361,7 @@ public class MenusController : BaseController
     {
         try
         {
-            var username = _userContext.Username ?? "System";
+            var username = _userContext.Username ?? SYSTEM_USERNAME;
             
             var updateDto = new MenuUpdateDto
             {
@@ -392,7 +407,7 @@ public class MenusController : BaseController
             .ToList();
     }
 
-    private int CountMenuItems(string menuMarkup)
+    private static int CountMenuItems(string menuMarkup)
     {
         if (string.IsNullOrWhiteSpace(menuMarkup))
         {
@@ -408,7 +423,7 @@ public class MenusController : BaseController
         });
     }
 
-    private string GetDefaultMenuMarkup()
+    private static string GetDefaultMenuMarkup()
     {
         return @"* [Home](/)
 * [All Pages](/Pages/AllPages)

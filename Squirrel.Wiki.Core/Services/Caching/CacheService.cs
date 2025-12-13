@@ -13,7 +13,6 @@ namespace Squirrel.Wiki.Core.Services.Caching;
 public class CacheService : ICacheService
 {
     private readonly IDistributedCache _cache;
-    private readonly IMemoryCache? _memoryCache;
     private readonly IConfigurationService _configuration;
     private readonly ILogger<CacheService> _logger;
     
@@ -23,12 +22,10 @@ public class CacheService : ICacheService
     public CacheService(
         IDistributedCache cache,
         IConfigurationService configuration,
-        ILogger<CacheService> logger,
-        IMemoryCache? memoryCache = null)
+        ILogger<CacheService> logger)
     {
         _cache = cache;
         _configuration = configuration;
-        _memoryCache = memoryCache;
         _logger = logger;
     }
 

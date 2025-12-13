@@ -20,9 +20,6 @@ public class SettingsController : BaseController
 {
     private readonly ISettingsService _settingsService;
     private readonly IConfigurationService _configurationService;
-    private readonly SquirrelDbContext _dbContext;
-    private readonly IStringLocalizer<SharedResources> _localizer;
-    private readonly ITimezoneService _timezoneService;
 
     public SettingsController(
         ISettingsService settingsService,
@@ -32,13 +29,10 @@ public class SettingsController : BaseController
         IStringLocalizer<SharedResources> localizer,
         INotificationService notifications,
         ITimezoneService timezoneService)
-        : base(logger, notifications)
+        : base(logger, notifications, timezoneService, localizer)
     {
         _settingsService = settingsService;
         _configurationService = configurationService;
-        _dbContext = dbContext;
-        _localizer = localizer;
-        _timezoneService = timezoneService;
     }
 
     /// <summary>
@@ -384,7 +378,7 @@ public class SettingsController : BaseController
         return groups;
     }
 
-    private int GetCategoryOrder(string category)
+    private static int GetCategoryOrder(string category)
     {
         return category switch
         {
@@ -397,7 +391,7 @@ public class SettingsController : BaseController
         };
     }
 
-    private string GetCategoryIcon(string category)
+    private static string GetCategoryIcon(string category)
     {
         return category switch
         {
@@ -488,7 +482,7 @@ public class SettingsController : BaseController
         };
     }
 
-    private SettingType GetSettingType(Type valueType, ValidationRules? validation, string? key = null)
+    private static SettingType GetSettingType(Type valueType, ValidationRules? validation, string? key = null)
     {
         if (valueType == typeof(bool))
             return SettingType.Boolean;
@@ -518,7 +512,7 @@ public class SettingsController : BaseController
         return SettingType.Text;
     }
 
-    private string? DeserializeValue(string? value)
+    private static string? DeserializeValue(string? value)
     {
         if (string.IsNullOrEmpty(value))
             return value;

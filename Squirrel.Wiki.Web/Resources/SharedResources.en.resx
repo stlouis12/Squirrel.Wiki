@@ -2920,4 +2920,53 @@
   <data name="VersionRestoredSuccessfully" xml:space="preserve">
     <value>Version restored successfully</value>
   </data>
+  <!-- Health Status Messages -->
+  <data name="HealthStatus_Healthy" xml:space="preserve">
+    <value>Healthy</value>
+  </data>
+  <data name="HealthStatus_Degraded" xml:space="preserve">
+    <value>Degraded</value>
+  </data>
+  <data name="HealthStatus_Unhealthy" xml:space="preserve">
+    <value>Unhealthy</value>
+  </data>
+  <data name="HealthStatus_Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="HealthStatus_DatabaseConnectionWorking" xml:space="preserve">
+    <value>Database connection is working</value>
+  </data>
+  <data name="HealthStatus_DatabaseConnectionFailed" xml:space="preserve">
+    <value>Database connection failed: {0}</value>
+  </data>
+  <data name="HealthStatus_CacheWorking" xml:space="preserve">
+    <value>Cache is working</value>
+  </data>
+  <data name="HealthStatus_CacheReadWriteIssue" xml:space="preserve">
+    <value>Cache read/write issue</value>
+  </data>
+  <data name="HealthStatus_CacheCheckFailed" xml:space="preserve">
+    <value>Cache check failed: {0}</value>
+  </data>
+  <data name="HealthStatus_SearchIndexAccessible" xml:space="preserve">
+    <value>Search index is accessible</value>
+  </data>
+  <data name="HealthStatus_SearchIndexIssue" xml:space="preserve">
+    <value>Search index issue: {0}</value>
+  </data>
+  <data name="HealthStatus_NoReadyDrivesFound" xml:space="preserve">
+    <value>No ready drives found</value>
+  </data>
+  <data name="HealthStatus_DiskSpaceInfo" xml:space="preserve">
+    <value>{0}% free ({1} of {2})</value>
+  </data>
+  <data name="HealthStatus_CouldNotCheckDiskSpace" xml:space="preserve">
+    <value>Could not check disk space: {0}</value>
+  </data>
+  <data name="HealthStatus_WorkingSetMemory" xml:space="preserve">
+    <value>Working set: {0} MB</value>
+  </data>
+  <data name="HealthStatus_CouldNotCheckMemory" xml:space="preserve">
+    <value>Could not check memory: {0}</value>
+  </data>
 </root>

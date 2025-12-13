@@ -7,36 +7,100 @@ namespace Squirrel.Wiki.Core.Configuration;
 /// </summary>
 public static class ConfigurationMetadataRegistry
 {
+    /// <summary>
+    /// Configuration category constants
+    /// </summary>
+    public static class Categories
+    {
+        public const string General = "General";
+        public const string Security = "Security";
+        public const string Content = "Content";
+        public const string Performance = "Performance";
+        public const string Application = "Application";
+        public const string Database = "Database";
+        public const string Files = "Files";
+    }
+
+    public static class ConfigurationKeys
+    {
+        // Site Configuration
+        public const string SQUIRREL_SITE_NAME = "SQUIRREL_SITE_NAME";
+        public const string SQUIRREL_SITE_URL = "SQUIRREL_SITE_URL";
+        public const string SQUIRREL_DEFAULT_LANGUAGE = "SQUIRREL_DEFAULT_LANGUAGE";
+        public const string SQUIRREL_TIMEZONE = "SQUIRREL_TIMEZONE";
+
+        // Admin Bootstrap Configuration
+        public const string SQUIRREL_ADMIN_USERNAME = "SQUIRREL_ADMIN_USERNAME";
+        public const string SQUIRREL_ADMIN_PASSWORD = "SQUIRREL_ADMIN_PASSWORD";
+        public const string SQUIRREL_ADMIN_EMAIL = "SQUIRREL_ADMIN_EMAIL";
+        public const string SQUIRREL_ADMIN_DISPLAYNAME = "SQUIRREL_ADMIN_DISPLAYNAME";
+
+        // Security Configuration
+        public const string SQUIRREL_ALLOW_ANONYMOUS_READING = "SQUIRREL_ALLOW_ANONYMOUS_READING";
+        public const string SQUIRREL_SESSION_TIMEOUT_MINUTES = "SQUIRREL_SESSION_TIMEOUT_MINUTES";
+        public const string SQUIRREL_MAX_LOGIN_ATTEMPTS = "SQUIRREL_MAX_LOGIN_ATTEMPTS";
+        public const string SQUIRREL_ACCOUNT_LOCK_DURATION_MINUTES = "SQUIRREL_ACCOUNT_LOCK_DURATION_MINUTES";
+
+        // Content Configuration
+        public const string SQUIRREL_DEFAULT_PAGE_TEMPLATE = "SQUIRREL_DEFAULT_PAGE_TEMPLATE";
+        public const string SQUIRREL_MAX_PAGE_TITLE_LENGTH = "SQUIRREL_MAX_PAGE_TITLE_LENGTH";
+        public const string SQUIRREL_ENABLE_PAGE_VERSIONING = "SQUIRREL_ENABLE_PAGE_VERSIONING";
+
+        // Performance Configuration
+        public const string SQUIRREL_ENABLE_CACHING = "SQUIRREL_ENABLE_CACHING";
+        public const string SQUIRREL_CACHE_DURATION_MINUTES = "SQUIRREL_CACHE_DURATION_MINUTES";
+        public const string SQUIRREL_ENABLE_RESPONSE_CACHING = "SQUIRREL_ENABLE_RESPONSE_CACHING";
+        public const string SQUIRREL_RESPONSE_CACHE_DURATION_MINUTES = "SQUIRREL_RESPONSE_CACHE_DURATION_MINUTES";
+        public const string SQUIRREL_CACHE_PROVIDER = "SQUIRREL_CACHE_PROVIDER";
+        public const string SQUIRREL_REDIS_CONFIGURATION = "SQUIRREL_REDIS_CONFIGURATION";
+        public const string SQUIRREL_REDIS_INSTANCE_NAME = "SQUIRREL_REDIS_INSTANCE_NAME";
+
+        // Application Paths
+        public const string SQUIRREL_APP_DATA_PATH = "SQUIRREL_APP_DATA_PATH";
+        public const string SQUIRREL_SEED_DATA_FILE_PATH = "SQUIRREL_SEED_DATA_FILE_PATH";
+
+        // Database Configuration
+        public const string SQUIRREL_DATABASE_PROVIDER = "SQUIRREL_DATABASE_PROVIDER";
+        public const string SQUIRREL_DATABASE_CONNECTION_STRING = "SQUIRREL_DATABASE_CONNECTION_STRING";
+        public const string SQUIRREL_DATABASE_AUTO_MIGRATE = "SQUIRREL_DATABASE_AUTO_MIGRATE";
+        public const string SQUIRREL_DATABASE_SEED_DATA = "SQUIRREL_DATABASE_SEED_DATA";
+
+        // File Storage Configuration
+        public const string SQUIRREL_FILE_STORAGE_PATH = "SQUIRREL_FILE_STORAGE_PATH";
+        public const string SQUIRREL_FILE_MAX_SIZE_MB = "SQUIRREL_FILE_MAX_SIZE_MB";
+        public const string SQUIRREL_FILE_ALLOWED_EXTENSIONS = "SQUIRREL_FILE_ALLOWED_EXTENSIONS";
+    }
+
     private static readonly Dictionary<string, ConfigurationProperty> _metadata = new()
     {
         // Site Configuration
         {
-            "SQUIRREL_SITE_NAME",
+            ConfigurationKeys.SQUIRREL_SITE_NAME,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_SITE_NAME",
+                Key = ConfigurationKeys.SQUIRREL_SITE_NAME,
                 DisplayName = "Site Name",
                 Description = "The name of your wiki site",
-                Category = "General",
+                Category = Categories.General,
                 ValueType = typeof(string),
                 DefaultValue = "Squirrel Wiki",
-                EnvironmentVariable = "SQUIRREL_SITE_NAME",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_SITE_NAME,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules()
             }
         },
         {
-            "SQUIRREL_SITE_URL",
+            ConfigurationKeys.SQUIRREL_SITE_URL,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_SITE_URL",
+                Key = ConfigurationKeys.SQUIRREL_SITE_URL,
                 DisplayName = "Site URL",
                 Description = "The public URL of your wiki site (e.g., https://wiki.example.com)",
-                Category = "General",
+                Category = Categories.General,
                 ValueType = typeof(string),
                 DefaultValue = "",
-                EnvironmentVariable = "SQUIRREL_SITE_URL",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_SITE_URL,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules
@@ -46,16 +110,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_DEFAULT_LANGUAGE",
+            ConfigurationKeys.SQUIRREL_DEFAULT_LANGUAGE,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_DEFAULT_LANGUAGE",
+                Key = ConfigurationKeys.SQUIRREL_DEFAULT_LANGUAGE,
                 DisplayName = "Default Language",
                 Description = "Default language for the wiki interface",
-                Category = "General",
+                Category = Categories.General,
                 ValueType = typeof(string),
                 DefaultValue = "en",
-                EnvironmentVariable = "SQUIRREL_DEFAULT_LANGUAGE",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_DEFAULT_LANGUAGE,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules
@@ -65,16 +129,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_TIMEZONE",
+            ConfigurationKeys.SQUIRREL_TIMEZONE,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_TIMEZONE",
+                Key = ConfigurationKeys.SQUIRREL_TIMEZONE,
                 DisplayName = "Time Zone",
                 Description = "Default time zone for displaying dates and times",
-                Category = "General",
+                Category = Categories.General,
                 ValueType = typeof(string),
                 DefaultValue = "UTC",
-                EnvironmentVariable = "SQUIRREL_TIMEZONE",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_TIMEZONE,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules()
@@ -83,16 +147,16 @@ public static class ConfigurationMetadataRegistry
 
         // Admin Bootstrap Configuration
         {
-            "SQUIRREL_ADMIN_USERNAME",
+            ConfigurationKeys.SQUIRREL_ADMIN_USERNAME,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_ADMIN_USERNAME",
+                Key = ConfigurationKeys.SQUIRREL_ADMIN_USERNAME,
                 DisplayName = "Admin Username",
                 Description = "Default admin username for initial bootstrap",
-                Category = "Security",
+                Category = Categories.Security,
                 ValueType = typeof(string),
                 DefaultValue = "admin",
-                EnvironmentVariable = "SQUIRREL_ADMIN_USERNAME",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_ADMIN_USERNAME,
                 IsSecret = false,
                 AllowRuntimeModification = false,
                 IsVisibleInUI = false,
@@ -100,16 +164,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_ADMIN_PASSWORD",
+            ConfigurationKeys.SQUIRREL_ADMIN_PASSWORD,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_ADMIN_PASSWORD",
+                Key = ConfigurationKeys.SQUIRREL_ADMIN_PASSWORD,
                 DisplayName = "Admin Password",
                 Description = "Default admin password for initial bootstrap (should be changed after first login)",
-                Category = "Security",
+                Category = Categories.Security,
                 ValueType = typeof(string),
                 DefaultValue = "Squirrel123!",
-                EnvironmentVariable = "SQUIRREL_ADMIN_PASSWORD",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_ADMIN_PASSWORD,
                 IsSecret = true,
                 AllowRuntimeModification = false,
                 IsVisibleInUI = false,
@@ -117,16 +181,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_ADMIN_EMAIL",
+            ConfigurationKeys.SQUIRREL_ADMIN_EMAIL,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_ADMIN_EMAIL",
+                Key = ConfigurationKeys.SQUIRREL_ADMIN_EMAIL,
                 DisplayName = "Admin Email",
                 Description = "Default admin email address for initial bootstrap",
-                Category = "Security",
+                Category = Categories.Security,
                 ValueType = typeof(string),
                 DefaultValue = "admin@localhost",
-                EnvironmentVariable = "SQUIRREL_ADMIN_EMAIL",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_ADMIN_EMAIL,
                 IsSecret = false,
                 AllowRuntimeModification = false,
                 IsVisibleInUI = false,
@@ -134,16 +198,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_ADMIN_DISPLAYNAME",
+            ConfigurationKeys.SQUIRREL_ADMIN_DISPLAYNAME,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_ADMIN_DISPLAYNAME",
+                Key = ConfigurationKeys.SQUIRREL_ADMIN_DISPLAYNAME,
                 DisplayName = "Admin Display Name",
                 Description = "Default admin display name for initial bootstrap",
-                Category = "Security",
+                Category = Categories.Security,
                 ValueType = typeof(string),
                 DefaultValue = "Administrator",
-                EnvironmentVariable = "SQUIRREL_ADMIN_DISPLAYNAME",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_ADMIN_DISPLAYNAME,
                 IsSecret = false,
                 AllowRuntimeModification = false,
                 IsVisibleInUI = false,
@@ -153,32 +217,32 @@ public static class ConfigurationMetadataRegistry
 
         // Security Configuration
         {
-            "SQUIRREL_ALLOW_ANONYMOUS_READING",
+            ConfigurationKeys.SQUIRREL_ALLOW_ANONYMOUS_READING,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_ALLOW_ANONYMOUS_READING",
+                Key = ConfigurationKeys.SQUIRREL_ALLOW_ANONYMOUS_READING,
                 DisplayName = "Allow Anonymous Reading",
                 Description = "Whether unauthenticated users can read wiki pages",
-                Category = "Security",
+                Category = Categories.Security,
                 ValueType = typeof(bool),
                 DefaultValue = false,
-                EnvironmentVariable = "SQUIRREL_ALLOW_ANONYMOUS_READING",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_ALLOW_ANONYMOUS_READING,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules()
             }
         },
         {
-            "SQUIRREL_SESSION_TIMEOUT_MINUTES",
+            ConfigurationKeys.SQUIRREL_SESSION_TIMEOUT_MINUTES,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_SESSION_TIMEOUT_MINUTES",
+                Key = ConfigurationKeys.SQUIRREL_SESSION_TIMEOUT_MINUTES,
                 DisplayName = "Session Timeout (Minutes)",
                 Description = "How long a user session remains active without activity",
-                Category = "Security",
+                Category = Categories.Security,
                 ValueType = typeof(int),
                 DefaultValue = 480,
-                EnvironmentVariable = "SQUIRREL_SESSION_TIMEOUT_MINUTES",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_SESSION_TIMEOUT_MINUTES,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules
@@ -189,16 +253,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_MAX_LOGIN_ATTEMPTS",
+            ConfigurationKeys.SQUIRREL_MAX_LOGIN_ATTEMPTS,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_MAX_LOGIN_ATTEMPTS",
+                Key = ConfigurationKeys.SQUIRREL_MAX_LOGIN_ATTEMPTS,
                 DisplayName = "Maximum Login Attempts",
                 Description = "Number of failed login attempts before account is locked",
-                Category = "Security",
+                Category = Categories.Security,
                 ValueType = typeof(int),
                 DefaultValue = 5,
-                EnvironmentVariable = "SQUIRREL_MAX_LOGIN_ATTEMPTS",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_MAX_LOGIN_ATTEMPTS,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules
@@ -209,16 +273,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_ACCOUNT_LOCK_DURATION_MINUTES",
+            ConfigurationKeys.SQUIRREL_ACCOUNT_LOCK_DURATION_MINUTES,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_ACCOUNT_LOCK_DURATION_MINUTES",
+                Key = ConfigurationKeys.SQUIRREL_ACCOUNT_LOCK_DURATION_MINUTES,
                 DisplayName = "Account Lock Duration (Minutes)",
                 Description = "How long an account remains locked after too many failed login attempts",
-                Category = "Security",
+                Category = Categories.Security,
                 ValueType = typeof(int),
                 DefaultValue = 30,
-                EnvironmentVariable = "SQUIRREL_ACCOUNT_LOCK_DURATION_MINUTES",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_ACCOUNT_LOCK_DURATION_MINUTES,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules
@@ -231,32 +295,32 @@ public static class ConfigurationMetadataRegistry
 
         // Content Configuration
         {
-            "SQUIRREL_DEFAULT_PAGE_TEMPLATE",
+            ConfigurationKeys.SQUIRREL_DEFAULT_PAGE_TEMPLATE,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_DEFAULT_PAGE_TEMPLATE",
+                Key = ConfigurationKeys.SQUIRREL_DEFAULT_PAGE_TEMPLATE,
                 DisplayName = "Default Page Template",
                 Description = "Default markdown template for new pages",
-                Category = "Content",
+                Category = Categories.Content,
                 ValueType = typeof(string),
                 DefaultValue = "",
-                EnvironmentVariable = "SQUIRREL_DEFAULT_PAGE_TEMPLATE",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_DEFAULT_PAGE_TEMPLATE,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules()
             }
         },
         {
-            "SQUIRREL_MAX_PAGE_TITLE_LENGTH",
+            ConfigurationKeys.SQUIRREL_MAX_PAGE_TITLE_LENGTH,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_MAX_PAGE_TITLE_LENGTH",
+                Key = ConfigurationKeys.SQUIRREL_MAX_PAGE_TITLE_LENGTH,
                 DisplayName = "Maximum Page Title Length",
                 Description = "Maximum number of characters allowed in page titles",
-                Category = "Content",
+                Category = Categories.Content,
                 ValueType = typeof(int),
                 DefaultValue = 200,
-                EnvironmentVariable = "SQUIRREL_MAX_PAGE_TITLE_LENGTH",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_MAX_PAGE_TITLE_LENGTH,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules
@@ -267,16 +331,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_ENABLE_PAGE_VERSIONING",
+            ConfigurationKeys.SQUIRREL_ENABLE_PAGE_VERSIONING,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_ENABLE_PAGE_VERSIONING",
+                Key = ConfigurationKeys.SQUIRREL_ENABLE_PAGE_VERSIONING,
                 DisplayName = "Enable Page Versioning",
                 Description = "Whether to keep historical versions of pages",
-                Category = "Content",
+                Category = Categories.Content,
                 ValueType = typeof(bool),
                 DefaultValue = false,
-                EnvironmentVariable = "SQUIRREL_ENABLE_PAGE_VERSIONING",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_ENABLE_PAGE_VERSIONING,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules()
@@ -285,32 +349,32 @@ public static class ConfigurationMetadataRegistry
 
         // Performance Configuration - Memory Cache
         {
-            "SQUIRREL_ENABLE_CACHING",
+            ConfigurationKeys.SQUIRREL_ENABLE_CACHING,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_ENABLE_CACHING",
+                Key = ConfigurationKeys.SQUIRREL_ENABLE_CACHING,
                 DisplayName = "Memory Cache",
                 Description = "Whether to enable in-memory caching for improved performance",
-                Category = "Performance",
+                Category = Categories.Performance,
                 ValueType = typeof(bool),
                 DefaultValue = true,
-                EnvironmentVariable = "SQUIRREL_ENABLE_CACHING",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_ENABLE_CACHING,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules()
             }
         },
         {
-            "SQUIRREL_CACHE_DURATION_MINUTES",
+            ConfigurationKeys.SQUIRREL_CACHE_DURATION_MINUTES,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_CACHE_DURATION_MINUTES",
+                Key = ConfigurationKeys.SQUIRREL_CACHE_DURATION_MINUTES,
                 DisplayName = "Memory Cache Duration (Minutes)",
                 Description = "How long cached items remain valid in memory",
-                Category = "Performance",
+                Category = Categories.Performance,
                 ValueType = typeof(int),
                 DefaultValue = 60,
-                EnvironmentVariable = "SQUIRREL_CACHE_DURATION_MINUTES",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_CACHE_DURATION_MINUTES,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules
@@ -323,32 +387,32 @@ public static class ConfigurationMetadataRegistry
         
         // Performance Configuration - Response Cache
         {
-            "SQUIRREL_ENABLE_RESPONSE_CACHING",
+            ConfigurationKeys.SQUIRREL_ENABLE_RESPONSE_CACHING,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_ENABLE_RESPONSE_CACHING",
+                Key = ConfigurationKeys.SQUIRREL_ENABLE_RESPONSE_CACHING,
                 DisplayName = "Response Caching",
                 Description = "Whether to enable HTTP response caching for pages",
-                Category = "Performance",
+                Category = Categories.Performance,
                 ValueType = typeof(bool),
                 DefaultValue = true,
-                EnvironmentVariable = "SQUIRREL_ENABLE_RESPONSE_CACHING",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_ENABLE_RESPONSE_CACHING,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules()
             }
         },
         {
-            "SQUIRREL_RESPONSE_CACHE_DURATION_MINUTES",
+            ConfigurationKeys.SQUIRREL_RESPONSE_CACHE_DURATION_MINUTES,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_RESPONSE_CACHE_DURATION_MINUTES",
+                Key = ConfigurationKeys.SQUIRREL_RESPONSE_CACHE_DURATION_MINUTES,
                 DisplayName = "Response Cache Duration (Minutes)",
                 Description = "How long HTTP responses are cached by browsers and proxies",
-                Category = "Performance",
+                Category = Categories.Performance,
                 ValueType = typeof(int),
                 DefaultValue = 5,
-                EnvironmentVariable = "SQUIRREL_RESPONSE_CACHE_DURATION_MINUTES",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_RESPONSE_CACHE_DURATION_MINUTES,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules
@@ -361,16 +425,16 @@ public static class ConfigurationMetadataRegistry
         
         // Application Paths (Startup-Only, useful for containerized deployments)
         {
-            "SQUIRREL_APP_DATA_PATH",
+            ConfigurationKeys.SQUIRREL_APP_DATA_PATH,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_APP_DATA_PATH",
+                Key = ConfigurationKeys.SQUIRREL_APP_DATA_PATH,
                 DisplayName = "Application Data Path",
                 Description = "The directory path where application data (database, search index, etc.) is stored. Useful for containerized deployments to mount volumes.",
-                Category = "Application",
+                Category = Categories.Application,
                 ValueType = typeof(string),
                 DefaultValue = "App_Data",
-                EnvironmentVariable = "SQUIRREL_APP_DATA_PATH",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_APP_DATA_PATH,
                 IsSecret = false,
                 AllowRuntimeModification = false,
                 IsVisibleInUI = false,
@@ -378,16 +442,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_SEED_DATA_FILE_PATH",
+            ConfigurationKeys.SQUIRREL_SEED_DATA_FILE_PATH,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_SEED_DATA_FILE_PATH",
+                Key = ConfigurationKeys.SQUIRREL_SEED_DATA_FILE_PATH,
                 DisplayName = "Seed Data File Path",
                 Description = "The path to a custom seed data YAML file. If not specified, uses the default embedded seed-data.yaml. Useful for containerized deployments with custom initial data.",
-                Category = "Application",
+                Category = Categories.Application,
                 ValueType = typeof(string),
                 DefaultValue = null,
-                EnvironmentVariable = "SQUIRREL_SEED_DATA_FILE_PATH",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_SEED_DATA_FILE_PATH,
                 IsSecret = false,
                 AllowRuntimeModification = false,
                 IsVisibleInUI = false,
@@ -397,16 +461,16 @@ public static class ConfigurationMetadataRegistry
         
         // Database Configuration (Startup-Only)
         {
-            "SQUIRREL_DATABASE_PROVIDER",
+            ConfigurationKeys.SQUIRREL_DATABASE_PROVIDER,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_DATABASE_PROVIDER",
+                Key = ConfigurationKeys.SQUIRREL_DATABASE_PROVIDER,
                 DisplayName = "Database Provider",
                 Description = "The database provider to use (PostgreSQL, MySQL, MariaDB, SQLServer, SQLite)",
-                Category = "Database",
+                Category = Categories.Database,
                 ValueType = typeof(string),
                 DefaultValue = "SQLite",
-                EnvironmentVariable = "SQUIRREL_DATABASE_PROVIDER",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_DATABASE_PROVIDER,
                 IsSecret = false,
                 AllowRuntimeModification = false,
                 IsVisibleInUI = false,
@@ -417,16 +481,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_DATABASE_CONNECTION_STRING",
+            ConfigurationKeys.SQUIRREL_DATABASE_CONNECTION_STRING,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_DATABASE_CONNECTION_STRING",
+                Key = ConfigurationKeys.SQUIRREL_DATABASE_CONNECTION_STRING,
                 DisplayName = "Database Connection String",
                 Description = "The database connection string (startup-only configuration)",
-                Category = "Database",
+                Category = Categories.Database,
                 ValueType = typeof(string),
                 DefaultValue = "Data Source=App_Data/squirrel.db",
-                EnvironmentVariable = "SQUIRREL_DATABASE_CONNECTION_STRING",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_DATABASE_CONNECTION_STRING,
                 IsSecret = true,
                 AllowRuntimeModification = false,
                 IsVisibleInUI = false,
@@ -434,16 +498,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_DATABASE_AUTO_MIGRATE",
+            ConfigurationKeys.SQUIRREL_DATABASE_AUTO_MIGRATE,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_DATABASE_AUTO_MIGRATE",
+                Key = ConfigurationKeys.SQUIRREL_DATABASE_AUTO_MIGRATE,
                 DisplayName = "Auto Migrate Database",
                 Description = "Whether to automatically apply database migrations on startup",
-                Category = "Database",
+                Category = Categories.Database,
                 ValueType = typeof(bool),
                 DefaultValue = true,
-                EnvironmentVariable = "SQUIRREL_DATABASE_AUTO_MIGRATE",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_DATABASE_AUTO_MIGRATE,
                 IsSecret = false,
                 AllowRuntimeModification = false,
                 IsVisibleInUI = false,
@@ -451,16 +515,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_DATABASE_SEED_DATA",
+            ConfigurationKeys.SQUIRREL_DATABASE_SEED_DATA,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_DATABASE_SEED_DATA",
+                Key = ConfigurationKeys.SQUIRREL_DATABASE_SEED_DATA,
                 DisplayName = "Seed Database Data",
                 Description = "Whether to seed initial data into the database on startup",
-                Category = "Database",
+                Category = Categories.Database,
                 ValueType = typeof(bool),
                 DefaultValue = true,
-                EnvironmentVariable = "SQUIRREL_DATABASE_SEED_DATA",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_DATABASE_SEED_DATA,
                 IsSecret = false,
                 AllowRuntimeModification = false,
                 IsVisibleInUI = false,
@@ -470,16 +534,16 @@ public static class ConfigurationMetadataRegistry
         
         // Performance Configuration - Cache Provider
         {
-            "SQUIRREL_CACHE_PROVIDER",
+            ConfigurationKeys.SQUIRREL_CACHE_PROVIDER,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_CACHE_PROVIDER",
+                Key = ConfigurationKeys.SQUIRREL_CACHE_PROVIDER,
                 DisplayName = "Memory Cache Provider",
                 Description = "The caching provider to use (Memory or Redis)",
-                Category = "Performance",
+                Category = Categories.Performance,
                 ValueType = typeof(string),
                 DefaultValue = "Memory",
-                EnvironmentVariable = "SQUIRREL_CACHE_PROVIDER",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_CACHE_PROVIDER,
                 IsSecret = false,
                 AllowRuntimeModification = false,
                 IsVisibleInUI = true,
@@ -490,16 +554,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_REDIS_CONFIGURATION",
+            ConfigurationKeys.SQUIRREL_REDIS_CONFIGURATION,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_REDIS_CONFIGURATION",
+                Key = ConfigurationKeys.SQUIRREL_REDIS_CONFIGURATION,
                 DisplayName = "Redis Configuration",
                 Description = "Redis connection string (e.g., localhost:6379)",
-                Category = "Performance",
+                Category = Categories.Performance,
                 ValueType = typeof(string),
                 DefaultValue = "localhost:6379",
-                EnvironmentVariable = "SQUIRREL_REDIS_CONFIGURATION",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_REDIS_CONFIGURATION,
                 IsSecret = false,
                 AllowRuntimeModification = false,
                 IsVisibleInUI = true,
@@ -507,16 +571,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_REDIS_INSTANCE_NAME",
+            ConfigurationKeys.SQUIRREL_REDIS_INSTANCE_NAME,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_REDIS_INSTANCE_NAME",
+                Key = ConfigurationKeys.SQUIRREL_REDIS_INSTANCE_NAME,
                 DisplayName = "Redis Instance Name",
                 Description = "Redis instance name prefix for cache keys",
-                Category = "Performance",
+                Category = Categories.Performance,
                 ValueType = typeof(string),
                 DefaultValue = "Squirrel_",
-                EnvironmentVariable = "SQUIRREL_REDIS_INSTANCE_NAME",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_REDIS_INSTANCE_NAME,
                 IsSecret = false,
                 AllowRuntimeModification = false,
                 IsVisibleInUI = true,
@@ -526,16 +590,16 @@ public static class ConfigurationMetadataRegistry
         
         // File Storage Configuration
         {
-            "SQUIRREL_FILE_STORAGE_PATH",
+            ConfigurationKeys.SQUIRREL_FILE_STORAGE_PATH,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_FILE_STORAGE_PATH",
+                Key = ConfigurationKeys.SQUIRREL_FILE_STORAGE_PATH,
                 DisplayName = "File Storage Path",
                 Description = "Directory path where uploaded files are stored",
-                Category = "Files",
+                Category = Categories.Files,
                 ValueType = typeof(string),
                 DefaultValue = "App_Data/Files",
-                EnvironmentVariable = "SQUIRREL_FILE_STORAGE_PATH",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_FILE_STORAGE_PATH,
                 IsSecret = false,
                 AllowRuntimeModification = false,
                 IsVisibleInUI = true,
@@ -543,16 +607,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_FILE_MAX_SIZE_MB",
+            ConfigurationKeys.SQUIRREL_FILE_MAX_SIZE_MB,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_FILE_MAX_SIZE_MB",
+                Key = ConfigurationKeys.SQUIRREL_FILE_MAX_SIZE_MB,
                 DisplayName = "Maximum File Size (MB)",
                 Description = "Maximum allowed file size for uploads in megabytes",
-                Category = "Files",
+                Category = Categories.Files,
                 ValueType = typeof(int),
                 DefaultValue = 100,
-                EnvironmentVariable = "SQUIRREL_FILE_MAX_SIZE_MB",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_FILE_MAX_SIZE_MB,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules
@@ -563,16 +627,16 @@ public static class ConfigurationMetadataRegistry
             }
         },
         {
-            "SQUIRREL_FILE_ALLOWED_EXTENSIONS",
+            ConfigurationKeys.SQUIRREL_FILE_ALLOWED_EXTENSIONS,
             new ConfigurationProperty
             {
-                Key = "SQUIRREL_FILE_ALLOWED_EXTENSIONS",
+                Key = ConfigurationKeys.SQUIRREL_FILE_ALLOWED_EXTENSIONS,
                 DisplayName = "Allowed File Extensions",
                 Description = "Comma-separated list of allowed file extensions (e.g., .pdf,.doc,.jpg)",
-                Category = "Files",
+                Category = Categories.Files,
                 ValueType = typeof(string),
                 DefaultValue = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.jpg,.jpeg,.png,.gif,.bmp,.svg,.zip,.rar,.7z",
-                EnvironmentVariable = "SQUIRREL_FILE_ALLOWED_EXTENSIONS",
+                EnvironmentVariable = ConfigurationKeys.SQUIRREL_FILE_ALLOWED_EXTENSIONS,
                 IsSecret = false,
                 AllowRuntimeModification = true,
                 Validation = new ValidationRules()

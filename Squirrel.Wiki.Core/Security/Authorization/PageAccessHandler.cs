@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Models;
+using static Squirrel.Wiki.Core.Constants.UserRoles;
 
 namespace Squirrel.Wiki.Core.Security.Authorization;
 
@@ -105,10 +106,10 @@ public class PageAccessHandler : AuthorizationHandler<PageAccessRequirement, Pag
             return null;
 
         if (_userContext.IsAdmin)
-            return "Admin";
+            return ADMIN_ROLE;
 
         if (_userContext.IsEditor)
-            return "Editor";
+            return EDITOR_ROLE;
 
         return null;
     }

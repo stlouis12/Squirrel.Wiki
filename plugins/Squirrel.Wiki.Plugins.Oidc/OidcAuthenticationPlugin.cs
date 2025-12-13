@@ -151,26 +151,26 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
         };
     }
 
-    public override async Task<bool> ValidateConfigurationAsync(Dictionary<string, string> configuration, CancellationToken cancellationToken = default)
+    public override async Task<bool> ValidateConfigurationAsync(Dictionary<string, string> config, CancellationToken cancellationToken = default)
     {
         // Validate required fields
-        if (!configuration.ContainsKey("Authority") || string.IsNullOrWhiteSpace(configuration["Authority"]))
+        if (!config.ContainsKey("Authority") || string.IsNullOrWhiteSpace(config["Authority"]))
         {
             return false;
         }
 
-        if (!configuration.ContainsKey("ClientId") || string.IsNullOrWhiteSpace(configuration["ClientId"]))
+        if (!config.ContainsKey("ClientId") || string.IsNullOrWhiteSpace(config["ClientId"]))
         {
             return false;
         }
 
-        if (!configuration.ContainsKey("ClientSecret") || string.IsNullOrWhiteSpace(configuration["ClientSecret"]))
+        if (!config.ContainsKey("ClientSecret") || string.IsNullOrWhiteSpace(config["ClientSecret"]))
         {
             return false;
         }
 
         // Validate Authority URL format
-        if (!Uri.TryCreate(configuration["Authority"], UriKind.Absolute, out var authorityUri) ||
+        if (!Uri.TryCreate(config["Authority"], UriKind.Absolute, out var authorityUri) ||
             (authorityUri.Scheme != "http" && authorityUri.Scheme != "https"))
         {
             return false;
@@ -179,9 +179,9 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
         return await Task.FromResult(true);
     }
 
-    public override Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken = default)
+    public override Task InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
     {
-        _services = services;
+        _services = serviceProvider;
         return Task.CompletedTask;
     }
 
@@ -204,14 +204,14 @@ public class OidcAuthenticationPlugin : AuthenticationPluginBase
     /// <summary>
     /// Creates an authentication strategy with the current request's service provider
     /// </summary>
-    public IAuthenticationStrategy CreateStrategy(IServiceProvider services, Dictionary<string, string> config)
+    public static IAuthenticationStrategy CreateStrategy(IServiceProvider serviceProvider, Dictionary<string, string> config)
     {
         // Get required services from the current request's service provider
-        var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+        var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
         var logger = loggerFactory.CreateLogger<OidcAuthenticationStrategy>();
 
         // Create and return the strategy with configuration
-        return new OidcAuthenticationStrategy(services, config, logger);
+        return new OidcAuthenticationStrategy(serviceProvider, config, logger);
     }
 
     public override string GetLoginButtonHtml(string returnUrl)

@@ -9,6 +9,7 @@ using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services.Caching;
 using Squirrel.Wiki.Core.Services.Content;
+using static Squirrel.Wiki.Core.Constants.SystemUserConstants;
 
 namespace Squirrel.Wiki.Core.Services.Categories;
 
@@ -250,62 +251,16 @@ public class CategoryService : BaseService, ICategoryService
             throw new EntityNotFoundException("Category", id);
         }
 
-        // Use ParentId (preferred) or fall back to ParentCategoryId (deprecated)
         var parentId = updateDto.ParentId ?? updateDto.ParentCategoryId;
 
-        // Validate name availability within parent scope (hierarchical uniqueness)
-        if (category.Name != updateDto.Name || parentId != category.ParentCategoryId)
-        {
-            if (!await IsCategoryNameAvailableInParentAsync(updateDto.Name, parentId, id, cancellationToken))
-            {
-                var parentName = parentId.HasValue ? 
-                    (await _categoryRepository.GetByIdAsync(parentId.Value, cancellationToken))?.Name ?? "Unknown" : 
-                    "root level";
-                throw new BusinessRuleException(
-                    $"Category name '{updateDto.Name}' already exists under {parentName}.",
-                    "CATEGORY_NAME_EXISTS"
-                ).WithContext("CategoryName", updateDto.Name)
-                 .WithContext("ParentName", parentName);
-            }
-        }
+        // Validate name change if applicable
+        await ValidateNameChangeAsync(category, updateDto.Name, parentId, id, cancellationToken);
 
-        // Validate parent change
-        if (parentId != category.ParentCategoryId)
-        {
-            if (!await ValidateMoveAsync(id, parentId, cancellationToken))
-            {
-                throw new BusinessRuleException(
-                    "Cannot move category: would create circular reference.",
-                    "CIRCULAR_REFERENCE"
-                ).WithContext("CategoryId", id)
-                 .WithContext("NewParentId", parentId);
-            }
+        // Validate parent change if applicable
+        await ValidateParentChangeAsync(category, id, parentId, cancellationToken);
 
-            // Check depth limit when moving to a new parent
-            if (parentId.HasValue)
-            {
-                var parentPath = await _categoryRepository.GetCategoryPathAsync(parentId.Value, cancellationToken);
-                var parentDepth = parentPath.Count() - 1;
-                
-                // Get the depth of the subtree being moved
-                var categoryPath = await _categoryRepository.GetCategoryPathAsync(id, cancellationToken);
-                var currentDepth = categoryPath.Count() - 1;
-                var subtreeDepth = await GetSubtreeDepthAsync(id, cancellationToken);
-                var totalDepthAfterMove = parentDepth + 1 + subtreeDepth;
-                
-                if (totalDepthAfterMove > MaxCategoryDepth)
-                {
-                    throw BusinessRuleException.MaxDepthExceeded(MaxCategoryDepth, totalDepthAfterMove);
-                }
-            }
-        }
-
-        category.Name = updateDto.Name;
-        category.Slug = _slugGenerator.GenerateSlug(updateDto.Name);
-        category.Description = updateDto.Description;
-        category.ParentCategoryId = parentId;
-        category.ModifiedBy = updateDto.ModifiedBy ?? "system";
-        category.ModifiedOn = DateTime.UtcNow;
+        // Apply updates
+        ApplyUpdates(category, updateDto, parentId);
 
         await _categoryRepository.UpdateAsync(category, cancellationToken);
 
@@ -314,6 +269,112 @@ public class CategoryService : BaseService, ICategoryService
         await InvalidateCacheAsync(cancellationToken);
 
         return await MapToDtoAsync(category, cancellationToken);
+    }
+
+    /// <summary>
+    /// Validates name change for a category update
+    /// </summary>
+    private async Task ValidateNameChangeAsync(
+        Category category,
+        string newName,
+        int? newParentId,
+        int categoryId,
+        CancellationToken cancellationToken)
+    {
+        if (category.Name == newName && newParentId == category.ParentCategoryId)
+        {
+            return; // No name or parent change
+        }
+
+        if (await IsCategoryNameAvailableInParentAsync(newName, newParentId, categoryId, cancellationToken))
+        {
+            return; // Name is available
+        }
+
+        var parentName = await GetParentNameAsync(newParentId, cancellationToken);
+        throw new BusinessRuleException(
+            $"Category name '{newName}' already exists under {parentName}.",
+            "CATEGORY_NAME_EXISTS"
+        ).WithContext("CategoryName", newName)
+         .WithContext("ParentName", parentName);
+    }
+
+    /// <summary>
+    /// Validates parent change for a category update
+    /// </summary>
+    private async Task ValidateParentChangeAsync(
+        Category category,
+        int categoryId,
+        int? newParentId,
+        CancellationToken cancellationToken)
+    {
+        if (newParentId == category.ParentCategoryId)
+        {
+            return; // No parent change
+        }
+
+        if (!await ValidateMoveAsync(categoryId, newParentId, cancellationToken))
+        {
+            throw new BusinessRuleException(
+                "Cannot move category: would create circular reference.",
+                "CIRCULAR_REFERENCE"
+            ).WithContext("CategoryId", categoryId)
+             .WithContext("NewParentId", newParentId);
+        }
+
+        await ValidateDepthLimitForMove(categoryId, newParentId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Validates depth limit when moving a category to a new parent
+    /// </summary>
+    private async Task ValidateDepthLimitForMove(
+        int categoryId,
+        int? newParentId,
+        CancellationToken cancellationToken)
+    {
+        if (!newParentId.HasValue)
+        {
+            return; // Moving to root, no depth limit check needed
+        }
+
+        var parentPath = await _categoryRepository.GetCategoryPathAsync(newParentId.Value, cancellationToken);
+        var parentDepth = parentPath.Count() - 1;
+
+        var subtreeDepth = await GetSubtreeDepthAsync(categoryId, cancellationToken);
+        var totalDepthAfterMove = parentDepth + 1 + subtreeDepth;
+
+        if (totalDepthAfterMove > MaxCategoryDepth)
+        {
+            throw BusinessRuleException.MaxDepthExceeded(MaxCategoryDepth, totalDepthAfterMove);
+        }
+    }
+
+    /// <summary>
+    /// Gets the parent category name for display purposes
+    /// </summary>
+    private async Task<string> GetParentNameAsync(int? parentId, CancellationToken cancellationToken)
+    {
+        if (!parentId.HasValue)
+        {
+            return "root level";
+        }
+
+        var parent = await _categoryRepository.GetByIdAsync(parentId.Value, cancellationToken);
+        return parent?.Name ?? "Unknown";
+    }
+
+    /// <summary>
+    /// Applies updates to a category entity
+    /// </summary>
+    private void ApplyUpdates(Category category, CategoryUpdateDto updateDto, int? parentId)
+    {
+        category.Name = updateDto.Name;
+        category.Slug = _slugGenerator.GenerateSlug(updateDto.Name);
+        category.Description = updateDto.Description;
+        category.ParentCategoryId = parentId;
+        category.ModifiedBy = updateDto.ModifiedBy ?? SYSTEM_USERNAME;
+        category.ModifiedOn = DateTime.UtcNow;
     }
 
     public async Task<CategoryDto> MoveAsync(int categoryId, int? newParentId, CancellationToken cancellationToken = default)

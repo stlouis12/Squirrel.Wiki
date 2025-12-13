@@ -15,7 +15,7 @@
     {
         <div class="alert alert-info">
             <i class="bi bi-info-circle"></i> @Localizer["NoCategoriesCreatedYet"]
-            @if (User.IsInRole("Admin"))
+            @if (User.IsInRole(ADMIN_ROLE))
             {
                 <a href="@Url.Action("Index", "Categories")" class="alert-link">@Localizer["CreateYourFirstCategory"]</a>
             }

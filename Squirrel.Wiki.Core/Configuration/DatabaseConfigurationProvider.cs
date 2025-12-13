@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Database;
+using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Security;
+using static Squirrel.Wiki.Core.Constants.SystemUserConstants;
 
 namespace Squirrel.Wiki.Core.Configuration;
 
@@ -109,7 +111,7 @@ public class DatabaseConfigurationProvider : IConfigurationProvider
             var setting = await _context.SiteConfigurations
                 .FirstOrDefaultAsync(s => s.Key == key, cancellationToken);
 
-            var currentUser = _userContext.Username ?? "System";
+            var currentUser = _userContext.Username ?? SYSTEM_USERNAME;
 
             if (setting == null)
             {
@@ -166,7 +168,7 @@ public class DatabaseConfigurationProvider : IConfigurationProvider
     /// <summary>
     /// Converts a string value to the specified type
     /// </summary>
-    private object ConvertValue(string value, Type targetType)
+    private static object ConvertValue(string value, Type targetType)
     {
         if (targetType == typeof(string))
         {

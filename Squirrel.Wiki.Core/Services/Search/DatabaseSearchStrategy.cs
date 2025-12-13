@@ -123,8 +123,23 @@ public class DatabaseSearchStrategy : ISearchStrategy
     private async Task<List<SearchResult>> SearchPagesAsync(SearchRequest request, CancellationToken cancellationToken)
     {
         var pages = await _pageRepository.SearchAsync(request.Query, cancellationToken);
-        
-        // Apply filters
+        var filteredPages = ApplyPageFilters(pages, request);
+
+        var results = new List<SearchResult>();
+        foreach (var page in filteredPages)
+        {
+            var result = await CreatePageSearchResultAsync(page, request, cancellationToken);
+            if (result != null)
+            {
+                results.Add(result);
+            }
+        }
+
+        return results;
+    }
+
+    private static IEnumerable<Database.Entities.Page> ApplyPageFilters(IEnumerable<Database.Entities.Page> pages, SearchRequest request)
+    {
         if (request.CategoryIds != null && request.CategoryIds.Any())
         {
             pages = pages.Where(p => p.CategoryId.HasValue && request.CategoryIds.Contains(p.CategoryId.Value));
@@ -147,46 +162,55 @@ public class DatabaseSearchStrategy : ISearchStrategy
             pages = pages.Where(p => p.ModifiedOn <= request.EndDate.Value);
         }
 
-        var results = new List<SearchResult>();
-        foreach (var page in pages)
+        return pages;
+    }
+
+    private async Task<SearchResult?> CreatePageSearchResultAsync(
+        Database.Entities.Page page, 
+        SearchRequest request, 
+        CancellationToken cancellationToken)
+    {
+        var latestContent = await _pageRepository.GetLatestContentAsync(page.Id, cancellationToken);
+        if (latestContent == null)
         {
-            var latestContent = await _pageRepository.GetLatestContentAsync(page.Id, cancellationToken);
-            if (latestContent != null)
-            {
-                var contentText = latestContent.Text ?? string.Empty;
-                var score = CalculateRelevance(page.Title, contentText, request.Query);
-
-                // Apply tag filter if specified
-                if (request.Tags != null && request.Tags.Any())
-                {
-                    var pageTags = page.PageTags?.Select(pt => pt.Tag.Name).ToList() ?? new List<string>();
-                    if (!request.Tags.Any(tag => pageTags.Contains(tag, StringComparer.OrdinalIgnoreCase)))
-                    {
-                        continue;
-                    }
-                }
-
-                var result = new SearchResult
-                {
-                    DocumentId = page.Id.ToString(),
-                    Title = page.Title,
-                    Slug = page.Slug,
-                    Excerpt = GenerateExcerpt(contentText, request.Query),
-                    Content = request.IncludeContent ? contentText : null,
-                    Score = score,
-                    CategoryId = page.CategoryId,
-                    CategoryName = page.Category?.Name,
-                    Tags = page.PageTags?.Select(pt => pt.Tag.Name).ToList() ?? new List<string>(),
-                    Author = page.ModifiedBy ?? page.CreatedBy,
-                    CreatedOn = page.CreatedOn,
-                    ModifiedOn = page.ModifiedOn
-                };
-
-                results.Add(result);
-            }
+            return null;
         }
 
-        return results;
+        var contentText = latestContent.Text ?? string.Empty;
+        
+        if (!PassesTagFilter(page, request.Tags))
+        {
+            return null;
+        }
+
+        var score = CalculateRelevance(page.Title, contentText, request.Query);
+
+        return new SearchResult
+        {
+            DocumentId = page.Id.ToString(),
+            Title = page.Title,
+            Slug = page.Slug,
+            Excerpt = GenerateExcerpt(contentText, request.Query),
+            Content = request.IncludeContent ? contentText : null,
+            Score = score,
+            CategoryId = page.CategoryId,
+            CategoryName = page.Category?.Name,
+            Tags = page.PageTags?.Select(pt => pt.Tag.Name).ToList() ?? new List<string>(),
+            Author = page.ModifiedBy ?? page.CreatedBy,
+            CreatedOn = page.CreatedOn,
+            ModifiedOn = page.ModifiedOn
+        };
+    }
+
+    private static bool PassesTagFilter(Database.Entities.Page page, IEnumerable<string>? requestedTags)
+    {
+        if (requestedTags == null || !requestedTags.Any())
+        {
+            return true;
+        }
+
+        var pageTags = page.PageTags?.Select(pt => pt.Tag.Name).ToList() ?? new List<string>();
+        return requestedTags.Any(tag => pageTags.Contains(tag, StringComparer.OrdinalIgnoreCase));
     }
 
     private async Task<List<SearchResult>> SearchFilesAsync(SearchRequest request, CancellationToken cancellationToken)
@@ -378,7 +402,7 @@ public class DatabaseSearchStrategy : ISearchStrategy
         return results;
     }
 
-    private string GenerateExcerpt(string content, string searchTerm, int maxLength = 200)
+    private static string GenerateExcerpt(string content, string searchTerm, int maxLength = 200)
     {
         if (string.IsNullOrWhiteSpace(content))
         {
@@ -436,7 +460,7 @@ public class DatabaseSearchStrategy : ISearchStrategy
         return excerpt;
     }
 
-    private float CalculateRelevance(string title, string content, string searchTerm)
+    private static float CalculateRelevance(string title, string content, string searchTerm)
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
@@ -472,7 +496,7 @@ public class DatabaseSearchStrategy : ISearchStrategy
         return score;
     }
 
-    private float CalculateFileRelevance(string fileName, string description, string searchTerm)
+    private static float CalculateFileRelevance(string fileName, string description, string searchTerm)
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
         {

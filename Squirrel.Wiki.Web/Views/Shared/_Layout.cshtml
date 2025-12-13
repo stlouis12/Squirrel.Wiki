@@ -1,6 +1,7 @@
+@using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys
 @inject Squirrel.Wiki.Contracts.Configuration.IConfigurationService ConfigurationService
 @{
-    var siteName = await ConfigurationService.GetValueAsync<string>("SQUIRREL_SITE_NAME") ?? "Squirrel Wiki";
+    var siteName = await ConfigurationService.GetValueAsync<string>(SQUIRREL_SITE_NAME) ?? "Squirrel Wiki";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -31,7 +32,7 @@
                     <ul class="navbar-nav ms-auto">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                            @if (User.IsInRole("Admin"))
+                            @if (User.IsInRole(ADMIN_ROLE))
                             {
                                 <li class="nav-item">
                                     <a class="nav-link" asp-controller="Admin" asp-action="Index">
@@ -49,10 +50,10 @@
                                             <i class="bi bi-person"></i> @Localizer["Profile"]
                                         </a>
                                     </li>
-                                    @if (User.IsInRole("Admin") || User.IsInRole("Editor"))
+                                    @if (User.IsInRole(ADMIN_ROLE) || User.IsInRole(EDITOR_ROLE))
                                     {
                                         <li><hr class="dropdown-divider"></li>
-                                        @if (User.IsInRole("Admin"))
+                                        @if (User.IsInRole(ADMIN_ROLE))
                                         {
                                             <li>
                                                 <a class="dropdown-item" asp-controller="Admin" asp-action="Index">
@@ -80,7 +81,7 @@
                                                 <i class="bi bi-file-earmark-text"></i> @Localizer["FileManager"]
                                             </a>
                                         </li>
-                                        @if (User.IsInRole("Admin"))
+                                        @if (User.IsInRole(ADMIN_ROLE))
                                         {
                                             <li>
                                                 <a class="dropdown-item" asp-controller="Users" asp-action="Index">

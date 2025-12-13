@@ -41,7 +41,7 @@ public abstract class PluginBase : IPlugin
         // Use the centralized validator for schema-based validation
         var validator = new PluginConfigurationValidator();
         var schema = GetConfigurationSchema().ToList();
-        var result = validator.Validate(config, schema);
+        var result = PluginConfigurationValidator.Validate(config, schema);
         
         if (!result.IsValid)
         {
@@ -67,11 +67,11 @@ public abstract class PluginBase : IPlugin
 
     /// <inheritdoc/>
     public virtual Task InitializeAsync(
-        IServiceProvider services,
+        IServiceProvider serviceProvider,
         CancellationToken cancellationToken = default)
     {
         // Get configuration service from DI
-        Configuration = services.GetService<IConfigurationService>();
+        Configuration = serviceProvider.GetService<IConfigurationService>();
         
         if (Configuration == null)
         {
@@ -101,7 +101,7 @@ public abstract class PluginBase : IPlugin
     /// <summary>
     /// Helper method to get a configuration value with a default
     /// </summary>
-    protected string GetConfigValue(Dictionary<string, string> config, string key, string defaultValue = "")
+    protected static string GetConfigValue(Dictionary<string, string> config, string key, string defaultValue = "")
     {
         return config.TryGetValue(key, out var value) ? value : defaultValue;
     }
@@ -109,7 +109,7 @@ public abstract class PluginBase : IPlugin
     /// <summary>
     /// Helper method to get a boolean configuration value
     /// </summary>
-    protected bool GetConfigBool(Dictionary<string, string> config, string key, bool defaultValue = false)
+    protected static bool GetConfigBool(Dictionary<string, string> config, string key, bool defaultValue = false)
     {
         if (config.TryGetValue(key, out var value) && bool.TryParse(value, out var result))
         {
@@ -121,7 +121,7 @@ public abstract class PluginBase : IPlugin
     /// <summary>
     /// Helper method to get an integer configuration value
     /// </summary>
-    protected int GetConfigInt(Dictionary<string, string> config, string key, int defaultValue = 0)
+    protected static int GetConfigInt(Dictionary<string, string> config, string key, int defaultValue = 0)
     {
         if (config.TryGetValue(key, out var value) && int.TryParse(value, out var result))
         {

@@ -9,6 +9,7 @@ using Squirrel.Wiki.Core.Events;
 using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services.Caching;
+using static Squirrel.Wiki.Core.Constants.SystemUserConstants;
 
 namespace Squirrel.Wiki.Core.Services.Configuration;
 
@@ -100,7 +101,7 @@ public class SettingsService : BaseService, ISettingsService
         {
             LogWarning(
                 "Attempted to modify environment-sourced setting {Key} by {User}. Operation blocked.",
-                key, _userContext.Username ?? "System");
+                key, _userContext.Username ?? SYSTEM_USERNAME);
             throw new ConfigurationException(
                 $"Cannot modify setting '{key}' because it is configured via environment variable '{existingSetting.EnvironmentVariableName}'. " +
                 "To change this setting, update the environment variable and restart the application.",
@@ -112,7 +113,7 @@ public class SettingsService : BaseService, ISettingsService
         // Store as plain string value, not JSON-serialized
         // This matches the behavior of DatabaseConfigurationProvider
         var stringValue = value?.ToString() ?? string.Empty;
-        var currentUser = _userContext.Username ?? "System";
+        var currentUser = _userContext.Username ?? SYSTEM_USERNAME;
 
         if (existingSetting == null)
         {
@@ -180,7 +181,7 @@ public class SettingsService : BaseService, ISettingsService
             // Invalidate cache
             await Cache.RemoveAsync(GetCacheKey(key), cancellationToken);
 
-            LogInfo("Setting {Key} deleted by {User}", key, _userContext.Username ?? "System");
+            LogInfo("Setting {Key} deleted by {User}", key, _userContext.Username ?? SYSTEM_USERNAME);
         }
         else
         {

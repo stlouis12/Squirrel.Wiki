@@ -2,11 +2,13 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 using Squirrel.Wiki.Core.Database;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services.Caching;
 using Squirrel.Wiki.Core.Services.Search;
 using Squirrel.Wiki.Web.Models.Admin;
+using Squirrel.Wiki.Web.Resources;
 using Squirrel.Wiki.Web.Services;
 
 namespace Squirrel.Wiki.Web.Controllers;
@@ -26,8 +28,9 @@ public class AdminController : BaseController
         ICacheService cache,
         ISearchService searchService,
         ILogger<AdminController> logger,
-        INotificationService notifications)
-        : base(logger, notifications)
+        INotificationService notifications,
+        IStringLocalizer<SharedResources> localizer)
+        : base(logger, notifications, null, localizer)
     {
         _dbContext = dbContext;
         _cache = cache;
@@ -239,28 +242,39 @@ public class AdminController : BaseController
 
     private async Task<SystemHealth> GetSystemHealthAsync()
     {
-        var health = new SystemHealth();
+        return new SystemHealth
+        {
+            Database = await CheckDatabaseHealthAsync(),
+            Cache = await CheckCacheHealthAsync(),
+            SearchIndex = await CheckSearchIndexHealthAsync(),
+            DiskSpace = CheckDiskSpaceHealth(),
+            Memory = CheckMemoryHealth()
+        };
+    }
 
-        // Check database
+    private async Task<HealthStatus> CheckDatabaseHealthAsync()
+    {
         try
         {
             await _dbContext.Database.CanConnectAsync();
-            health.Database = new HealthStatus
+            return new HealthStatus
             {
-                Status = "Healthy",
-                Message = "Database connection is working"
+                Status = _localizer?["HealthStatus_Healthy"] ?? "Healthy",
+                Message = _localizer?["HealthStatus_DatabaseConnectionWorking"] ?? "Database connection is working"
             };
         }
         catch (Exception ex)
         {
-            health.Database = new HealthStatus
+            return new HealthStatus
             {
-                Status = "Unhealthy",
-                Message = $"Database connection failed: {ex.Message}"
+                Status = _localizer?["HealthStatus_Unhealthy"] ?? "Unhealthy",
+                Message = _localizer?["HealthStatus_DatabaseConnectionFailed", ex.Message] ?? $"Database connection failed: {ex.Message}"
             };
         }
+    }
 
-        // Check cache
+    private async Task<HealthStatus> CheckCacheHealthAsync()
+    {
         try
         {
             var testKey = $"health_check_{Guid.NewGuid()}";
@@ -268,79 +282,98 @@ public class AdminController : BaseController
             var value = await _cache.GetAsync<string>(testKey);
             await _cache.RemoveAsync(testKey);
 
-            health.Cache = new HealthStatus
+            return new HealthStatus
             {
-                Status = value == "test" ? "Healthy" : "Degraded",
-                Message = value == "test" ? "Cache is working" : "Cache read/write issue"
+                Status = value == "test" ? (_localizer?["HealthStatus_Healthy"] ?? "Healthy") : (_localizer?["HealthStatus_Degraded"] ?? "Degraded"),
+                Message = value == "test" ? (_localizer?["HealthStatus_CacheWorking"] ?? "Cache is working") : (_localizer?["HealthStatus_CacheReadWriteIssue"] ?? "Cache read/write issue")
             };
         }
         catch (Exception ex)
         {
-            health.Cache = new HealthStatus
+            return new HealthStatus
             {
-                Status = "Unhealthy",
-                Message = $"Cache check failed: {ex.Message}"
+                Status = _localizer?["HealthStatus_Unhealthy"] ?? "Unhealthy",
+                Message = _localizer?["HealthStatus_CacheCheckFailed", ex.Message] ?? $"Cache check failed: {ex.Message}"
             };
         }
+    }
 
-        // Check search index
+    private async Task<HealthStatus> CheckSearchIndexHealthAsync()
+    {
         try
         {
             // Simple check - try to search
-            var result = await _searchService.SearchAsync("test", 1, 1);
-            health.SearchIndex = new HealthStatus
+            await _searchService.SearchAsync("test", 1, 1);
+            return new HealthStatus
             {
-                Status = "Healthy",
-                Message = "Search index is accessible"
+                Status = _localizer?["HealthStatus_Healthy"] ?? "Healthy",
+                Message = _localizer?["HealthStatus_SearchIndexAccessible"] ?? "Search index is accessible"
             };
         }
         catch (Exception ex)
         {
-            health.SearchIndex = new HealthStatus
+            return new HealthStatus
             {
-                Status = "Degraded",
-                Message = $"Search index issue: {ex.Message}"
+                Status = _localizer?["HealthStatus_Degraded"] ?? "Degraded",
+                Message = _localizer?["HealthStatus_SearchIndexIssue", ex.Message] ?? $"Search index issue: {ex.Message}"
             };
         }
+    }
 
-        // Check disk space
+    private HealthStatus CheckDiskSpaceHealth()
+    {
         try
         {
             var drive = DriveInfo.GetDrives().FirstOrDefault(d => d.IsReady);
-            if (drive != null)
+            if (drive == null)
             {
-                var freeSpacePercent = (double)drive.AvailableFreeSpace / drive.TotalSize * 100;
-                health.DiskSpace = new HealthStatus
+                return new HealthStatus
                 {
-                    Status = freeSpacePercent > 10 ? "Healthy" : freeSpacePercent > 5 ? "Degraded" : "Unhealthy",
-                    Message = $"{freeSpacePercent:F1}% free ({FormatBytes(drive.AvailableFreeSpace)} of {FormatBytes(drive.TotalSize)})",
-                    Details = new Dictionary<string, string>
-                    {
-                        ["Drive"] = drive.Name,
-                        ["Free"] = FormatBytes(drive.AvailableFreeSpace),
-                        ["Total"] = FormatBytes(drive.TotalSize)
-                    }
+                    Status = _localizer?["HealthStatus_Unknown"] ?? "Unknown",
+                    Message = _localizer?["HealthStatus_NoReadyDrivesFound"] ?? "No ready drives found"
                 };
             }
+
+            var freeSpacePercent = (double)drive.AvailableFreeSpace / drive.TotalSize * 100;
+            var status = DetermineDiskSpaceStatus(freeSpacePercent);
+
+            return new HealthStatus
+            {
+                Status = status,
+                Message = _localizer?["HealthStatus_DiskSpaceInfo", 
+                    freeSpacePercent.ToString("F1"), 
+                    FormatBytes(drive.AvailableFreeSpace), 
+                    FormatBytes(drive.TotalSize)] ?? $"{freeSpacePercent:F1}% free ({FormatBytes(drive.AvailableFreeSpace)} of {FormatBytes(drive.TotalSize)})",
+                Details = new Dictionary<string, string>
+                {
+                    ["Drive"] = drive.Name,
+                    ["Free"] = FormatBytes(drive.AvailableFreeSpace),
+                    ["Total"] = FormatBytes(drive.TotalSize)
+                }
+            };
         }
         catch (Exception ex)
         {
-            health.DiskSpace = new HealthStatus
+            return new HealthStatus
             {
-                Status = "Unknown",
-                Message = $"Could not check disk space: {ex.Message}"
+                Status = _localizer?["HealthStatus_Unknown"] ?? "Unknown",
+                Message = _localizer?["HealthStatus_CouldNotCheckDiskSpace", ex.Message] ?? $"Could not check disk space: {ex.Message}"
             };
         }
+    }
 
-        // Check memory
+    private HealthStatus CheckMemoryHealth()
+    {
         try
         {
             var process = Process.GetCurrentProcess();
             var workingSetMB = process.WorkingSet64 / 1024 / 1024;
-            health.Memory = new HealthStatus
+            var status = DetermineMemoryStatus(workingSetMB);
+
+            return new HealthStatus
             {
-                Status = workingSetMB < 1024 ? "Healthy" : workingSetMB < 2048 ? "Degraded" : "Unhealthy",
-                Message = $"Working set: {workingSetMB} MB",
+                Status = status,
+                Message = _localizer?["HealthStatus_WorkingSetMemory", workingSetMB] ?? $"Working set: {workingSetMB} MB",
                 Details = new Dictionary<string, string>
                 {
                     ["WorkingSet"] = $"{workingSetMB} MB",
@@ -350,14 +383,30 @@ public class AdminController : BaseController
         }
         catch (Exception ex)
         {
-            health.Memory = new HealthStatus
+            return new HealthStatus
             {
-                Status = "Unknown",
-                Message = $"Could not check memory: {ex.Message}"
+                Status = _localizer?["HealthStatus_Unknown"] ?? "Unknown",
+                Message = _localizer?["HealthStatus_CouldNotCheckMemory", ex.Message] ?? $"Could not check memory: {ex.Message}"
             };
         }
+    }
 
-        return health;
+    private string DetermineDiskSpaceStatus(double freeSpacePercent)
+    {
+        if (freeSpacePercent > 10)
+            return _localizer?["HealthStatus_Healthy"] ?? "Healthy";
+        if (freeSpacePercent > 5)
+            return _localizer?["HealthStatus_Degraded"] ?? "Degraded";
+        return _localizer?["HealthStatus_Unhealthy"] ?? "Unhealthy";
+    }
+
+    private string DetermineMemoryStatus(long workingSetMB)
+    {
+        if (workingSetMB < 1024)
+            return _localizer?["HealthStatus_Healthy"] ?? "Healthy";
+        if (workingSetMB < 2048)
+            return _localizer?["HealthStatus_Degraded"] ?? "Degraded";
+        return _localizer?["HealthStatus_Unhealthy"] ?? "Unhealthy";
     }
 
     private static string FormatBytes(long bytes)

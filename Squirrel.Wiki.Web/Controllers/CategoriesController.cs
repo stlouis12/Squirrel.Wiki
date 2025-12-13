@@ -7,6 +7,7 @@ using Squirrel.Wiki.Core.Services.Configuration;
 using Squirrel.Wiki.Core.Services.Pages;
 using Squirrel.Wiki.Web.Models.Admin;
 using Squirrel.Wiki.Web.Services;
+using static Squirrel.Wiki.Core.Constants.SystemUserConstants;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -138,7 +139,7 @@ public class CategoriesController : BaseController
             var notificationKey = model.IsNew ? "Notification_CategoryCreated" : "Notification_CategoryUpdated";
             
             _logger.LogInformation("{Action} category '{CategoryName}' (ID: {CategoryId}) by {User}", 
-                action, result.Value!.Name, result.Value.Id, _userContext.Username ?? "System");
+                action, result.Value!.Name, result.Value.Id, _userContext.Username ?? SYSTEM_USERNAME);
             
             NotifyLocalizedSuccess(notificationKey, result.Value.Name);
             return RedirectToAction(nameof(Index));
@@ -185,7 +186,7 @@ public class CategoriesController : BaseController
             await _categoryService.DeleteAsync(id);
             
             _logger.LogInformation("Deleted category '{CategoryName}' (ID: {CategoryId}) by {User}", 
-                category.Name, id, _userContext.Username ?? "System");
+                category.Name, id, _userContext.Username ?? SYSTEM_USERNAME);
 
             return Json(new { success = true, message = $"Category '{category.Name}' deleted successfully." });
         }
@@ -203,6 +204,11 @@ public class CategoriesController : BaseController
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Move([FromBody] MoveCategoryRequest request)
     {
+        if (!ModelState.IsValid)
+        {
+            return Json(new { success = false, message = "Invalid request data." });
+        }
+
         try
         {
             var category = await _categoryService.GetByIdAsync(request.CategoryId);
@@ -232,13 +238,13 @@ public class CategoriesController : BaseController
                 Name = category.Name,
                 Description = category.Description,
                 ParentId = request.NewParentId,
-                ModifiedBy = _userContext.Username ?? "System"
+                ModifiedBy = _userContext.Username ?? SYSTEM_USERNAME
             };
 
             var updated = await _categoryService.UpdateAsync(request.CategoryId, updateDto);
             
             _logger.LogInformation("Moved category '{CategoryName}' (ID: {CategoryId}) to parent {ParentId} by {User}", 
-                category.Name, request.CategoryId, request.NewParentId, _userContext.Username ?? "System");
+                category.Name, request.CategoryId, request.NewParentId, _userContext.Username ?? SYSTEM_USERNAME);
 
             NotifyLocalizedSuccess("Notification_CategoryMoved", category.Name);
             
@@ -265,7 +271,7 @@ public class CategoriesController : BaseController
     {
         try
         {
-            var username = _userContext.Username ?? "System";
+            var username = _userContext.Username ?? SYSTEM_USERNAME;
             
             var createDto = new CategoryCreateDto
             {
@@ -298,7 +304,7 @@ public class CategoriesController : BaseController
     {
         try
         {
-            var username = _userContext.Username ?? "System";
+            var username = _userContext.Username ?? SYSTEM_USERNAME;
             
             var updateDto = new CategoryUpdateDto
             {

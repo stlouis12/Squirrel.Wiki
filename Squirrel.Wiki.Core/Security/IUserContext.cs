@@ -38,5 +38,5 @@ public interface IUserContext
     /// <summary>
     /// Gets all roles assigned to the current user
     /// </summary>
-    IEnumerable<string> Roles { get; }
+    IEnumerable<string> GetRoles();
 }

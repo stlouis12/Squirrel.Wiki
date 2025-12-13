@@ -116,7 +116,7 @@ public class EnvironmentVariableConfigurationProvider : IConfigurationProvider
     /// <summary>
     /// Converts a string value to the specified type
     /// </summary>
-    private object ConvertValue(string value, Type targetType)
+    private static object ConvertValue(string value, Type targetType)
     {
         if (targetType == typeof(string))
         {

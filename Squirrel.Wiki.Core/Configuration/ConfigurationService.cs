@@ -40,7 +40,7 @@ public class ConfigurationService : IConfigurationService
 
             try
             {
-                var value = await GetValueInternalAsync(key, property.PropertyType, cancellationToken);
+                var value = await GetValueInternalAsync(key, cancellationToken);
                 if (value != null)
                 {
                     property.SetValue(instance, value);
@@ -58,7 +58,7 @@ public class ConfigurationService : IConfigurationService
 
     public async Task<TValue> GetValueAsync<TValue>(string key, CancellationToken cancellationToken = default)
     {
-        var value = await GetValueInternalAsync(key, typeof(TValue), cancellationToken);
+        var value = await GetValueInternalAsync(key, cancellationToken);
         
         if (value == null)
         {
@@ -166,55 +166,11 @@ public class ConfigurationService : IConfigurationService
 
             var errors = new List<string>();
 
-            // Numeric range validation
-            if (rules.MinValue.HasValue || rules.MaxValue.HasValue)
-            {
-                if (!int.TryParse(value?.ToString(), out var numValue))
-                {
-                    errors.Add($"{metadata.DisplayName} must be a number");
-                }
-                else
-                {
-                    if (rules.MinValue.HasValue && numValue < rules.MinValue.Value)
-                    {
-                        errors.Add($"{metadata.DisplayName} must be at least {rules.MinValue.Value}");
-                    }
-
-                    if (rules.MaxValue.HasValue && numValue > rules.MaxValue.Value)
-                    {
-                        errors.Add($"{metadata.DisplayName} must be at most {rules.MaxValue.Value}");
-                    }
-                }
-            }
-
-            // Allowed values validation
-            if (rules.AllowedValues != null && rules.AllowedValues.Length > 0)
-            {
-                var strValue = value?.ToString() ?? "";
-                if (!rules.AllowedValues.Contains(strValue, StringComparer.OrdinalIgnoreCase))
-                {
-                    errors.Add($"{metadata.DisplayName} must be one of: {string.Join(", ", rules.AllowedValues)}");
-                }
-            }
-
-            // URL validation
-            if (rules.MustBeUrl && !string.IsNullOrEmpty(value?.ToString()))
-            {
-                if (!Uri.TryCreate(value.ToString(), UriKind.Absolute, out var uri) ||
-                    (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-                {
-                    errors.Add($"{metadata.DisplayName} must be a valid HTTP/HTTPS URL");
-                }
-            }
-
-            // Regex pattern validation
-            if (!string.IsNullOrEmpty(rules.RegexPattern) && !string.IsNullOrEmpty(value?.ToString()))
-            {
-                if (!System.Text.RegularExpressions.Regex.IsMatch(value.ToString()!, rules.RegexPattern))
-                {
-                    errors.Add($"{metadata.DisplayName} does not match the required pattern");
-                }
-            }
+            // Run each validation check
+            ValidateNumericRange(value, metadata, rules, errors);
+            ValidateAllowedValues(value, metadata, rules, errors);
+            ValidateUrl(value, metadata, rules, errors);
+            ValidateRegexPattern(value, metadata, rules, errors);
 
             return errors.Count == 0
                 ? ValidationResult.Success()
@@ -231,6 +187,83 @@ public class ConfigurationService : IConfigurationService
         }
     }
 
+    /// <summary>
+    /// Validates numeric range constraints
+    /// </summary>
+    private static void ValidateNumericRange(object value, ConfigurationProperty metadata, ValidationRules rules, List<string> errors)
+    {
+        if (!rules.MinValue.HasValue && !rules.MaxValue.HasValue)
+        {
+            return;
+        }
+
+        if (!int.TryParse(value?.ToString(), out var numValue))
+        {
+            errors.Add($"{metadata.DisplayName} must be a number");
+            return;
+        }
+
+        if (rules.MinValue.HasValue && numValue < rules.MinValue.Value)
+        {
+            errors.Add($"{metadata.DisplayName} must be at least {rules.MinValue.Value}");
+        }
+
+        if (rules.MaxValue.HasValue && numValue > rules.MaxValue.Value)
+        {
+            errors.Add($"{metadata.DisplayName} must be at most {rules.MaxValue.Value}");
+        }
+    }
+
+    /// <summary>
+    /// Validates that value is in the allowed values list
+    /// </summary>
+    private static void ValidateAllowedValues(object value, ConfigurationProperty metadata, ValidationRules rules, List<string> errors)
+    {
+        if (rules.AllowedValues == null || rules.AllowedValues.Length == 0)
+        {
+            return;
+        }
+
+        var strValue = value?.ToString() ?? "";
+        if (!rules.AllowedValues.Contains(strValue, StringComparer.OrdinalIgnoreCase))
+        {
+            errors.Add($"{metadata.DisplayName} must be one of: {string.Join(", ", rules.AllowedValues)}");
+        }
+    }
+
+    /// <summary>
+    /// Validates that value is a valid HTTP/HTTPS URL
+    /// </summary>
+    private static void ValidateUrl(object value, ConfigurationProperty metadata, ValidationRules rules, List<string> errors)
+    {
+        if (!rules.MustBeUrl || string.IsNullOrEmpty(value?.ToString()))
+        {
+            return;
+        }
+
+        if (!Uri.TryCreate(value.ToString(), UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            errors.Add($"{metadata.DisplayName} must be a valid HTTP/HTTPS URL");
+        }
+    }
+
+    /// <summary>
+    /// Validates that value matches the required regex pattern
+    /// </summary>
+    private static void ValidateRegexPattern(object value, ConfigurationProperty metadata, ValidationRules rules, List<string> errors)
+    {
+        if (string.IsNullOrEmpty(rules.RegexPattern) || string.IsNullOrEmpty(value?.ToString()))
+        {
+            return;
+        }
+
+        if (!System.Text.RegularExpressions.Regex.IsMatch(value.ToString()!, rules.RegexPattern))
+        {
+            errors.Add($"{metadata.DisplayName} does not match the required pattern");
+        }
+    }
+
     public void InvalidateCache(string? key = null)
     {
         // No-op: ConfigurationService no longer caches internally
@@ -241,7 +274,7 @@ public class ConfigurationService : IConfigurationService
     /// <summary>
     /// Internal method to get a value from providers
     /// </summary>
-    private async Task<object?> GetValueInternalAsync(string key, Type targetType, CancellationToken cancellationToken)
+    private async Task<object?> GetValueInternalAsync(string key, CancellationToken cancellationToken)
     {
         // Query providers in priority order
         foreach (var provider in _providers)
@@ -273,7 +306,7 @@ public class ConfigurationService : IConfigurationService
     /// Converts a property name to a configuration key
     /// Example: SiteConfiguration.SiteName -> SQUIRREL_SITE_NAME
     /// </summary>
-    private string ConvertPropertyNameToKey(string typeName, string propertyName)
+    private static string ConvertPropertyNameToKey(string typeName, string propertyName)
     {
         // Remove "Configuration" suffix from type name
         var prefix = typeName.Replace("Configuration", "");
@@ -287,7 +320,7 @@ public class ConfigurationService : IConfigurationService
     /// <summary>
     /// Converts PascalCase to snake_case
     /// </summary>
-    private string ConvertToSnakeCase(string input)
+    private static string ConvertToSnakeCase(string input)
     {
         if (string.IsNullOrEmpty(input))
             return input;

@@ -6,6 +6,7 @@ using System.Text.Json;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using IOFile = System.IO.File;
+using static Squirrel.Wiki.Core.Constants.SystemUserConstants;
 
 namespace Squirrel.Wiki.Core.Database;
 
@@ -159,9 +160,9 @@ public static class DatabaseSeeder
             Description = sc.Description,
             DisplayOrder = sc.DisplayOrder,
             CreatedOn = now,
-            CreatedBy = "system",
+            CreatedBy = SYSTEM_USERNAME,
             ModifiedOn = now,
-            ModifiedBy = "system"
+            ModifiedBy = SYSTEM_USERNAME
         }).ToList();
 
         await context.Categories.AddRangeAsync(categories);
@@ -193,7 +194,7 @@ public static class DatabaseSeeder
         logger.LogInformation("Seeding pages...");
         
         var now = DateTime.UtcNow;
-        const string systemUser = "system";
+        const string systemUser = SYSTEM_USERNAME;
 
         var pages = new List<Page>();
 
@@ -285,7 +286,7 @@ public static class DatabaseSeeder
                 DisplayOrder = seedMenu.DisplayOrder,
                 IsEnabled = seedMenu.IsEnabled,
                 ModifiedOn = now,
-                ModifiedBy = "system"
+                ModifiedBy = SYSTEM_USERNAME
             };
 
             menus.Add(menu);
@@ -311,7 +312,7 @@ public static class DatabaseSeeder
                 Key = seedSetting.Key,
                 Value = seedSetting.Value, // Store as plain string, not JSON-serialized
                 ModifiedOn = now,
-                ModifiedBy = "system",
+                ModifiedBy = SYSTEM_USERNAME,
                 IsFromEnvironment = false
             };
 
@@ -388,7 +389,7 @@ public static class DatabaseSeeder
                 Key = metadata.Key,
                 Value = serializedValue,
                 ModifiedOn = now,
-                ModifiedBy = "system",
+                ModifiedBy = SYSTEM_USERNAME,
                 IsFromEnvironment = false
             };
 

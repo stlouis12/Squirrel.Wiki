@@ -6,6 +6,7 @@ using Squirrel.Wiki.Core.Events;
 using Squirrel.Wiki.Core.Events.Pages;
 using Squirrel.Wiki.Core.Services.Caching;
 using Squirrel.Wiki.Core.Services.Content;
+using static Squirrel.Wiki.Core.Constants.SystemUserConstants;
 
 namespace Squirrel.Wiki.Core.Services.Pages;
 
@@ -55,7 +56,7 @@ public class PageLinkService : BaseService, IPageLinkService
                         Text = updatedContent,
                         VersionNumber = latestContent.VersionNumber + 1,
                         EditedOn = DateTime.UtcNow,
-                        EditedBy = "System",
+                        EditedBy = SYSTEM_USERNAME,
                         ChangeComment = $"Auto-updated link from '{oldTitle}' to '{newTitle}'"
                     };
 

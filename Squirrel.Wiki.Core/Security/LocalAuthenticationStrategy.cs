@@ -41,7 +41,6 @@ public class LocalAuthenticationStrategy : IAuthenticationStrategy
             return AuthenticationResult.Failed("Invalid authentication request", AuthenticationFailureReason.InvalidCredentials);
         }
 
-        // Find user by username
         var user = await _userRepository.GetByUsernameAsync(request.Username!, cancellationToken);
         if (user == null)
         {
@@ -49,88 +48,154 @@ public class LocalAuthenticationStrategy : IAuthenticationStrategy
             return AuthenticationResult.Failed("Invalid username or password", AuthenticationFailureReason.AccountNotFound);
         }
 
-        // Check if account is for local authentication
-        if (user.Provider != AuthenticationProvider.Local)
+        // Validate account eligibility
+        var validationResult = ValidateAccountEligibility(user);
+        if (validationResult != null)
         {
-            _logger.LogWarning("Authentication failed: User {Username} is not a local account", request.Username);
-            return AuthenticationResult.Failed("This account uses external authentication", AuthenticationFailureReason.InvalidCredentials);
+            return validationResult;
         }
 
-        // Check if account is active
-        if (!user.IsActive)
+        // Handle account lock status
+        var lockCheckResult = await CheckAndHandleAccountLock(user, cancellationToken);
+        if (lockCheckResult != null)
         {
-            _logger.LogWarning("Authentication failed: Account inactive - {Username}", request.Username);
-            return AuthenticationResult.Failed("Account is inactive", AuthenticationFailureReason.AccountInactive);
-        }
-
-        // Check if account is locked
-        if (user.IsLocked)
-        {
-            if (user.LockedUntil.HasValue && user.LockedUntil.Value > DateTime.UtcNow)
-            {
-                _logger.LogWarning("Authentication failed: Account locked - {Username}", request.Username);
-                var result = AuthenticationResult.Failed(
-                    $"Account is locked until {user.LockedUntil.Value:yyyy-MM-dd HH:mm} UTC",
-                    AuthenticationFailureReason.AccountLocked);
-                result.IsLocked = true;
-                result.LockedUntil = user.LockedUntil.Value;
-                return result;
-            }
-            else
-            {
-                // Lock has expired, unlock the account
-                user.IsLocked = false;
-                user.LockedUntil = null;
-                user.FailedLoginAttempts = 0;
-                await _userRepository.UpdateAsync(user, cancellationToken);
-            }
+            return lockCheckResult;
         }
 
         // Verify password
-        if (string.IsNullOrWhiteSpace(user.PasswordHash) || !_passwordHasher.VerifyPassword(request.Password!, user.PasswordHash))
+        var passwordValid = !string.IsNullOrWhiteSpace(user.PasswordHash) && 
+                           _passwordHasher.VerifyPassword(request.Password!, user.PasswordHash);
+
+        if (!passwordValid)
         {
-            // Increment failed login attempts
-            user.FailedLoginAttempts++;
-
-            // Lock account if too many failed attempts
-            if (user.FailedLoginAttempts >= MaxFailedAttempts)
-            {
-                user.IsLocked = true;
-                user.LockedUntil = DateTime.UtcNow.AddMinutes(LockoutMinutes);
-                _logger.LogWarning("Account locked due to too many failed attempts - {Username}", request.Username);
-            }
-
-            await _userRepository.UpdateAsync(user, cancellationToken);
-
-            _logger.LogWarning("Authentication failed: Invalid password - {Username} (Attempt {Attempts})", 
-                request.Username, user.FailedLoginAttempts);
-
-            if (user.IsLocked)
-            {
-                var lockResult = AuthenticationResult.Failed(
-                    $"Too many failed attempts. Account locked until {user.LockedUntil:yyyy-MM-dd HH:mm} UTC",
-                    AuthenticationFailureReason.TooManyAttempts);
-                lockResult.IsLocked = true;
-                lockResult.LockedUntil = user.LockedUntil;
-                return lockResult;
-            }
-
-            return AuthenticationResult.Failed("Invalid username or password", AuthenticationFailureReason.InvalidCredentials);
+            return await HandleFailedPasswordAttempt(user, request.Username!, cancellationToken);
         }
 
-        // Check if password needs rehashing
-        if (_passwordHasher.NeedsRehash(user.PasswordHash))
+        // Handle successful authentication
+        return await HandleSuccessfulAuthentication(user, request.Password!, cancellationToken);
+    }
+
+    /// <summary>
+    /// Validates that the account is eligible for local authentication
+    /// </summary>
+    private AuthenticationResult? ValidateAccountEligibility(Database.Entities.User user)
+    {
+        if (user.Provider != AuthenticationProvider.Local)
         {
-            user.PasswordHash = _passwordHasher.HashPassword(request.Password!);
-            _logger.LogInformation("Password rehashed for user {Username}", request.Username);
+            _logger.LogWarning("Authentication failed: User {Username} is not a local account", user.Username);
+            return AuthenticationResult.Failed("This account uses external authentication", AuthenticationFailureReason.InvalidCredentials);
         }
 
-        // Reset failed login attempts on successful login
+        if (!user.IsActive)
+        {
+            _logger.LogWarning("Authentication failed: Account inactive - {Username}", user.Username);
+            return AuthenticationResult.Failed("Account is inactive", AuthenticationFailureReason.AccountInactive);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks if account is locked and handles lock expiration
+    /// </summary>
+    private async Task<AuthenticationResult?> CheckAndHandleAccountLock(
+        Database.Entities.User user, 
+        CancellationToken cancellationToken)
+    {
+        if (!user.IsLocked)
+        {
+            return null;
+        }
+
+        if (user.LockedUntil.HasValue && user.LockedUntil.Value > DateTime.UtcNow)
+        {
+            return CreateLockedAccountResult(user);
+        }
+
+        // Lock has expired, unlock the account
+        await UnlockAccount(user, cancellationToken);
+        return null;
+    }
+
+    /// <summary>
+    /// Creates a result for a locked account
+    /// </summary>
+    private AuthenticationResult CreateLockedAccountResult(Database.Entities.User user)
+    {
+        _logger.LogWarning("Authentication failed: Account locked - {Username}", user.Username);
+        var result = AuthenticationResult.Failed(
+            $"Account is locked until {user.LockedUntil!.Value:yyyy-MM-dd HH:mm} UTC",
+            AuthenticationFailureReason.AccountLocked);
+        result.IsLocked = true;
+        result.LockedUntil = user.LockedUntil.Value;
+        return result;
+    }
+
+    /// <summary>
+    /// Unlocks an account after lock expiration
+    /// </summary>
+    private async Task UnlockAccount(Database.Entities.User user, CancellationToken cancellationToken)
+    {
+        user.IsLocked = false;
+        user.LockedUntil = null;
+        user.FailedLoginAttempts = 0;
+        await _userRepository.UpdateAsync(user, cancellationToken);
+    }
+
+    /// <summary>
+    /// Handles a failed password attempt, including account locking
+    /// </summary>
+    private async Task<AuthenticationResult> HandleFailedPasswordAttempt(
+        Database.Entities.User user,
+        string username,
+        CancellationToken cancellationToken)
+    {
+        user.FailedLoginAttempts++;
+
+        if (user.FailedLoginAttempts >= MaxFailedAttempts)
+        {
+            user.IsLocked = true;
+            user.LockedUntil = DateTime.UtcNow.AddMinutes(LockoutMinutes);
+            _logger.LogWarning("Account locked due to too many failed attempts - {Username}", username);
+        }
+
+        await _userRepository.UpdateAsync(user, cancellationToken);
+
+        _logger.LogWarning("Authentication failed: Invalid password - {Username} (Attempt {Attempts})", 
+            username, user.FailedLoginAttempts);
+
+        if (user.IsLocked)
+        {
+            var lockResult = AuthenticationResult.Failed(
+                $"Too many failed attempts. Account locked until {user.LockedUntil:yyyy-MM-dd HH:mm} UTC",
+                AuthenticationFailureReason.TooManyAttempts);
+            lockResult.IsLocked = true;
+            lockResult.LockedUntil = user.LockedUntil;
+            return lockResult;
+        }
+
+        return AuthenticationResult.Failed("Invalid username or password", AuthenticationFailureReason.InvalidCredentials);
+    }
+
+    /// <summary>
+    /// Handles successful authentication, including password rehashing if needed
+    /// </summary>
+    private async Task<AuthenticationResult> HandleSuccessfulAuthentication(
+        Database.Entities.User user,
+        string password,
+        CancellationToken cancellationToken)
+    {
+        if (_passwordHasher.NeedsRehash(user.PasswordHash!))
+        {
+            user.PasswordHash = _passwordHasher.HashPassword(password);
+            _logger.LogInformation("Password rehashed for user {Username}", user.Username);
+        }
+
         user.FailedLoginAttempts = 0;
         user.LastLoginOn = DateTime.UtcNow;
         await _userRepository.UpdateAsync(user, cancellationToken);
 
-        _logger.LogInformation("User authenticated successfully - {Username}", request.Username);
+        _logger.LogInformation("User authenticated successfully - {Username}", user.Username);
 
         return AuthenticationResult.Succeeded(
             user.Id,

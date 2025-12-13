@@ -303,9 +303,9 @@ public class SearchService : BaseService, ISearchService
         return results;
     }
 
-    public async Task<SearchResultsDto> SearchInCategoryAsync(string query, int categoryId, int pageNum = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<SearchResultsDto> SearchInCategoryAsync(string query, int categoryId, int pageNumber = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        var categoryResults = await SearchByCategoryAsync(categoryId, pageNum, pageSize, cancellationToken);
+        var categoryResults = await SearchByCategoryAsync(categoryId, pageNumber, pageSize, cancellationToken);
         
         if (string.IsNullOrWhiteSpace(query))
         {
@@ -323,13 +323,13 @@ public class SearchService : BaseService, ISearchService
             Query = query,
             Results = filteredResults,
             TotalResults = filteredResults.Count,
-            Page = pageNum,
+            Page = pageNumber,
             PageSize = pageSize,
             TotalPages = (int)Math.Ceiling(filteredResults.Count / (double)pageSize)
         };
     }
 
-    public async Task<SearchResultsDto> SearchByTagsAsync(List<string> tags, int pageNum = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<SearchResultsDto> SearchByTagsAsync(List<string> tags, int pageNumber = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         if (tags == null || !tags.Any())
         {
@@ -338,14 +338,14 @@ public class SearchService : BaseService, ISearchService
                 Query = string.Join(", ", tags ?? new List<string>()),
                 Results = new List<SearchResultItemDto>(),
                 TotalResults = 0,
-                Page = pageNum,
+                Page = pageNumber,
                 PageSize = pageSize,
                 TotalPages = 0
             };
         }
 
         // For simplicity, search by first tag (can be enhanced to support multiple tags)
-        return await SearchByTagAsync(tags.First(), pageNum, pageSize, cancellationToken);
+        return await SearchByTagAsync(tags.First(), pageNumber, pageSize, cancellationToken);
     }
 
     public async Task<SearchResultsDto> SearchByDateRangeAsync(DateTime? startDate, DateTime? endDate, int pageNumber = 1, int pageSize = 20, CancellationToken cancellationToken = default)
@@ -434,7 +434,7 @@ public class SearchService : BaseService, ISearchService
     /// <summary>
     /// Generates a content summary with the search term highlighted in context
     /// </summary>
-    private string GenerateContentSummary(string content, string searchTerm, int maxLength = 200)
+    private static string GenerateContentSummary(string content, string searchTerm, int maxLength = 200)
     {
         if (string.IsNullOrWhiteSpace(content))
         {
@@ -495,7 +495,7 @@ public class SearchService : BaseService, ISearchService
     /// <summary>
     /// Calculates relevance score based on search term occurrence in title and content
     /// </summary>
-    private double CalculateRelevance(string title, string content, string searchTerm)
+    private static double CalculateRelevance(string title, string content, string searchTerm)
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
@@ -640,13 +640,13 @@ public class SearchService : BaseService, ISearchService
         return results;
     }
 
-    public async Task<SearchResultsDto> FuzzySearchAsync(string query, float minSimilarity = 0.7f, int pageNum = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<SearchResultsDto> FuzzySearchAsync(string query, float minSimilarity = 0.7f, int pageNumber = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // For database-based search, fuzzy search is approximated with regular search
         // A full implementation would use Levenshtein distance or similar algorithms
         LogDebug("FuzzySearchAsync called with query '{Query}' (using regular search)", query);
         
-        return await SearchAsync(query, pageNum, pageSize, cancellationToken);
+        return await SearchAsync(query, pageNumber, pageSize, cancellationToken);
     }
 
     // File search methods
@@ -799,7 +799,7 @@ public class SearchService : BaseService, ISearchService
     /// <summary>
     /// Calculates relevance score for file search results
     /// </summary>
-    private double CalculateFileRelevance(string fileName, string description, string searchTerm)
+    private static double CalculateFileRelevance(string fileName, string description, string searchTerm)
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
         {

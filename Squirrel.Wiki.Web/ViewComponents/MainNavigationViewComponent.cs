@@ -4,6 +4,7 @@ using Squirrel.Wiki.Core.Database.Entities;
 using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services.Menus;
 using System.Text.RegularExpressions;
+using static Squirrel.Wiki.Core.Constants.UserRoles;
 
 namespace Squirrel.Wiki.Web.ViewComponents;
 
@@ -13,7 +14,6 @@ namespace Squirrel.Wiki.Web.ViewComponents;
 public class MainNavigationViewComponent : ViewComponent
 {
     private readonly IMenuService _menuService;
-    private readonly IAuthorizationService _authorizationService;
     private readonly ILogger<MainNavigationViewComponent> _logger;
 
     public MainNavigationViewComponent(
@@ -22,7 +22,6 @@ public class MainNavigationViewComponent : ViewComponent
         ILogger<MainNavigationViewComponent> logger)
     {
         _menuService = menuService;
-        _authorizationService = authorizationService;
         _logger = logger;
     }
 
@@ -90,7 +89,7 @@ public class MainNavigationViewComponent : ViewComponent
     /// <summary>
     /// Determines if a menu item should be included based on user authorization
     /// </summary>
-    private bool ShouldIncludeMenuItem(string line, string? userRole)
+    private static bool ShouldIncludeMenuItem(string line, string? userRole)
     {
         // Extract URL from menu markup line (format: * [Text](URL) or ** [Text](URL))
         var urlMatch = Regex.Match(line, @"\]\(([^\)]+)\)");
@@ -105,14 +104,14 @@ public class MainNavigationViewComponent : ViewComponent
         // Check for %ADMIN% token - only for Admin role
         if (url.Equals("%ADMIN%", StringComparison.OrdinalIgnoreCase))
         {
-            return userRole?.Equals("Admin", StringComparison.OrdinalIgnoreCase) == true;
+            return userRole?.Equals(ADMIN_ROLE, StringComparison.OrdinalIgnoreCase) == true;
         }
 
         // Check for %NEWPAGE% token - only for Admin and Editor roles
         if (url.Equals("%NEWPAGE%", StringComparison.OrdinalIgnoreCase))
         {
-            return userRole?.Equals("Admin", StringComparison.OrdinalIgnoreCase) == true ||
-                   userRole?.Equals("Editor", StringComparison.OrdinalIgnoreCase) == true;
+            return userRole?.Equals(ADMIN_ROLE, StringComparison.OrdinalIgnoreCase) == true ||
+                   userRole?.Equals(EDITOR_ROLE, StringComparison.OrdinalIgnoreCase) == true;
         }
 
         // All other items are visible to everyone

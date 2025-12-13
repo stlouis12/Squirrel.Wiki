@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services.Users;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
 
 namespace Squirrel.Wiki.Core.Services.Infrastructure;
 
@@ -25,136 +26,179 @@ public class AdminBootstrapService : MinimalBaseService, IAdminBootstrapService
 
     public async Task EnsureAdminExistsAsync(CancellationToken cancellationToken = default)
     {
-        // Get credentials from configuration (which checks environment variables, then database, then defaults)
-        var envUsername = await _configurationService.GetValueAsync<string>("SQUIRREL_ADMIN_USERNAME", cancellationToken);
-        var envPassword = await _configurationService.GetValueAsync<string>("SQUIRREL_ADMIN_PASSWORD", cancellationToken);
-        var envEmail = await _configurationService.GetValueAsync<string>("SQUIRREL_ADMIN_EMAIL", cancellationToken);
-        var envDisplayName = await _configurationService.GetValueAsync<string>("SQUIRREL_ADMIN_DISPLAYNAME", cancellationToken);
-
-        // Check if any admin users exist
+        var adminConfig = await LoadAdminConfigurationAsync(cancellationToken);
         var hasAdmins = await HasAdminUsersAsync(cancellationToken);
 
         if (hasAdmins)
         {
-            // If environment variables are set, update the existing default admin user
-            if (!string.IsNullOrEmpty(envUsername) || !string.IsNullOrEmpty(envPassword) || !string.IsNullOrEmpty(envEmail))
-            {
-                LogInfo("Environment variables detected. Checking if default admin user needs updating...");
-                
-                try
-                {
-                    // Try to find the default admin user by username or email
-                    // Use the configured default values to find the existing admin
-                    var defaultUsername = await _configurationService.GetValueAsync<string>("SQUIRREL_ADMIN_USERNAME", cancellationToken);
-                    var defaultEmail = await _configurationService.GetValueAsync<string>("SQUIRREL_ADMIN_EMAIL", cancellationToken);
-                    
-                    var defaultAdmin = await _userService.GetByUsernameAsync(defaultUsername!, cancellationToken);
-                    if (defaultAdmin == null)
-                    {
-                        defaultAdmin = await _userService.GetByEmailAsync(defaultEmail!, cancellationToken);
-                    }
-
-                    if (defaultAdmin != null)
-                    {
-                        var needsUpdate = false;
-                        var updates = new List<string>();
-
-                        // Note: Username cannot be updated through UserUpdateDto
-                        // If username needs to change, admin should create a new user
-                        if (!string.IsNullOrEmpty(envUsername) && defaultAdmin.Username != envUsername)
-                        {
-                            LogWarning(
-                                "Environment variable SQUIRREL_ADMIN_USERNAME is set to '{EnvUsername}' but existing admin has username '{CurrentUsername}'. " +
-                                "Username cannot be changed after creation. To use a different username, delete the existing admin user first.",
-                                envUsername, defaultAdmin.Username);
-                        }
-
-                        // Update email if environment variable is set and different
-                        if (!string.IsNullOrEmpty(envEmail) && defaultAdmin.Email != envEmail)
-                        {
-                            needsUpdate = true;
-                            updates.Add($"email: {defaultAdmin.Email} -> {envEmail}");
-                        }
-
-                        // Update display name if environment variable is set and different
-                        if (!string.IsNullOrEmpty(envDisplayName) && defaultAdmin.DisplayName != envDisplayName)
-                        {
-                            needsUpdate = true;
-                            updates.Add($"display name: {defaultAdmin.DisplayName} -> {envDisplayName}");
-                        }
-
-                        // Always update password if environment variable is set (we can't compare hashed passwords)
-                        if (!string.IsNullOrEmpty(envPassword))
-                        {
-                            needsUpdate = true;
-                            updates.Add("password: [updated from environment variable]");
-                        }
-
-                        if (needsUpdate)
-                        {
-                            LogWarning("Updating default admin user with environment variable values: {Updates}", string.Join(", ", updates));
-
-                            // Update the user details (email, display name, etc.)
-                            var updateDto = new UserUpdateDto
-                            {
-                                Email = envEmail ?? defaultAdmin.Email,
-                                DisplayName = envDisplayName ?? defaultAdmin.DisplayName,
-                                FirstName = defaultAdmin.FirstName,
-                                LastName = defaultAdmin.LastName,
-                                IsAdmin = defaultAdmin.IsAdmin,
-                                IsEditor = defaultAdmin.IsEditor
-                            };
-
-                            await _userService.UpdateAsync(defaultAdmin.Id, updateDto, cancellationToken);
-
-                            // Update password if provided
-                            if (!string.IsNullOrEmpty(envPassword))
-                            {
-                                await _userService.SetPasswordAsync(defaultAdmin.Id, envPassword, cancellationToken);
-                            }
-
-                            LogInfo("Default admin user updated successfully from environment variables");
-                        }
-                        else
-                        {
-                            LogDebug("Default admin user already matches environment variables, no update needed");
-                        }
-                    }
-                    else
-                    {
-                        LogDebug("Default admin user not found, environment variables will be used if new admin is created");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogError(ex, "Failed to update default admin user from environment variables");
-                    // Don't throw - this is not critical, admin still exists
-                }
-            }
-            else
-            {
-                LogDebug("Admin user(s) already exist and no environment variables set, skipping bootstrap");
-            }
-            
+            await HandleExistingAdminAsync(adminConfig, cancellationToken);
             return;
         }
 
-        LogWarning("No admin users found. Creating default admin user...");
+        await CreateDefaultAdminAsync(adminConfig, cancellationToken);
+    }
 
-        // Configuration service already handles defaults, so we can use the values directly
-        var username = envUsername!;
-        var password = envPassword!;
-        var email = envEmail!;
-        var displayName = envDisplayName!;
+    /// <summary>
+    /// Loads admin configuration from environment variables and configuration
+    /// </summary>
+    private async Task<AdminConfiguration> LoadAdminConfigurationAsync(CancellationToken cancellationToken)
+    {
+        return new AdminConfiguration
+        {
+            Username = await _configurationService.GetValueAsync<string>(SQUIRREL_ADMIN_USERNAME, cancellationToken),
+            Password = await _configurationService.GetValueAsync<string>(SQUIRREL_ADMIN_PASSWORD, cancellationToken),
+            Email = await _configurationService.GetValueAsync<string>(SQUIRREL_ADMIN_EMAIL, cancellationToken),
+            DisplayName = await _configurationService.GetValueAsync<string>(SQUIRREL_ADMIN_DISPLAYNAME, cancellationToken)
+        };
+    }
+
+    /// <summary>
+    /// Handles updating existing admin user if environment variables are set
+    /// </summary>
+    private async Task HandleExistingAdminAsync(AdminConfiguration config, CancellationToken cancellationToken)
+    {
+        if (!config.HasEnvironmentVariables())
+        {
+            LogDebug("Admin user(s) already exist and no environment variables set, skipping bootstrap");
+            return;
+        }
+
+        LogInfo("Environment variables detected. Checking if default admin user needs updating...");
 
         try
         {
-            // Create the admin user
+            var defaultAdmin = await FindDefaultAdminAsync(config, cancellationToken);
+            if (defaultAdmin == null)
+            {
+                LogDebug("Default admin user not found, environment variables will be used if new admin is created");
+                return;
+            }
+
+            await UpdateAdminIfNeededAsync(defaultAdmin, config, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            LogError(ex, "Failed to update default admin user from environment variables");
+            // Don't throw - this is not critical, admin still exists
+        }
+    }
+
+    /// <summary>
+    /// Finds the default admin user by username or email
+    /// </summary>
+    private async Task<UserDto?> FindDefaultAdminAsync(AdminConfiguration config, CancellationToken cancellationToken)
+    {
+        var defaultAdmin = await _userService.GetByUsernameAsync(config.Username!, cancellationToken);
+        if (defaultAdmin == null)
+        {
+            defaultAdmin = await _userService.GetByEmailAsync(config.Email!, cancellationToken);
+        }
+        return defaultAdmin;
+    }
+
+    /// <summary>
+    /// Updates admin user if environment variables differ from current values
+    /// </summary>
+    private async Task UpdateAdminIfNeededAsync(UserDto defaultAdmin, AdminConfiguration config, CancellationToken cancellationToken)
+    {
+        CheckUsernameChange(defaultAdmin, config);
+
+        var (needsUpdate, updates) = DetermineRequiredUpdates(defaultAdmin, config);
+
+        if (!needsUpdate)
+        {
+            LogDebug("Default admin user already matches environment variables, no update needed");
+            return;
+        }
+
+        await ApplyAdminUpdatesAsync(defaultAdmin, config, updates, cancellationToken);
+    }
+
+    /// <summary>
+    /// Checks if username is being changed and logs a warning
+    /// </summary>
+    private void CheckUsernameChange(UserDto defaultAdmin, AdminConfiguration config)
+    {
+        if (!string.IsNullOrEmpty(config.Username) && defaultAdmin.Username != config.Username)
+        {
+            LogWarning(
+                "Environment variable SQUIRREL_ADMIN_USERNAME is set to '{EnvUsername}' but existing admin has username '{CurrentUsername}'. " +
+                "Username cannot be changed after creation. To use a different username, delete the existing admin user first.",
+                config.Username, defaultAdmin.Username);
+        }
+    }
+
+    /// <summary>
+    /// Determines which fields need to be updated
+    /// Returns: (needsUpdate, list of update descriptions)
+    /// </summary>
+    private static (bool needsUpdate, List<string> updates) DetermineRequiredUpdates(UserDto defaultAdmin, AdminConfiguration config)
+    {
+        var needsUpdate = false;
+        var updates = new List<string>();
+
+        if (!string.IsNullOrEmpty(config.Email) && defaultAdmin.Email != config.Email)
+        {
+            needsUpdate = true;
+            updates.Add($"email: {defaultAdmin.Email} -> {config.Email}");
+        }
+
+        if (!string.IsNullOrEmpty(config.DisplayName) && defaultAdmin.DisplayName != config.DisplayName)
+        {
+            needsUpdate = true;
+            updates.Add($"display name: {defaultAdmin.DisplayName} -> {config.DisplayName}");
+        }
+
+        if (!string.IsNullOrEmpty(config.Password))
+        {
+            needsUpdate = true;
+            updates.Add("password: [updated from environment variable]");
+        }
+
+        return (needsUpdate, updates);
+    }
+
+    /// <summary>
+    /// Applies the updates to the admin user
+    /// </summary>
+    private async Task ApplyAdminUpdatesAsync(UserDto defaultAdmin, AdminConfiguration config, List<string> updates, CancellationToken cancellationToken)
+    {
+        LogWarning("Updating default admin user with environment variable values: {Updates}", string.Join(", ", updates));
+
+        var updateDto = new UserUpdateDto
+        {
+            Email = config.Email ?? defaultAdmin.Email,
+            DisplayName = config.DisplayName ?? defaultAdmin.DisplayName,
+            FirstName = defaultAdmin.FirstName,
+            LastName = defaultAdmin.LastName,
+            IsAdmin = defaultAdmin.IsAdmin,
+            IsEditor = defaultAdmin.IsEditor
+        };
+
+        await _userService.UpdateAsync(defaultAdmin.Id, updateDto, cancellationToken);
+
+        if (!string.IsNullOrEmpty(config.Password))
+        {
+            await _userService.SetPasswordAsync(defaultAdmin.Id, config.Password, cancellationToken);
+        }
+
+        LogInfo("Default admin user updated successfully from environment variables");
+    }
+
+    /// <summary>
+    /// Creates a new default admin user
+    /// </summary>
+    private async Task CreateDefaultAdminAsync(AdminConfiguration config, CancellationToken cancellationToken)
+    {
+        LogWarning("No admin users found. Creating default admin user...");
+
+        try
+        {
             var adminUser = await _userService.CreateLocalUserAsync(
-                username: username,
-                email: email,
-                password: password,
-                displayName: displayName,
+                username: config.Username!,
+                email: config.Email!,
+                password: config.Password!,
+                displayName: config.DisplayName!,
                 isAdmin: true,
                 isEditor: true,
                 cancellationToken: cancellationToken
@@ -164,8 +208,8 @@ public class AdminBootstrapService : MinimalBaseService, IAdminBootstrapService
                 "Default admin user created successfully. " +
                 "Username: {Username}, Password: {PasswordSource}. " +
                 "IMPORTANT: Change this password immediately after first login!",
-                username,
-                password == "Squirrel123!" ? "[default]" : "[from configuration]"
+                config.Username,
+                config.Password == "Squirrel123!" ? "[default]" : "[from configuration]"
             );
 
             LogInfo("Admin user created with ID: {UserId}", adminUser.Id);
@@ -174,6 +218,24 @@ public class AdminBootstrapService : MinimalBaseService, IAdminBootstrapService
         {
             LogError(ex, "Failed to create default admin user");
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Helper class to hold admin configuration
+    /// </summary>
+    private class AdminConfiguration
+    {
+        public string? Username { get; set; }
+        public string? Password { get; set; }
+        public string? Email { get; set; }
+        public string? DisplayName { get; set; }
+
+        public bool HasEnvironmentVariables()
+        {
+            return !string.IsNullOrEmpty(Username) ||
+                   !string.IsNullOrEmpty(Password) ||
+                   !string.IsNullOrEmpty(Email);
         }
     }
 
@@ -188,8 +250,8 @@ public class AdminBootstrapService : MinimalBaseService, IAdminBootstrapService
         // Note: This is a synchronous method but configuration service is async
         // In practice, this method may need to be made async or use .GetAwaiter().GetResult()
         // For now, we'll use the synchronous approach with GetAwaiter().GetResult()
-        var username = _configurationService.GetValueAsync<string>("SQUIRREL_ADMIN_USERNAME", CancellationToken.None).GetAwaiter().GetResult();
-        var password = _configurationService.GetValueAsync<string>("SQUIRREL_ADMIN_PASSWORD", CancellationToken.None).GetAwaiter().GetResult();
+        var username = _configurationService.GetValueAsync<string>(SQUIRREL_ADMIN_USERNAME, CancellationToken.None).GetAwaiter().GetResult();
+        var password = _configurationService.GetValueAsync<string>(SQUIRREL_ADMIN_PASSWORD, CancellationToken.None).GetAwaiter().GetResult();
         return (username!, password!);
     }
 }
