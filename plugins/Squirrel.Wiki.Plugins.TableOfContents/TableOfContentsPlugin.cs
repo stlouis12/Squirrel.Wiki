@@ -104,86 +104,59 @@ public class TableOfContentsPlugin : PluginBase, IMarkdownExtensionPlugin
 
     private string GenerateTableOfContents(string html)
     {
-        // Get configuration
         var maxDepth = GetConfigValue("MaxDepth", 3);
-        
         _logger?.LogDebug("TOC Configuration - MaxDepth: {MaxDepth}", maxDepth);
 
-        // Extract headings using regex
-        var headingPattern = new Regex(@"<h([1-6])[^>]*id=""([^""]+)""[^>]*>(.*?)</h\1>", RegexOptions.IgnoreCase);
-        var matches = headingPattern.Matches(html);
+        var headings = ExtractHeadings(html);
         
-        _logger?.LogInformation("Found {Count} heading matches in HTML", matches.Count);
-
-        if (matches.Count == 0)
+        if (headings.Count == 0)
         {
             _logger?.LogWarning("No headings found in HTML for TOC generation");
             return "<div class=\"toc\"><p><em>No headings found</em></p></div>";
         }
 
+        return BuildTocHtml(headings, maxDepth);
+    }
+
+    private List<TocHeading> ExtractHeadings(string html)
+    {
+        var headingPattern = new Regex(@"<h([1-6])[^>]*id=""([^""]+)""[^>]*>(.*?)</h\1>", RegexOptions.IgnoreCase);
+        var matches = headingPattern.Matches(html);
+        
+        _logger?.LogInformation("Found {Count} heading matches in HTML", matches.Count);
+
+        var headings = new List<TocHeading>();
+        foreach (Match match in matches)
+        {
+            headings.Add(new TocHeading
+            {
+                Level = int.Parse(match.Groups[1].Value),
+                Id = match.Groups[2].Value,
+                Text = StripHtmlTags(match.Groups[3].Value)
+            });
+        }
+
+        return headings;
+    }
+
+    private static string BuildTocHtml(List<TocHeading> headings, int maxDepth)
+    {
         var sb = new StringBuilder();
         sb.AppendLine("<nav class=\"toc\" role=\"navigation\">");
         sb.AppendLine("  <h2 class=\"toc-title\">Table of Contents</h2>");
         sb.AppendLine("  <ul class=\"toc-list\">");
 
-        int currentLevel = 0;
-        var levelStack = new Stack<int>();
+        var context = new TocBuildContext();
 
-        foreach (Match match in matches)
+        foreach (var heading in headings)
         {
-            var level = int.Parse(match.Groups[1].Value);
-            var id = match.Groups[2].Value;
-            var text = StripHtmlTags(match.Groups[3].Value);
-
-            // Skip if beyond max depth
-            if (level > maxDepth)
+            if (heading.Level > maxDepth)
                 continue;
 
-            // Handle nesting
-            if (level > currentLevel)
-            {
-                // Open new nested lists
-                while (currentLevel < level)
-                {
-                    sb.AppendLine($"{new string(' ', currentLevel * 2)}    <ul class=\"toc-list-nested\">");
-                    levelStack.Push(currentLevel);
-                    currentLevel++;
-                }
-            }
-            else if (level < currentLevel)
-            {
-                // Close nested lists
-                while (currentLevel > level && levelStack.Count > 0)
-                {
-                    currentLevel = levelStack.Pop();
-                    sb.AppendLine($"{new string(' ', currentLevel * 2)}    </ul>");
-                    sb.AppendLine($"{new string(' ', currentLevel * 2)}  </li>");
-                }
-            }
-            else if (currentLevel > 0)
-            {
-                // Close previous item at same level
-                sb.AppendLine($"{new string(' ', (currentLevel - 1) * 2)}  </li>");
-            }
-
-            // Add the TOC item
-            var indent = new string(' ', (currentLevel - 1) * 2);
-            sb.AppendLine($"{indent}  <li class=\"toc-item toc-level-{level}\">");
-            sb.AppendLine($"{indent}    <a href=\"#{id}\" class=\"toc-link\">{text}</a>");
+            ProcessHeading(sb, heading, context);
         }
 
-        // Close any remaining open lists
-        while (levelStack.Count > 0)
-        {
-            currentLevel = levelStack.Pop();
-            sb.AppendLine($"{new string(' ', currentLevel * 2)}    </ul>");
-            sb.AppendLine($"{new string(' ', currentLevel * 2)}  </li>");
-        }
-
-        if (currentLevel > 0)
-        {
-            sb.AppendLine("  </li>");
-        }
+        CloseRemainingLists(sb, context);
 
         sb.AppendLine("  </ul>");
         sb.AppendLine("</nav>");
@@ -191,7 +164,90 @@ public class TableOfContentsPlugin : PluginBase, IMarkdownExtensionPlugin
         return sb.ToString();
     }
 
-    private string StripHtmlTags(string html)
+    private static void ProcessHeading(StringBuilder sb, TocHeading heading, TocBuildContext context)
+    {
+        if (heading.Level > context.CurrentLevel)
+        {
+            OpenNestedLists(sb, heading.Level, context);
+        }
+        else if (heading.Level < context.CurrentLevel)
+        {
+            CloseNestedLists(sb, heading.Level, context);
+        }
+        else if (context.CurrentLevel > 0)
+        {
+            ClosePreviousItem(sb, context);
+        }
+
+        AddTocItem(sb, heading, context);
+    }
+
+    private static void OpenNestedLists(StringBuilder sb, int targetLevel, TocBuildContext context)
+    {
+        while (context.CurrentLevel < targetLevel)
+        {
+            sb.AppendLine($"{GetIndent(context.CurrentLevel)}    <ul class=\"toc-list-nested\">");
+            context.LevelStack.Push(context.CurrentLevel);
+            context.CurrentLevel++;
+        }
+    }
+
+    private static void CloseNestedLists(StringBuilder sb, int targetLevel, TocBuildContext context)
+    {
+        while (context.CurrentLevel > targetLevel && context.LevelStack.Count > 0)
+        {
+            context.CurrentLevel = context.LevelStack.Pop();
+            sb.AppendLine($"{GetIndent(context.CurrentLevel)}    </ul>");
+            sb.AppendLine($"{GetIndent(context.CurrentLevel)}  </li>");
+        }
+    }
+
+    private static void ClosePreviousItem(StringBuilder sb, TocBuildContext context)
+    {
+        sb.AppendLine($"{GetIndent(context.CurrentLevel - 1)}  </li>");
+    }
+
+    private static void AddTocItem(StringBuilder sb, TocHeading heading, TocBuildContext context)
+    {
+        var indent = GetIndent(context.CurrentLevel - 1);
+        sb.AppendLine($"{indent}  <li class=\"toc-item toc-level-{heading.Level}\">");
+        sb.AppendLine($"{indent}    <a href=\"#{heading.Id}\" class=\"toc-link\">{heading.Text}</a>");
+    }
+
+    private static void CloseRemainingLists(StringBuilder sb, TocBuildContext context)
+    {
+        while (context.LevelStack.Count > 0)
+        {
+            context.CurrentLevel = context.LevelStack.Pop();
+            sb.AppendLine($"{GetIndent(context.CurrentLevel)}    </ul>");
+            sb.AppendLine($"{GetIndent(context.CurrentLevel)}  </li>");
+        }
+
+        if (context.CurrentLevel > 0)
+        {
+            sb.AppendLine("  </li>");
+        }
+    }
+
+    private static string GetIndent(int level)
+    {
+        return new string(' ', level * 2);
+    }
+
+    private class TocHeading
+    {
+        public int Level { get; set; }
+        public string Id { get; set; } = string.Empty;
+        public string Text { get; set; } = string.Empty;
+    }
+
+    private class TocBuildContext
+    {
+        public int CurrentLevel { get; set; }
+        public Stack<int> LevelStack { get; } = new Stack<int>();
+    }
+
+    private static string StripHtmlTags(string html)
     {
         // Remove HTML tags but preserve the text content
         var text = Regex.Replace(html, "<.*?>", string.Empty);

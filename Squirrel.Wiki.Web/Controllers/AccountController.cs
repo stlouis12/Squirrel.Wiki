@@ -14,6 +14,8 @@ using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Models;
 using Squirrel.Wiki.Web.Services;
 using Squirrel.Wiki.Contracts.Configuration;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
+using static Squirrel.Wiki.Core.Constants.UserRoles;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -23,12 +25,14 @@ public class AccountController : BaseController
     private readonly IUserService _userService;
     private readonly IConfigurationService _configurationService;
     private readonly IPluginService _pluginService;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public AccountController(
         IUserContext userContext,
         IUserService userService,
         IConfigurationService configurationService,
         IPluginService pluginService,
+        IHttpClientFactory httpClientFactory,
         ITimezoneService timezoneService,
         ILogger<AccountController> logger,
         INotificationService notifications)
@@ -38,6 +42,7 @@ public class AccountController : BaseController
         _userService = userService;
         _configurationService = configurationService;
         _pluginService = pluginService;
+        _httpClientFactory = httpClientFactory;
     }
 
     [HttpGet]
@@ -109,7 +114,7 @@ public class AccountController : BaseController
             var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
 
             // Get session timeout from configuration (default to 480 minutes / 8 hours if not set)
-            var sessionTimeoutMinutes = await _configurationService.GetValueAsync<int>("SQUIRREL_SESSION_TIMEOUT_MINUTES");
+            var sessionTimeoutMinutes = await _configurationService.GetValueAsync<int>(SQUIRREL_ACCOUNT_LOCK_DURATION_MINUTES);
             if (sessionTimeoutMinutes <= 0)
             {
                 sessionTimeoutMinutes = 480; // Default to 8 hours
@@ -377,7 +382,7 @@ public class AccountController : BaseController
             var clientSecret = config["ClientSecret"];
             var redirectUri = $"{Request.Scheme}://{Request.Host}/Account/OidcCallback";
 
-            using var httpClient = new HttpClient();
+            var httpClient = _httpClientFactory.CreateClient();
             var tokenRequest = new Dictionary<string, string>
             {
                 ["grant_type"] = "authorization_code",
@@ -498,14 +503,14 @@ public class AccountController : BaseController
             };
 
             if (authResult.IsAdmin)
-                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+                claims.Add(new Claim(ClaimTypes.Role, ADMIN_ROLE));
             if (authResult.IsEditor)
-                claims.Add(new Claim(ClaimTypes.Role, "Editor"));
+                claims.Add(new Claim(ClaimTypes.Role, EDITOR_ROLE));
 
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
 
-            var sessionTimeoutMinutes = await _configurationService.GetValueAsync<int>("SQUIRREL_SESSION_TIMEOUT_MINUTES");
+            var sessionTimeoutMinutes = await _configurationService.GetValueAsync<int>(SQUIRREL_SESSION_TIMEOUT_MINUTES);
             if (sessionTimeoutMinutes <= 0)
                 sessionTimeoutMinutes = 480;
 

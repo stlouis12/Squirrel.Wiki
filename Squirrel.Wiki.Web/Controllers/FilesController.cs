@@ -11,6 +11,9 @@ using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Web.Resources;
 using Squirrel.Wiki.Web.Services;
 using Squirrel.Wiki.Web.Extensions;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
+using static Squirrel.Wiki.Core.Constants.SystemUserConstants;
+using static Squirrel.Wiki.Core.Constants.UserRoles;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -64,7 +67,7 @@ public class FilesController : BaseController
             if (!_authorizationService.IsAuthenticated())
             {
                 var allowAnonymousReading = await _configurationService.GetValueAsync<bool>(
-                    "SQUIRREL_ALLOW_ANONYMOUS_READING");
+                    SQUIRREL_ALLOW_ANONYMOUS_READING);
                 
                 if (!allowAnonymousReading)
                 {
@@ -176,106 +179,27 @@ public class FilesController : BaseController
                 return RedirectToAction(nameof(Index), new { folderId });
             }
 
-            // Early validation: Check file sizes and extensions BEFORE processing to avoid wasting bandwidth
-            var maxFileSizeMB = await _configurationService.GetValueAsync<int>("SQUIRREL_FILE_MAX_SIZE_MB");
-            var maxFileSize = maxFileSizeMB * 1024L * 1024L; // Convert MB to bytes
-            
-            var oversizedFiles = files.Where(f => f.Length > maxFileSize).ToList();
-            if (oversizedFiles.Any())
+            // Validate file sizes
+            var sizeValidation = await ValidateFileSizesAsync(files);
+            if (!sizeValidation.IsValid)
             {
-                var fileNames = string.Join(", ", oversizedFiles.Select(f => f.FileName));
-                _logger.LogWarning("User {Username} attempted to upload oversized file(s): {FileNames} (max: {MaxSizeMB} MB)", 
-                    _userContext.Username ?? "Anonymous", fileNames, maxFileSizeMB);
-                NotifyError($"File(s) exceed maximum size of {maxFileSizeMB} MB: {fileNames}");
+                NotifyError(sizeValidation.ErrorMessage!);
                 return RedirectToAction(nameof(Index), new { folderId });
             }
 
             // Validate file extensions
-            var allowedExtensionsString = await _configurationService.GetValueAsync<string>("SQUIRREL_FILE_ALLOWED_EXTENSIONS");
-            var allowedExtensions = allowedExtensionsString
-                .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(e => e.Trim().ToLowerInvariant())
-                .ToArray();
-
-            var disallowedFiles = files
-                .Where(f => !allowedExtensions.Contains(Path.GetExtension(f.FileName).ToLowerInvariant(), StringComparer.OrdinalIgnoreCase))
-                .ToList();
-
-            if (disallowedFiles.Any())
+            var extensionValidation = await ValidateFileExtensionsAsync(files);
+            if (!extensionValidation.IsValid)
             {
-                var fileNames = string.Join(", ", disallowedFiles.Select(f => f.FileName));
-                var extensions = string.Join(", ", disallowedFiles.Select(f => Path.GetExtension(f.FileName)));
-                _logger.LogWarning("User {Username} attempted to upload file(s) with disallowed extension(s): {FileNames} ({Extensions})", 
-                    _userContext.Username ?? "Anonymous", fileNames, extensions);
-                NotifyError($"File type(s) not allowed: {fileNames}. Allowed extensions: {allowedExtensionsString}");
+                NotifyError(extensionValidation.ErrorMessage!);
                 return RedirectToAction(nameof(Index), new { folderId });
             }
 
-            // Upload files individually to handle errors properly
-            int successCount = 0;
-            int duplicateCount = 0;
-            int errorCount = 0;
-            var errors = new List<string>();
+            // Process file uploads
+            var uploadResults = await ProcessFileUploadsAsync(files, folderId, description);
 
-            foreach (var file in files)
-            {
-                if (file.Length > 0)
-                {
-                    var uploadDto = new FileUploadDto
-                    {
-                        FileName = file.FileName,
-                        FileStream = file.OpenReadStream(),
-                        FileSize = file.Length,
-                        ContentType = file.ContentType,
-                        Description = description,
-                        FolderId = folderId,
-                        Visibility = Core.Database.Entities.FileVisibility.Inherit
-                    };
-
-                    var result = await _fileService.UploadFileAsync(uploadDto);
-
-                    if (result.IsSuccess)
-                    {
-                        successCount++;
-                    }
-                    else if (result.ErrorCode == "DUPLICATE_FILE_IN_FOLDER")
-                    {
-                        duplicateCount++;
-                        _logger.LogInformation("Duplicate file upload attempt: {FileName} in folder {FolderId}", 
-                            file.FileName, folderId);
-                    }
-                    else
-                    {
-                        errorCount++;
-                        errors.Add($"{file.FileName}: {result.Error}");
-                        _logger.LogWarning("Failed to upload file {FileName}: {Error}", 
-                            file.FileName, result.Error);
-                    }
-                }
-            }
-
-            // Provide appropriate feedback
-            if (successCount > 0)
-            {
-                NotifySuccess($"Successfully uploaded {successCount} file(s)");
-            }
-
-            if (duplicateCount > 0)
-            {
-                NotifyWarning($"{duplicateCount} file(s) already exist in this folder and were skipped");
-            }
-
-            if (errorCount > 0)
-            {
-                foreach (var error in errors.Take(3)) // Show first 3 errors
-                {
-                    NotifyError(error);
-                }
-                if (errors.Count > 3)
-                {
-                    NotifyError($"...and {errors.Count - 3} more error(s)");
-                }
-            }
+            // Provide feedback to user
+            DisplayUploadFeedback(uploadResults);
 
             return RedirectToAction(nameof(Index), new { folderId });
         }
@@ -285,6 +209,140 @@ public class FilesController : BaseController
             NotifyError($"Error uploading files: {ex.Message}");
             return RedirectToAction(nameof(Index), new { folderId });
         }
+    }
+
+    private async Task<FileValidationResult> ValidateFileSizesAsync(IFormFileCollection files)
+    {
+        var maxFileSizeMB = await _configurationService.GetValueAsync<int>(SQUIRREL_FILE_MAX_SIZE_MB);
+        var maxFileSize = maxFileSizeMB * 1024L * 1024L; // Convert MB to bytes
+
+        var oversizedFiles = files.Where(f => f.Length > maxFileSize).ToList();
+        if (oversizedFiles.Any())
+        {
+            var fileNames = string.Join(", ", oversizedFiles.Select(f => f.FileName));
+            _logger.LogWarning("User {Username} attempted to upload oversized file(s): {FileNames} (max: {MaxSizeMB} MB)", 
+                _userContext.Username ?? "Anonymous", fileNames, maxFileSizeMB);
+            
+            return new FileValidationResult
+            {
+                IsValid = false,
+                ErrorMessage = $"File(s) exceed maximum size of {maxFileSizeMB} MB: {fileNames}"
+            };
+        }
+
+        return new FileValidationResult { IsValid = true };
+    }
+
+    private async Task<FileValidationResult> ValidateFileExtensionsAsync(IFormFileCollection files)
+    {
+        var allowedExtensionsString = await _configurationService.GetValueAsync<string>(SQUIRREL_FILE_ALLOWED_EXTENSIONS);
+        var allowedExtensions = allowedExtensionsString
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(e => e.Trim().ToLowerInvariant())
+            .ToArray();
+
+        var disallowedFiles = files
+            .Where(f => !allowedExtensions.Contains(Path.GetExtension(f.FileName).ToLowerInvariant(), StringComparer.OrdinalIgnoreCase))
+            .ToList();
+
+        if (disallowedFiles.Any())
+        {
+            var fileNames = string.Join(", ", disallowedFiles.Select(f => f.FileName));
+            var extensions = string.Join(", ", disallowedFiles.Select(f => Path.GetExtension(f.FileName)));
+            _logger.LogWarning("User {Username} attempted to upload file(s) with disallowed extension(s): {FileNames} ({Extensions})", 
+                _userContext.Username ?? "Anonymous", fileNames, extensions);
+            
+            return new FileValidationResult
+            {
+                IsValid = false,
+                ErrorMessage = $"File type(s) not allowed: {fileNames}. Allowed extensions: {allowedExtensionsString}"
+            };
+        }
+
+        return new FileValidationResult { IsValid = true };
+    }
+
+    private async Task<UploadResults> ProcessFileUploadsAsync(IFormFileCollection files, int? folderId, string? description)
+    {
+        var results = new UploadResults();
+
+        foreach (var file in files)
+        {
+            if (file.Length > 0)
+            {
+                var uploadDto = new FileUploadDto
+                {
+                    FileName = file.FileName,
+                    FileStream = file.OpenReadStream(),
+                    FileSize = file.Length,
+                    ContentType = file.ContentType,
+                    Description = description,
+                    FolderId = folderId,
+                    Visibility = Core.Database.Entities.FileVisibility.Inherit
+                };
+
+                var result = await _fileService.UploadFileAsync(uploadDto);
+
+                if (result.IsSuccess)
+                {
+                    results.SuccessCount++;
+                }
+                else if (result.ErrorCode == "DUPLICATE_FILE_IN_FOLDER")
+                {
+                    results.DuplicateCount++;
+                    _logger.LogInformation("Duplicate file upload attempt: {FileName} in folder {FolderId}", 
+                        file.FileName, folderId);
+                }
+                else
+                {
+                    results.ErrorCount++;
+                    results.Errors.Add($"{file.FileName}: {result.Error}");
+                    _logger.LogWarning("Failed to upload file {FileName}: {Error}", 
+                        file.FileName, result.Error);
+                }
+            }
+        }
+
+        return results;
+    }
+
+    private void DisplayUploadFeedback(UploadResults results)
+    {
+        if (results.SuccessCount > 0)
+        {
+            NotifySuccess($"Successfully uploaded {results.SuccessCount} file(s)");
+        }
+
+        if (results.DuplicateCount > 0)
+        {
+            NotifyWarning($"{results.DuplicateCount} file(s) already exist in this folder and were skipped");
+        }
+
+        if (results.ErrorCount > 0)
+        {
+            foreach (var error in results.Errors.Take(3)) // Show first 3 errors
+            {
+                NotifyError(error);
+            }
+            if (results.Errors.Count > 3)
+            {
+                NotifyError($"...and {results.Errors.Count - 3} more error(s)");
+            }
+        }
+    }
+
+    private class FileValidationResult
+    {
+        public bool IsValid { get; set; }
+        public string? ErrorMessage { get; set; }
+    }
+
+    private class UploadResults
+    {
+        public int SuccessCount { get; set; }
+        public int DuplicateCount { get; set; }
+        public int ErrorCount { get; set; }
+        public List<string> Errors { get; set; } = new();
     }
 
 
@@ -426,7 +484,7 @@ public class FilesController : BaseController
     /// Get edit form for modal display
     /// </summary>
     [HttpGet("Files/GetEditForm/{id}")]
-    [Authorize(Roles = "Admin,Editor")]
+    [Authorize(Roles = ADMIN_OR_EDITOR_ROLES)]
     public async Task<IActionResult> GetEditForm(Guid id)
     {
         try
@@ -486,9 +544,14 @@ public class FilesController : BaseController
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,Editor")]
+    [Authorize(Roles = ADMIN_OR_EDITOR_ROLES)]
     public async Task<IActionResult> UpdateMetadata(Guid id, FileUpdateDto updateDto)
     {
+        if (!ValidateModelState("Invalid file data"))
+        {
+            return RedirectToAction(nameof(Index));
+        }
+
         try
         {
             // Check authorization
@@ -505,7 +568,7 @@ public class FilesController : BaseController
                 return RedirectToAction(nameof(Index));
             }
 
-            var username = _userContext.Username ?? "system";
+            var username = _userContext.Username ?? SYSTEM_USERNAME;
             var result = await _fileService.UpdateFileAsync(id, updateDto, username);
 
             if (result.IsSuccess)
@@ -531,12 +594,12 @@ public class FilesController : BaseController
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,Editor")]
+    [Authorize(Roles = ADMIN_OR_EDITOR_ROLES)]
     public async Task<IActionResult> Move(Guid id, int? targetFolderId)
     {
         try
         {
-            var username = _userContext.Username ?? "system";
+            var username = _userContext.Username ?? SYSTEM_USERNAME;
             var result = await _fileService.MoveFileAsync(id, targetFolderId, username);
 
             if (result.IsSuccess)
@@ -562,7 +625,7 @@ public class FilesController : BaseController
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,Editor")]
+    [Authorize(Roles = ADMIN_OR_EDITOR_ROLES)]
     public async Task<IActionResult> Delete(Guid id, int? folderId)
     {
         try
@@ -583,7 +646,7 @@ public class FilesController : BaseController
                 return RedirectToAction(nameof(Index), new { folderId });
             }
 
-            var username = _userContext.Username ?? "system";
+            var username = _userContext.Username ?? SYSTEM_USERNAME;
             var result = await _fileService.DeleteFileAsync(id, username);
 
             if (result.IsSuccess)
@@ -617,7 +680,7 @@ public class FilesController : BaseController
             if (!_authorizationService.IsAuthenticated())
             {
                 var allowAnonymousReading = await _configurationService.GetValueAsync<bool>(
-                    "SQUIRREL_ALLOW_ANONYMOUS_READING");
+                    SQUIRREL_ALLOW_ANONYMOUS_READING);
                 
                 if (!allowAnonymousReading)
                 {
@@ -681,18 +744,17 @@ public class FilesController : BaseController
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,Editor")]
+    [Authorize(Roles = ADMIN_OR_EDITOR_ROLES)]
     public async Task<IActionResult> CreateFolder(FolderCreateDto createDto)
     {
+        if (!ValidateModelState("Invalid folder data"))
+        {
+            return RedirectToAction(nameof(Index), new { folderId = createDto.ParentFolderId });
+        }
+
         try
         {
-            if (!ModelState.IsValid)
-            {
-                NotifyError("Invalid folder data");
-                return RedirectToAction(nameof(Index), new { folderId = createDto.ParentFolderId });
-            }
-
-            var username = _userContext.Username ?? "system";
+            var username = _userContext.Username ?? SYSTEM_USERNAME;
             createDto.CreatedBy = username;
             var result = await _folderService.CreateFolderAsync(createDto);
 
@@ -718,7 +780,7 @@ public class FilesController : BaseController
     /// Edit folder
     /// </summary>
     [HttpGet]
-    [Authorize(Roles = "Admin,Editor")]
+    [Authorize(Roles = ADMIN_OR_EDITOR_ROLES)]
     public async Task<IActionResult> EditFolder(int id)
     {
         try
@@ -745,7 +807,7 @@ public class FilesController : BaseController
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,Editor")]
+    [Authorize(Roles = ADMIN_OR_EDITOR_ROLES)]
     public async Task<IActionResult> EditFolder(int id, FolderUpdateDto updateDto)
     {
         try
@@ -756,7 +818,7 @@ public class FilesController : BaseController
                 return View(updateDto);
             }
 
-            var username = _userContext.Username ?? "system";
+            var username = _userContext.Username ?? SYSTEM_USERNAME;
             var result = await _folderService.UpdateFolderAsync(id, updateDto, username);
 
             if (result.IsSuccess)
@@ -780,7 +842,7 @@ public class FilesController : BaseController
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = ADMIN_ROLE)]
     public async Task<IActionResult> DeleteFolder(int id, bool recursive = false)
     {
         try
@@ -789,7 +851,7 @@ public class FilesController : BaseController
             var folderResult = await _folderService.GetFolderByIdAsync(id);
             int? parentFolderId = folderResult.IsSuccess ? folderResult.Value!.ParentFolderId : null;
 
-            var username = _userContext.Username ?? "system";
+            var username = _userContext.Username ?? SYSTEM_USERNAME;
             var result = await _folderService.DeleteFolderAsync(
                 folderId: id, 
                 deletedBy: username, 
@@ -818,12 +880,12 @@ public class FilesController : BaseController
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,Editor")]
+    [Authorize(Roles = ADMIN_OR_EDITOR_ROLES)]
     public async Task<IActionResult> MoveFolder(int id, int? newParentFolderId)
     {
         try
         {
-            var username = _userContext.Username ?? "system";
+            var username = _userContext.Username ?? SYSTEM_USERNAME;
             var result = await _folderService.MoveFolderAsync(id, newParentFolderId, username);
 
             if (result.IsSuccess)
@@ -875,7 +937,7 @@ public class FilesController : BaseController
     /// <summary>
     /// Format file size for display
     /// </summary>
-    private string FormatFileSize(long bytes)
+    private static string FormatFileSize(long bytes)
     {
         string[] sizes = { "B", "KB", "MB", "GB", "TB" };
         double len = bytes;

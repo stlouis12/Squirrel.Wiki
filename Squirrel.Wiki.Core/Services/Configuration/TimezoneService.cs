@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
 
 namespace Squirrel.Wiki.Core.Services.Configuration;
 
@@ -29,7 +30,7 @@ public class TimezoneService : MinimalBaseService, ITimezoneService
         }
 
         // Get timezone ID from configuration (respects environment variables)
-        var timezoneId = await _configurationService.GetValueAsync<string>("SQUIRREL_TIMEZONE", cancellationToken);
+        var timezoneId = await _configurationService.GetValueAsync<string>(SQUIRREL_TIMEZONE, cancellationToken);
         
         if (string.IsNullOrEmpty(timezoneId))
         {

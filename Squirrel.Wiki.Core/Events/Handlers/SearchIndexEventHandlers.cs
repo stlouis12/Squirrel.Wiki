@@ -4,6 +4,7 @@ using Squirrel.Wiki.Contracts.Search;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Events.Search;
 using Squirrel.Wiki.Core.Services.Plugins;
+using static Squirrel.Wiki.Core.Constants.SystemUserConstants;
 
 namespace Squirrel.Wiki.Core.Events.Handlers;
 
@@ -247,7 +248,7 @@ public class IndexRebuildRequestedEventHandler : IEventHandler<IndexRebuildReque
 
     public async Task HandleAsync(IndexRebuildRequestedEvent domainEvent, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Handling IndexRebuildRequestedEvent requested by {RequestedBy}", domainEvent.RequestedBy ?? "System");
+        _logger.LogInformation("Handling IndexRebuildRequestedEvent requested by {RequestedBy}", domainEvent.RequestedBy ?? SYSTEM_USERNAME);
 
         // Get enabled search plugins
         var enabledPlugins = await _pluginService.GetEnabledPluginsAsync(cancellationToken);
@@ -298,7 +299,7 @@ public class IndexOptimizationRequestedEventHandler : IEventHandler<IndexOptimiz
 
     public async Task HandleAsync(IndexOptimizationRequestedEvent domainEvent, CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("Handling IndexOptimizationRequestedEvent requested by {RequestedBy}", domainEvent.RequestedBy ?? "System");
+        _logger.LogDebug("Handling IndexOptimizationRequestedEvent requested by {RequestedBy}", domainEvent.RequestedBy ?? SYSTEM_USERNAME);
 
         // Get enabled search plugins
         var enabledPlugins = await _pluginService.GetEnabledPluginsAsync(cancellationToken);
@@ -349,7 +350,7 @@ public class IndexClearRequestedEventHandler : IEventHandler<IndexClearRequested
 
     public async Task HandleAsync(IndexClearRequestedEvent domainEvent, CancellationToken cancellationToken = default)
     {
-        _logger.LogWarning("Handling IndexClearRequestedEvent requested by {RequestedBy}", domainEvent.RequestedBy ?? "System");
+        _logger.LogWarning("Handling IndexClearRequestedEvent requested by {RequestedBy}", domainEvent.RequestedBy ?? SYSTEM_USERNAME);
 
         // Get enabled search plugins
         var enabledPlugins = await _pluginService.GetEnabledPluginsAsync(cancellationToken);

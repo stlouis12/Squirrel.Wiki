@@ -129,7 +129,7 @@ public class MinimalConfigurationService
     /// </summary>
     /// <param name="key">The configuration key</param>
     /// <returns>The configuration metadata</returns>
-    public ConfigurationProperty? GetMetadata(string key)
+    public static ConfigurationProperty? GetMetadata(string key)
     {
         try
         {

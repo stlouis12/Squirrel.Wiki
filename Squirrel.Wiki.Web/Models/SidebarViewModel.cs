@@ -20,7 +20,7 @@ public class SidebarItemViewModel
     public SidebarItemType Type { get; set; } = SidebarItemType.Link;
     public List<SidebarItemViewModel> Children { get; set; } = new();
     public bool IsCollapsible => Children.Any() || Type == SidebarItemType.AllTags || Type == SidebarItemType.AllCategories;
-    public string CollapseId => $"sidebar-{Guid.NewGuid():N}";
+    public static string CollapseId => $"sidebar-{Guid.NewGuid():N}";
 }
 
 /// <summary>

@@ -63,7 +63,7 @@ public class WikiController : Controller
             return RedirectToAction("Index", "Home");
         }
 
-        var result = await LoadPageWithResult(id, slug, isHomePage, cancellationToken);
+        var result = await LoadPageWithResult(id, isHomePage, cancellationToken);
 
         return result.Match<IActionResult>(
             onSuccess: viewModel =>
@@ -148,15 +148,14 @@ public class WikiController : Controller
     /// Encapsulates all page loading logic including authorization and content rendering
     /// </summary>
     private async Task<Result<PageViewModel>> LoadPageWithResult(
-        int id, 
-        string? slug, 
+        int id,
         bool isHomePage, 
         CancellationToken cancellationToken)
     {
         try
         {
+            // Get and validate page
             var pageDto = await _pageService.GetByIdAsync(id, cancellationToken);
-            
             if (pageDto == null)
             {
                 _logger.LogWarning("Page with ID {PageId} not found", id);
@@ -166,34 +165,17 @@ public class WikiController : Controller
                 ).WithContext("PageId", id);
             }
 
-            // Check authorization to view this page using new policy-based authorization
-            var pageEntity = await _pageRepository.GetByIdAsync(id, cancellationToken);
-            if (pageEntity == null)
+            // Check authorization
+            var authResult = await CheckPageAuthorizationAsync(id, cancellationToken);
+            if (!authResult.IsSuccess)
             {
-                _logger.LogWarning("Page entity with ID {PageId} not found", id);
-                return Result<PageViewModel>.Failure(
-                    $"The page with ID {id} could not be found",
-                    "PAGE_NOT_FOUND"
-                ).WithContext("PageId", id);
+                return Result<PageViewModel>.Failure(authResult.Error!, authResult.ErrorCode!)
+                    .WithContext("PageId", id);
             }
+            var pageEntity = authResult.Value!;
 
-            var authResult = await _authorizationService.AuthorizeAsync(User, pageEntity, "CanViewPage");
-            if (!authResult.Succeeded)
-            {
-                var user = User.Identity?.Name ?? "Anonymous";
-                _logger.LogWarning("User {User} denied access to page {PageId}", user, id);
-                
-                return Result<PageViewModel>.Failure(
-                    "You do not have permission to view this page",
-                    "PAGE_UNAUTHORIZED"
-                ).WithContext("PageId", id)
-                 .WithContext("User", user)
-                 .WithContext("IsAuthenticated", _coreAuthorizationService.IsAuthenticated());
-            }
-
-            // Get the latest content
+            // Get and validate content
             var contentDto = await _pageRepository.GetLatestContentAsync(id, cancellationToken);
-            
             if (contentDto == null)
             {
                 _logger.LogWarning("No content found for page {PageId}", id);
@@ -203,85 +185,21 @@ public class WikiController : Controller
                 ).WithContext("PageId", id);
             }
 
-            // Convert markdown to HTML
-            var htmlContent = await _markdownService.ToHtmlAsync(contentDto.Text, cancellationToken);
+            // Process content
+            var htmlContent = await ProcessPageContentAsync(contentDto.Text, cancellationToken);
 
-            // Convert internal slug-only links to full /wiki/{id}/{slug} URLs
-            htmlContent = await _markdownService.ConvertInternalLinksAsync(
-                htmlContent,
-                async (linkSlug) =>
-                {
-                    var page = await _pageService.GetBySlugAsync(linkSlug, cancellationToken);
-                    return page != null ? (page.Id, page.Slug) : (null, null);
-                },
-                cancellationToken);
-
-            // Check edit and delete permissions using new policy-based authorization
+            // Get permissions
             var canEdit = await _authorizationService.IsAuthorizedAsync(User, pageEntity, "CanEditPage");
             var canDelete = await _authorizationService.IsAuthorizedAsync(User, pageEntity, "CanDeletePage");
-            
-            // Map to view model
-            var viewModel = new PageViewModel
-            {
-                Id = pageDto.Id,
-                Title = pageDto.Title,
-                Slug = pageDto.Slug,
-                Content = contentDto.Text,
-                HtmlContent = htmlContent,
-                CategoryId = pageDto.CategoryId,
-                IsLocked = pageDto.IsLocked,
-                CreatedBy = pageDto.CreatedBy,
-                CreatedOn = pageDto.CreatedOn,
-                ModifiedBy = pageDto.ModifiedBy,
-                ModifiedOn = pageDto.ModifiedOn,
-                CanEdit = canEdit,
-                CanDelete = canDelete,
-                IsHomePage = isHomePage,
-                TimezoneService = _timezoneService
-            };
 
-            // Get tags
-            var tags = await _pageService.GetPageTagsAsync(id, cancellationToken);
-            viewModel.Tags = tags.Select(t => t.Name).ToList();
-            viewModel.RawTags = string.Join(", ", viewModel.Tags);
+            // Build view model
+            var viewModel = BuildPageViewModel(pageDto, contentDto, htmlContent, canEdit, canDelete, isHomePage);
 
-            // Get full category path if applicable
-            if (pageDto.CategoryId.HasValue)
-            {
-                var allCategories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
-                var categoryDict = allCategories.ToDictionary(c => c.Id);
-                
-                if (categoryDict.TryGetValue(pageDto.CategoryId.Value, out var category))
-                {
-                    // Build full path with category objects for clickable breadcrumbs
-                    var pathCategories = new List<CategoryDto>();
-                    var current = category;
-                    
-                    while (current != null)
-                    {
-                        pathCategories.Insert(0, current);
-                        if (current.ParentCategoryId.HasValue && categoryDict.ContainsKey(current.ParentCategoryId.Value))
-                        {
-                            current = categoryDict[current.ParentCategoryId.Value];
-                        }
-                        else
-                        {
-                            current = null;
-                        }
-                    }
-                    
-                    // Store category path for breadcrumb display
-                    viewModel.CategoryPath = pathCategories.Select(c => new CategoryViewModel
-                    {
-                        Id = c.Id,
-                        Name = c.Name,
-                        Slug = c.Slug
-                    }).ToList();
-                    
-                    // Also set the display name with backslash separator
-                    viewModel.CategoryName = string.Join(" \\ ", pathCategories.Select(c => c.Name));
-                }
-            }
+            // Add tags
+            await PopulatePageTagsAsync(viewModel, id, cancellationToken);
+
+            // Add category information
+            await PopulateCategoryPathAsync(viewModel, pageDto.CategoryId, cancellationToken);
 
             return Result<PageViewModel>.Success(viewModel);
         }
@@ -293,6 +211,137 @@ public class WikiController : Controller
                 "PAGE_LOAD_ERROR"
             ).WithContext("PageId", id);
         }
+    }
+
+    private async Task<Result<Core.Database.Entities.Page>> CheckPageAuthorizationAsync(
+        int id, 
+        CancellationToken cancellationToken)
+    {
+        var pageEntity = await _pageRepository.GetByIdAsync(id, cancellationToken);
+        if (pageEntity == null)
+        {
+            _logger.LogWarning("Page entity with ID {PageId} not found", id);
+            return Result<Core.Database.Entities.Page>.Failure(
+                $"The page with ID {id} could not be found",
+                "PAGE_NOT_FOUND"
+            );
+        }
+
+        var authResult = await _authorizationService.AuthorizeAsync(User, pageEntity, "CanViewPage");
+        if (!authResult.Succeeded)
+        {
+            var user = User.Identity?.Name ?? "Anonymous";
+            _logger.LogWarning("User {User} denied access to page {PageId}", user, id);
+            
+            return Result<Core.Database.Entities.Page>.Failure(
+                "You do not have permission to view this page",
+                "PAGE_UNAUTHORIZED"
+            );
+        }
+
+        return Result<Core.Database.Entities.Page>.Success(pageEntity);
+    }
+
+    private async Task<string> ProcessPageContentAsync(string markdownContent, CancellationToken cancellationToken)
+    {
+        // Convert markdown to HTML
+        var htmlContent = await _markdownService.ToHtmlAsync(markdownContent, cancellationToken);
+
+        // Convert internal slug-only links to full /wiki/{id}/{slug} URLs
+        htmlContent = await _markdownService.ConvertInternalLinksAsync(
+            htmlContent,
+            async (linkSlug) =>
+            {
+                var page = await _pageService.GetBySlugAsync(linkSlug, cancellationToken);
+                return page != null ? (page.Id, page.Slug) : (null, null);
+            },
+            cancellationToken);
+
+        return htmlContent;
+    }
+
+    private PageViewModel BuildPageViewModel(
+        PageDto pageDto,
+        Core.Database.Entities.PageContent contentDto,
+        string htmlContent,
+        bool canEdit,
+        bool canDelete,
+        bool isHomePage)
+    {
+        return new PageViewModel
+        {
+            Id = pageDto.Id,
+            Title = pageDto.Title,
+            Slug = pageDto.Slug,
+            Content = contentDto.Text,
+            HtmlContent = htmlContent,
+            CategoryId = pageDto.CategoryId,
+            IsLocked = pageDto.IsLocked,
+            CreatedBy = pageDto.CreatedBy,
+            CreatedOn = pageDto.CreatedOn,
+            ModifiedBy = pageDto.ModifiedBy,
+            ModifiedOn = pageDto.ModifiedOn,
+            CanEdit = canEdit,
+            CanDelete = canDelete,
+            IsHomePage = isHomePage,
+            TimezoneService = _timezoneService
+        };
+    }
+
+    private async Task PopulatePageTagsAsync(PageViewModel viewModel, int pageId, CancellationToken cancellationToken)
+    {
+        var tags = await _pageService.GetPageTagsAsync(pageId, cancellationToken);
+        viewModel.Tags = tags.Select(t => t.Name).ToList();
+        viewModel.RawTags = string.Join(", ", viewModel.Tags);
+    }
+
+    private async Task PopulateCategoryPathAsync(
+        PageViewModel viewModel, 
+        int? categoryId, 
+        CancellationToken cancellationToken)
+    {
+        if (!categoryId.HasValue)
+            return;
+
+        var allCategories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
+        var categoryDict = allCategories.ToDictionary(c => c.Id);
+
+        if (!categoryDict.TryGetValue(categoryId.Value, out var category))
+            return;
+
+        var pathCategories = BuildCategoryPath(category, categoryDict);
+
+        viewModel.CategoryPath = pathCategories.Select(c => new CategoryViewModel
+        {
+            Id = c.Id,
+            Name = c.Name,
+            Slug = c.Slug
+        }).ToList();
+
+        viewModel.CategoryName = string.Join(" \\ ", pathCategories.Select(c => c.Name));
+    }
+
+    private static List<CategoryDto> BuildCategoryPath(CategoryDto category, Dictionary<int, CategoryDto> categoryDict)
+    {
+        var pathCategories = new List<CategoryDto>();
+        var current = category;
+
+        while (current != null)
+        {
+            pathCategories.Insert(0, current);
+            
+            if (current.ParentCategoryId.HasValue && 
+                categoryDict.TryGetValue(current.ParentCategoryId.Value, out var parent))
+            {
+                current = parent;
+            }
+            else
+            {
+                current = null;
+            }
+        }
+
+        return pathCategories;
     }
 
     /// <summary>

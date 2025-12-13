@@ -12,6 +12,9 @@ using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services.Caching;
 using Squirrel.Wiki.Core.Services.Infrastructure;
 using FileEntity = Squirrel.Wiki.Core.Database.Entities.File;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
+using static Squirrel.Wiki.Core.Services.Files.FileServiceErrorCodes;
+using static Squirrel.Wiki.Core.Constants.SystemUserConstants;
 
 namespace Squirrel.Wiki.Core.Services.Files;
 
@@ -48,163 +51,30 @@ public class FileService : BaseService, IFileService
 
     public async Task<Result<FileDto>> UploadFileAsync(FileUploadDto uploadDto, CancellationToken cancellationToken = default)
     {
-        string? physicalFilePath = null;
-        bool physicalFileCreated = false;
-
         try
         {
-            // 1. Validate file size
-            var maxFileSizeMB = await _configurationService.GetValueAsync<int>("SQUIRREL_FILE_MAX_SIZE_MB", cancellationToken);
-            var maxFileSize = maxFileSizeMB * 1024L * 1024L; // Convert MB to bytes
-            if (uploadDto.FileSize > maxFileSize)
+            // Validate upload request
+            await ValidateUploadAsync(uploadDto, cancellationToken);
+
+            // Compute file hash
+            var fileHash = await ComputeFileHashAsync(uploadDto.FileStream, cancellationToken);
+
+            // Check for duplicates
+            var duplicateCheck = await CheckForDuplicatesAsync(fileHash, uploadDto.FolderId, cancellationToken);
+            if (!duplicateCheck.IsSuccess)
             {
-                throw new FileSizeExceededException(uploadDto.FileSize, maxFileSize);
+                return Result<FileDto>.Failure(duplicateCheck.Error!, duplicateCheck.ErrorCode!);
             }
 
-            // 2. Validate file type
-            var extension = Path.GetExtension(uploadDto.FileName).ToLowerInvariant();
-            var allowedExtensions = await _configurationService.GetValueAsync<string>("SQUIRREL_FILE_ALLOWED_EXTENSIONS", cancellationToken);
-            if (!await IsAllowedExtensionAsync(extension, allowedExtensions))
-            {
-                throw new FileTypeNotAllowedException(uploadDto.FileName, extension, allowedExtensions);
-            }
+            // Process upload within transaction
+            var file = await ProcessUploadInTransactionAsync(uploadDto, fileHash, cancellationToken);
 
-            // 3. Validate folder exists if specified
-            if (uploadDto.FolderId.HasValue)
-            {
-                var folder = await _folderRepository.GetByIdAsync(uploadDto.FolderId.Value, cancellationToken);
-                if (folder == null)
-                {
-                    return Result<FileDto>.Failure($"Folder with ID {uploadDto.FolderId.Value} not found", "FOLDER_NOT_FOUND");
-                }
-            }
+            // Post-upload operations
+            await PublishUploadEventAsync(file, fileHash, cancellationToken);
+            await InvalidateCacheAsync(cancellationToken);
 
-            // 4. Compute SHA256 hash
-            uploadDto.FileStream.Position = 0;
-            var fileHash = await LocalFileStorageStrategy.ComputeHashAsync(uploadDto.FileStream, cancellationToken);
-
-            // 5. Check if file with same hash already exists (deduplication)
-            var existingFiles = await _fileRepository.GetByHashAsync(fileHash, cancellationToken);
-            var existingFile = existingFiles.FirstOrDefault(f => !f.IsDeleted);
-
-            // 5a. Check if the same file already exists in the same folder
-            var duplicateInFolder = existingFiles.FirstOrDefault(f => 
-                !f.IsDeleted && 
-                f.FolderId == uploadDto.FolderId && 
-                f.FileHash == fileHash);
-            
-            if (duplicateInFolder != null)
-            {
-                return Result<FileDto>.Failure(
-                    $"A file with the same content already exists in this folder: {duplicateInFolder.FileName}", 
-                    "DUPLICATE_FILE_IN_FOLDER");
-            }
-
-            // Begin Unit of Work - wrap database operations in a transaction
-            await using var transaction = await _fileRepository.BeginTransactionAsync(cancellationToken);
-            
-            try
-            {
-                string storagePath;
-                
-                // Check if FileContent already exists for this hash
-                var existingFileContent = await _fileRepository.GetFileContentAsync(fileHash, cancellationToken);
-                
-                if (existingFileContent == null)
-                {
-                    // 6. Save physical file (new content)
-                    storagePath = GenerateStoragePath(fileHash, extension);
-                    physicalFilePath = storagePath;
-                    
-                    uploadDto.FileStream.Position = 0;
-                    await _storageStrategy.SaveFileAsync(uploadDto.FileStream, storagePath, cancellationToken);
-                    physicalFileCreated = true;
-                    LogInfo("Created new physical file with hash {FileHash} at {StoragePath}", fileHash, storagePath);
-                    
-                    // 6a. Create FileContent record for new content
-                    var fileContent = new FileContent
-                    {
-                        FileHash = fileHash,
-                        StoragePath = storagePath,
-                        FileSize = uploadDto.FileSize,
-                        StorageProvider = _storageStrategy.ProviderId,
-                        ReferenceCount = 1,
-                        CreatedOn = DateTime.UtcNow
-                    };
-                    await _fileRepository.AddFileContentAsync(fileContent, cancellationToken);
-                    LogInfo("Created FileContent record for hash {FileHash}", fileHash);
-                }
-                else
-                {
-                    // Reuse existing FileContent and increment reference count
-                    storagePath = existingFileContent.StoragePath;
-                    await _fileRepository.IncrementReferenceCountAsync(fileHash, cancellationToken);
-                    LogInfo("Reusing existing FileContent with hash {FileHash}, incremented reference count", fileHash);
-                }
-
-                // 7. Generate unique logical file path
-                var logicalPath = await GenerateUniqueFilePathAsync(uploadDto.FileName, uploadDto.FolderId, cancellationToken);
-
-                // 8. Create File record
-                var file = new FileEntity
-                {
-                    FileName = uploadDto.FileName,
-                    FileHash = fileHash,
-                    FilePath = logicalPath, // Logical path, not physical storage path
-                    FileSize = uploadDto.FileSize,
-                    ContentType = uploadDto.ContentType,
-                    Description = uploadDto.Description,
-                    FolderId = uploadDto.FolderId,
-                    StorageProvider = _storageStrategy.ProviderId,
-                    Visibility = uploadDto.Visibility,
-                    UploadedBy = _userContext.Username ?? "system",
-                    UploadedOn = DateTime.UtcNow,
-                    CurrentVersion = 1,
-                    IsDeleted = false
-                };
-                await _fileRepository.AddAsync(file, cancellationToken);
-
-                // Commit transaction - all database operations succeeded
-                await transaction.CommitAsync(cancellationToken);
-
-                LogInfo("Uploaded file {FileName} with ID {FileId} (hash: {FileHash}, path: {FilePath})", 
-                    file.FileName, file.Id, fileHash, file.FilePath);
-
-                // 9. Publish event (after successful commit)
-                await EventPublisher.PublishAsync(
-                    new FileUploadedEvent(file.Id, file.FileName, fileHash, uploadDto.FileSize, 
-                        uploadDto.FolderId, file.UploadedBy),
-                    cancellationToken);
-
-                // 10. Invalidate cache
-                await InvalidateCacheAsync(cancellationToken);
-
-                // 11. Map to DTO and return
-                var dto = await MapToDtoAsync(file, cancellationToken);
-                return Result<FileDto>.Success(dto);
-            }
-            catch
-            {
-                // Rollback transaction on any error
-                await transaction.RollbackAsync(cancellationToken);
-                
-                // Clean up physical file if it was created during this transaction
-                if (physicalFileCreated && physicalFilePath != null)
-                {
-                    try
-                    {
-                        await _storageStrategy.DeleteFileAsync(physicalFilePath, cancellationToken);
-                        LogInfo("Cleaned up physical file at {StoragePath} after transaction rollback", physicalFilePath);
-                    }
-                    catch (Exception cleanupEx)
-                    {
-                        LogWarning("Failed to clean up physical file at {StoragePath} after rollback: {Error}", 
-                            physicalFilePath, cleanupEx.Message);
-                    }
-                }
-                
-                throw; // Re-throw to be caught by outer catch blocks
-            }
+            var dto = await MapToDtoAsync(file, cancellationToken);
+            return Result<FileDto>.Success(dto);
         }
         catch (FileSizeExceededException ex)
         {
@@ -221,6 +91,233 @@ public class FileService : BaseService, IFileService
             LogError(ex, "Error uploading file {FileName}", uploadDto.FileName);
             return Result<FileDto>.Failure($"Error uploading file: {ex.Message}", "UPLOAD_ERROR");
         }
+    }
+
+    /// <summary>
+    /// Validates the upload request (file size, type, folder)
+    /// </summary>
+    private async Task ValidateUploadAsync(FileUploadDto uploadDto, CancellationToken cancellationToken)
+    {
+        // Validate file size
+        var maxFileSizeMB = await _configurationService.GetValueAsync<int>(SQUIRREL_FILE_MAX_SIZE_MB, cancellationToken);
+        var maxFileSize = maxFileSizeMB * 1024L * 1024L;
+        if (uploadDto.FileSize > maxFileSize)
+        {
+            throw new FileSizeExceededException(uploadDto.FileSize, maxFileSize);
+        }
+
+        // Validate file type
+        var extension = Path.GetExtension(uploadDto.FileName).ToLowerInvariant();
+        var allowedExtensions = await _configurationService.GetValueAsync<string>(SQUIRREL_FILE_ALLOWED_EXTENSIONS, cancellationToken);
+        if (!await IsAllowedExtensionAsync(extension, allowedExtensions))
+        {
+            throw new FileTypeNotAllowedException(uploadDto.FileName, extension, allowedExtensions);
+        }
+
+        // Validate folder exists if specified
+        if (uploadDto.FolderId.HasValue)
+        {
+            var folder = await _folderRepository.GetByIdAsync(uploadDto.FolderId.Value, cancellationToken);
+            if (folder == null)
+            {
+                throw new EntityNotFoundException("Folder", uploadDto.FolderId.Value);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Computes the SHA256 hash of the file
+    /// </summary>
+    private static async Task<string> ComputeFileHashAsync(Stream fileStream, CancellationToken cancellationToken)
+    {
+        fileStream.Position = 0;
+        return await LocalFileStorageStrategy.ComputeHashAsync(fileStream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Checks for duplicate files
+    /// </summary>
+    private async Task<Result> CheckForDuplicatesAsync(string fileHash, int? folderId, CancellationToken cancellationToken)
+    {
+        var existingFiles = await _fileRepository.GetByHashAsync(fileHash, cancellationToken);
+        var duplicateInFolder = existingFiles.FirstOrDefault(f =>
+            !f.IsDeleted &&
+            f.FolderId == folderId &&
+            f.FileHash == fileHash);
+
+        if (duplicateInFolder != null)
+        {
+            return Result.Failure(
+                $"A file with the same content already exists in this folder: {duplicateInFolder.FileName}",
+                "DUPLICATE_FILE_IN_FOLDER");
+        }
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Processes the file upload within a database transaction
+    /// </summary>
+    private async Task<FileEntity> ProcessUploadInTransactionAsync(
+        FileUploadDto uploadDto,
+        string fileHash,
+        CancellationToken cancellationToken)
+    {
+        string? physicalFilePath = null;
+        bool physicalFileCreated = false;
+
+        await using var transaction = await _fileRepository.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            var extension = Path.GetExtension(uploadDto.FileName).ToLowerInvariant();
+
+            // Handle file content (new or existing)
+            var (storagePath, filePath, fileCreated) = await HandleFileContentAsync(
+                uploadDto,
+                fileHash,
+                extension,
+                cancellationToken);
+
+            physicalFilePath = filePath;
+            physicalFileCreated = fileCreated;
+
+            // Create file record
+            var file = await CreateFileRecordAsync(uploadDto, fileHash, cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+
+            LogInfo("Uploaded file {FileName} with ID {FileId} (hash: {FileHash}, path: {FilePath})",
+                file.FileName, file.Id, fileHash, file.FilePath);
+
+            return file;
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            await CleanupPhysicalFileOnErrorAsync(physicalFileCreated, physicalFilePath, cancellationToken);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Handles file content creation or reuse
+    /// Returns: (storagePath, physicalFilePath, physicalFileCreated)
+    /// </summary>
+    private async Task<(string storagePath, string? physicalFilePath, bool physicalFileCreated)> HandleFileContentAsync(
+        FileUploadDto uploadDto,
+        string fileHash,
+        string extension,
+        CancellationToken cancellationToken)
+    {
+        var existingFileContent = await _fileRepository.GetFileContentAsync(fileHash, cancellationToken);
+
+        if (existingFileContent == null)
+        {
+            return await CreateNewFileContentAsync(uploadDto, fileHash, extension, cancellationToken);
+        }
+
+        await _fileRepository.IncrementReferenceCountAsync(fileHash, cancellationToken);
+        LogInfo("Reusing existing FileContent with hash {FileHash}, incremented reference count", fileHash);
+        return (existingFileContent.StoragePath, null, false);
+    }
+
+    /// <summary>
+    /// Creates new file content (physical file and database record)
+    /// Returns: (storagePath, physicalFilePath, physicalFileCreated)
+    /// </summary>
+    private async Task<(string storagePath, string physicalFilePath, bool physicalFileCreated)> CreateNewFileContentAsync(
+        FileUploadDto uploadDto,
+        string fileHash,
+        string extension,
+        CancellationToken cancellationToken)
+    {
+        var storagePath = GenerateStoragePath(fileHash, extension);
+
+        uploadDto.FileStream.Position = 0;
+        await _storageStrategy.SaveFileAsync(uploadDto.FileStream, storagePath, cancellationToken);
+        LogInfo("Created new physical file with hash {FileHash} at {StoragePath}", fileHash, storagePath);
+
+        var fileContent = new FileContent
+        {
+            FileHash = fileHash,
+            StoragePath = storagePath,
+            FileSize = uploadDto.FileSize,
+            StorageProvider = _storageStrategy.ProviderId,
+            ReferenceCount = 1,
+            CreatedOn = DateTime.UtcNow
+        };
+        await _fileRepository.AddFileContentAsync(fileContent, cancellationToken);
+        LogInfo("Created FileContent record for hash {FileHash}", fileHash);
+
+        return (storagePath, storagePath, true);
+    }
+
+    /// <summary>
+    /// Creates the file database record
+    /// </summary>
+    private async Task<FileEntity> CreateFileRecordAsync(
+        FileUploadDto uploadDto,
+        string fileHash,
+        CancellationToken cancellationToken)
+    {
+        var logicalPath = await GenerateUniqueFilePathAsync(uploadDto.FileName, uploadDto.FolderId, cancellationToken);
+
+        var file = new FileEntity
+        {
+            FileName = uploadDto.FileName,
+            FileHash = fileHash,
+            FilePath = logicalPath,
+            FileSize = uploadDto.FileSize,
+            ContentType = uploadDto.ContentType,
+            Description = uploadDto.Description,
+            FolderId = uploadDto.FolderId,
+            StorageProvider = _storageStrategy.ProviderId,
+            Visibility = uploadDto.Visibility,
+            UploadedBy = _userContext.Username ?? SYSTEM_USERNAME,
+            UploadedOn = DateTime.UtcNow,
+            CurrentVersion = 1,
+            IsDeleted = false
+        };
+
+        await _fileRepository.AddAsync(file, cancellationToken);
+        return file;
+    }
+
+    /// <summary>
+    /// Cleans up physical file on error
+    /// </summary>
+    private async Task CleanupPhysicalFileOnErrorAsync(
+        bool physicalFileCreated,
+        string? physicalFilePath,
+        CancellationToken cancellationToken)
+    {
+        if (!physicalFileCreated || physicalFilePath == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _storageStrategy.DeleteFileAsync(physicalFilePath, cancellationToken);
+            LogInfo("Cleaned up physical file at {StoragePath} after transaction rollback", physicalFilePath);
+        }
+        catch (Exception cleanupEx)
+        {
+            LogWarning("Failed to clean up physical file at {StoragePath} after rollback: {Error}",
+                physicalFilePath, cleanupEx.Message);
+        }
+    }
+
+    /// <summary>
+    /// Publishes the file uploaded event
+    /// </summary>
+    private async Task PublishUploadEventAsync(FileEntity file, string fileHash, CancellationToken cancellationToken)
+    {
+        await EventPublisher.PublishAsync(
+            new FileUploadedEvent(file.Id, file.FileName, fileHash, file.FileSize,
+                file.FolderId, file.UploadedBy),
+            cancellationToken);
     }
 
     public async Task<Result<List<FileDto>>> UploadMultipleFilesAsync(List<FileUploadDto> uploadDtos, CancellationToken cancellationToken = default)
@@ -265,7 +362,7 @@ public class FileService : BaseService, IFileService
             var file = await _fileRepository.GetByIdAsync(fileId, cancellationToken);
             if (file == null)
             {
-                return Result<FileDto>.Failure($"File with ID {fileId} not found", "NOT_FOUND");
+                return Result<FileDto>.Failure($"File with ID {fileId} not found", NOT_FOUND);
             }
 
             var dto = await MapToDtoAsync(file, cancellationToken);
@@ -276,7 +373,7 @@ public class FileService : BaseService, IFileService
         catch (Exception ex)
         {
             LogError(ex, "Error getting file by ID {FileId}", fileId);
-            return Result<FileDto>.Failure($"Error retrieving file: {ex.Message}", "GET_ERROR");
+            return Result<FileDto>.Failure($"Error retrieving file: {ex.Message}", GET_ERROR);
         }
     }
 
@@ -287,7 +384,7 @@ public class FileService : BaseService, IFileService
             var file = await _fileRepository.GetByIdAsync(fileId, cancellationToken);
             if (file == null)
             {
-                return Result<FileDetailsDto>.Failure($"File with ID {fileId} not found", "NOT_FOUND");
+                return Result<FileDetailsDto>.Failure($"File with ID {fileId} not found", NOT_FOUND);
             }
 
             // Map to FileDetailsDto using AutoMapper
@@ -301,7 +398,7 @@ public class FileService : BaseService, IFileService
         catch (Exception ex)
         {
             LogError(ex, "Error getting file details for ID {FileId}", fileId);
-            return Result<FileDetailsDto>.Failure($"Error retrieving file details: {ex.Message}", "GET_ERROR");
+            return Result<FileDetailsDto>.Failure($"Error retrieving file details: {ex.Message}", GET_ERROR);
         }
     }
 
@@ -312,7 +409,7 @@ public class FileService : BaseService, IFileService
             var file = await _fileRepository.GetByPathAsync(path, cancellationToken);
             if (file == null)
             {
-                return Result<FileDto>.Failure($"File at path '{path}' not found", "NOT_FOUND");
+                return Result<FileDto>.Failure($"File at path '{path}' not found", NOT_FOUND);
             }
 
             var dto = await MapToDtoAsync(file, cancellationToken);
@@ -321,7 +418,7 @@ public class FileService : BaseService, IFileService
         catch (Exception ex)
         {
             LogError(ex, "Error getting file by path {Path}", path);
-            return Result<FileDto>.Failure($"Error retrieving file: {ex.Message}", "GET_ERROR");
+            return Result<FileDto>.Failure($"Error retrieving file: {ex.Message}", GET_ERROR);
         }
     }
 
@@ -342,7 +439,7 @@ public class FileService : BaseService, IFileService
         catch (Exception ex)
         {
             LogError(ex, "Error getting files by folder {FolderId}", folderId);
-            return Result<List<FileDto>>.Failure($"Error retrieving files: {ex.Message}", "GET_ERROR");
+            return Result<List<FileDto>>.Failure($"Error retrieving files: {ex.Message}", GET_ERROR);
         }
     }
 
@@ -353,7 +450,7 @@ public class FileService : BaseService, IFileService
             var file = await _fileRepository.GetByIdAsync(fileId, cancellationToken);
             if (file == null)
             {
-                return Result<(Stream, string, string)>.Failure($"File with ID {fileId} not found", "NOT_FOUND");
+                return Result<(Stream, string, string)>.Failure($"File with ID {fileId} not found", NOT_FOUND);
             }
 
             // Get the physical storage path from FileContent
@@ -387,7 +484,7 @@ public class FileService : BaseService, IFileService
             var file = await _fileRepository.GetByIdAsync(fileId, cancellationToken);
             if (file == null)
             {
-                return Result<FileDto>.Failure($"File with ID {fileId} not found", "NOT_FOUND");
+                return Result<FileDto>.Failure($"File with ID {fileId} not found", NOT_FOUND);
             }
 
             var changes = new Dictionary<string, object>();
@@ -442,7 +539,7 @@ public class FileService : BaseService, IFileService
             var file = await _fileRepository.GetByIdAsync(fileId, cancellationToken);
             if (file == null)
             {
-                return Result<FileDto>.Failure($"File with ID {fileId} not found", "NOT_FOUND");
+                return Result<FileDto>.Failure($"File with ID {fileId} not found", NOT_FOUND);
             }
 
             // Validate new folder exists if specified
@@ -487,7 +584,7 @@ public class FileService : BaseService, IFileService
             var file = await _fileRepository.GetByIdAsync(fileId, cancellationToken);
             if (file == null)
             {
-                return Result.Failure($"File with ID {fileId} not found", "NOT_FOUND");
+                return Result.Failure($"File with ID {fileId} not found", NOT_FOUND);
             }
 
             var fileHash = file.FileHash;
@@ -549,7 +646,7 @@ public class FileService : BaseService, IFileService
             var file = await _fileRepository.GetByIdAsync(fileId, cancellationToken);
             if (file == null)
             {
-                return Result.Failure($"File with ID {fileId} not found", "NOT_FOUND");
+                return Result.Failure($"File with ID {fileId} not found", NOT_FOUND);
             }
 
             // Get the physical storage path from FileContent
@@ -629,7 +726,7 @@ public class FileService : BaseService, IFileService
         }
     }
 
-    private string GenerateStoragePath(string fileHash, string extension)
+    private static string GenerateStoragePath(string fileHash, string extension)
     {
         // Use hash-based directory structure for better distribution
         // e.g., "ab/cd/abcdef123456.jpg"
@@ -671,7 +768,7 @@ public class FileService : BaseService, IFileService
         return filePath;
     }
 
-    private async Task<bool> IsAllowedExtensionAsync(string extension, string allowedExtensionsString)
+    private static async Task<bool> IsAllowedExtensionAsync(string extension, string allowedExtensionsString)
     {
         var allowedExtensions = allowedExtensionsString
             .Split(',', StringSplitOptions.RemoveEmptyEntries)

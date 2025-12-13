@@ -28,7 +28,7 @@ public class PluginItemViewModel
     public bool CanDelete => !IsCorePlugin;
     public bool CanEnable => IsConfigured && !IsEnabled && !IsEnabledLockedByEnvironment;
     public bool CanDisable => IsEnabled && !IsEnabledLockedByEnvironment;
-    public bool CanConfigure => true;
+    public static bool CanConfigure => true;
 }
 
 /// <summary>

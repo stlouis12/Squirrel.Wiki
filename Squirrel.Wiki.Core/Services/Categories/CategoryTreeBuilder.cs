@@ -321,7 +321,7 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
     /// <summary>
     /// Generates cache key suffix based on categories and options
     /// </summary>
-    private string GenerateCacheKeySuffix(
+    private static string GenerateCacheKeySuffix(
         IEnumerable<CategoryDto> categories,
         CategoryTreeOptions? options)
     {
@@ -373,7 +373,7 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
     /// <summary>
     /// Creates a simple hash of options for cache key
     /// </summary>
-    private string GetOptionsHash(CategoryTreeOptions options)
+    private static string GetOptionsHash(CategoryTreeOptions options)
     {
         return $"sort:{options.SortByName}_depth:{options.MaxDepth?.ToString() ?? "none"}";
     }

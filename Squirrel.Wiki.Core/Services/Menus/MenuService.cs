@@ -12,6 +12,7 @@ using Squirrel.Wiki.Core.Security;
 using Squirrel.Wiki.Core.Services.Categories;
 using Squirrel.Wiki.Core.Services.Content;
 using Squirrel.Wiki.Core.Services.Caching;
+using static Squirrel.Wiki.Core.Constants.SystemUserConstants;
 
 namespace Squirrel.Wiki.Core.Services.Menus;
 
@@ -21,8 +22,6 @@ namespace Squirrel.Wiki.Core.Services.Menus;
 public class MenuService : BaseService, IMenuService
 {
     private readonly IMenuRepository _menuRepository;
-    private readonly IPageRepository _pageRepository;
-    private readonly ICategoryService _categoryService;
     private readonly IMarkdownService _markdownService;
     private readonly IUserContext _userContext;
     private readonly IUrlTokenResolver _urlTokenResolver;
@@ -49,8 +48,6 @@ public class MenuService : BaseService, IMenuService
 
     public MenuService(
         IMenuRepository menuRepository,
-        IPageRepository pageRepository,
-        ICategoryService categoryService,
         IMarkdownService markdownService,
         IUserContext userContext,
         IUrlTokenResolver urlTokenResolver,
@@ -62,8 +59,6 @@ public class MenuService : BaseService, IMenuService
         : base(logger, cache, eventPublisher, mapper, configuration)
     {
         _menuRepository = menuRepository;
-        _pageRepository = pageRepository;
-        _categoryService = categoryService;
         _markdownService = markdownService;
         _userContext = userContext;
         _urlTokenResolver = urlTokenResolver;
@@ -282,7 +277,7 @@ public class MenuService : BaseService, IMenuService
             {
                 menu.DisplayOrder = kvp.Value;
                 menu.ModifiedOn = DateTime.UtcNow;
-                menu.ModifiedBy = _userContext.Username ?? "System";
+                menu.ModifiedBy = _userContext.Username ?? SYSTEM_USERNAME;
                 await _menuRepository.UpdateAsync(menu, cancellationToken);
             }
         }
@@ -408,41 +403,15 @@ public class MenuService : BaseService, IMenuService
             if (string.IsNullOrWhiteSpace(trimmedLine))
                 continue;
 
-            // Count asterisks to determine level
-            var level = 0;
-            while (level < trimmedLine.Length && trimmedLine[level] == '*')
-            {
-                level++;
-            }
-
+            var level = CountLeadingAsterisks(trimmedLine);
             if (level == 0)
                 continue;
 
-            // Extract content after asterisks
             var content = trimmedLine.Substring(level).Trim();
+            var (text, url) = ExtractTextAndUrl(content);
             
-            // Try to match [text](url) first
-            var linkMatch = Regex.Match(content, @"\[([^\]]+)\]\(([^\)]+)\)");
-            
-            string text;
-            string? url = null;
-            
-            if (linkMatch.Success)
-            {
-                // Has URL - regular link
-                text = linkMatch.Groups[1].Value;
-                url = linkMatch.Groups[2].Value;
-            }
-            else
-            {
-                // Try to match [text] without URL - dropdown header
-                var headerMatch = Regex.Match(content, @"\[([^\]]+)\]");
-                if (!headerMatch.Success)
-                    continue;
-                    
-                text = headerMatch.Groups[1].Value;
-                // url remains null - will be determined by whether it has children
-            }
+            if (text == null)
+                continue;
 
             var item = new MenuMarkupItem
             {
@@ -452,28 +421,63 @@ public class MenuService : BaseService, IMenuService
                 Children = new List<MenuMarkupItem>()
             };
 
-            // Handle nesting
-            while (stack.Count > 0 && stack.Peek().Level >= level)
-            {
-                stack.Pop();
-            }
-
-            if (stack.Count > 0)
-            {
-                stack.Peek().Children.Add(item);
-            }
-            else
-            {
-                items.Add(item);
-            }
-
-            stack.Push(item);
+            AddItemToHierarchy(item, items, stack);
         }
 
         return items;
     }
 
-    private string RenderNavbarItems(List<MenuMarkupItem> items)
+    private static int CountLeadingAsterisks(string line)
+    {
+        var count = 0;
+        while (count < line.Length && line[count] == '*')
+        {
+            count++;
+        }
+        return count;
+    }
+
+    private static (string? text, string? url) ExtractTextAndUrl(string content)
+    {
+        // Try to match [text](url) first - regular link
+        var linkMatch = Regex.Match(content, @"\[([^\]]+)\]\(([^\)]+)\)");
+        if (linkMatch.Success)
+        {
+            return (linkMatch.Groups[1].Value, linkMatch.Groups[2].Value);
+        }
+
+        // Try to match [text] without URL - dropdown header
+        var headerMatch = Regex.Match(content, @"\[([^\]]+)\]");
+        if (headerMatch.Success)
+        {
+            return (headerMatch.Groups[1].Value, null);
+        }
+
+        return (null, null);
+    }
+
+    private static void AddItemToHierarchy(MenuMarkupItem item, List<MenuMarkupItem> items, Stack<MenuMarkupItem> stack)
+    {
+        // Pop items from stack that are at same or deeper level
+        while (stack.Count > 0 && stack.Peek().Level >= item.Level)
+        {
+            stack.Pop();
+        }
+
+        // Add to parent if exists, otherwise add to root
+        if (stack.Count > 0)
+        {
+            stack.Peek().Children.Add(item);
+        }
+        else
+        {
+            items.Add(item);
+        }
+
+        stack.Push(item);
+    }
+
+    private static string RenderNavbarItems(List<MenuMarkupItem> items)
     {
         var html = new System.Text.StringBuilder();
 
@@ -606,7 +610,7 @@ public class MenuService : BaseService, IMenuService
             {
                 otherMenu.IsEnabled = false;
                 otherMenu.ModifiedOn = DateTime.UtcNow;
-                otherMenu.ModifiedBy = _userContext.Username ?? "System";
+                otherMenu.ModifiedBy = _userContext.Username ?? SYSTEM_USERNAME;
                 await _menuRepository.UpdateAsync(otherMenu, cancellationToken);
                 LogInfo("Auto-deactivated menu {MenuName} (ID: {MenuId}) to activate {NewMenuName}", 
                     otherMenu.Name, otherMenu.Id, menu.Name);
@@ -615,7 +619,7 @@ public class MenuService : BaseService, IMenuService
 
         menu.IsEnabled = true;
         menu.ModifiedOn = DateTime.UtcNow;
-        menu.ModifiedBy = _userContext.Username ?? "System";
+        menu.ModifiedBy = _userContext.Username ?? SYSTEM_USERNAME;
         await _menuRepository.UpdateAsync(menu, cancellationToken);
 
         LogInfo("Activated menu {MenuName} (Type: {MenuType}, ID: {MenuId})", menu.Name, menu.MenuType, menu.Id);
@@ -633,7 +637,7 @@ public class MenuService : BaseService, IMenuService
 
         menu.IsEnabled = false;
         menu.ModifiedOn = DateTime.UtcNow;
-        menu.ModifiedBy = _userContext.Username ?? "System";
+        menu.ModifiedBy = _userContext.Username ?? SYSTEM_USERNAME;
         await _menuRepository.UpdateAsync(menu, cancellationToken);
 
         LogInfo("Deactivated menu {MenuName} (ID: {MenuId})", menu.Name, menu.Id);
@@ -669,7 +673,7 @@ public class MenuService : BaseService, IMenuService
         return resolved ?? url;
     }
 
-    private string CleanupMenuHtml(string html)
+    private static string CleanupMenuHtml(string html)
     {
         if (string.IsNullOrWhiteSpace(html))
         {

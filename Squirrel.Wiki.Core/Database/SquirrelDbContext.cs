@@ -47,52 +47,80 @@ public class SquirrelDbContext : DbContext, IDataProtectionKeyContext
     /// </summary>
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        // Ensure all DateTime values are UTC before saving
+        EnsureDateTimesAreUtc();
+        return await base.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Ensures all DateTime properties in tracked entities are UTC
+    /// </summary>
+    private void EnsureDateTimesAreUtc()
+    {
         var entries = ChangeTracker.Entries()
             .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
 
         foreach (var entry in entries)
         {
-            foreach (var property in entry.Properties)
+            ConvertDateTimePropertiesToUtc(entry);
+        }
+    }
+
+    /// <summary>
+    /// Converts all DateTime properties in an entity entry to UTC
+    /// </summary>
+    private void ConvertDateTimePropertiesToUtc(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry)
+    {
+        foreach (var property in entry.Properties)
+        {
+            if (IsDateTimeProperty(property.Metadata.ClrType))
             {
-                // Handle DateTime properties
-                if (property.Metadata.ClrType == typeof(DateTime))
-                {
-                    if (property.CurrentValue is DateTime dateTime)
-                    {
-                        if (dateTime.Kind != DateTimeKind.Utc)
-                        {
-                            _logger?.LogWarning(
-                                "Non-UTC DateTime detected in {EntityType}.{PropertyName}. Converting to UTC. Original Kind: {Kind}",
-                                entry.Metadata.Name,
-                                property.Metadata.Name,
-                                dateTime.Kind);
-                            
-                            property.CurrentValue = DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
-                        }
-                    }
-                }
-                // Handle nullable DateTime properties
-                else if (property.Metadata.ClrType == typeof(DateTime?))
-                {
-                    if (property.CurrentValue is DateTime nullableDateTime)
-                    {
-                        if (nullableDateTime.Kind != DateTimeKind.Utc)
-                        {
-                            _logger?.LogWarning(
-                                "Non-UTC DateTime detected in {EntityType}.{PropertyName}. Converting to UTC. Original Kind: {Kind}",
-                                entry.Metadata.Name,
-                                property.Metadata.Name,
-                                nullableDateTime.Kind);
-                            
-                            property.CurrentValue = DateTime.SpecifyKind(nullableDateTime, DateTimeKind.Utc);
-                        }
-                    }
-                }
+                ConvertPropertyToUtc(entry, property);
             }
         }
+    }
 
-        return await base.SaveChangesAsync(cancellationToken);
+    /// <summary>
+    /// Checks if a type is DateTime or nullable DateTime
+    /// </summary>
+    private static bool IsDateTimeProperty(Type propertyType)
+    {
+        return propertyType == typeof(DateTime) || propertyType == typeof(DateTime?);
+    }
+
+    /// <summary>
+    /// Converts a DateTime property value to UTC if needed
+    /// </summary>
+    private void ConvertPropertyToUtc(
+        Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry,
+        Microsoft.EntityFrameworkCore.ChangeTracking.PropertyEntry property)
+    {
+        if (property.CurrentValue is not DateTime dateTime)
+        {
+            return;
+        }
+
+        if (dateTime.Kind == DateTimeKind.Utc)
+        {
+            return;
+        }
+
+        LogNonUtcDateTimeWarning(entry, property, dateTime);
+        property.CurrentValue = DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
+    }
+
+    /// <summary>
+    /// Logs a warning when a non-UTC DateTime is detected
+    /// </summary>
+    private void LogNonUtcDateTimeWarning(
+        Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry,
+        Microsoft.EntityFrameworkCore.ChangeTracking.PropertyEntry property,
+        DateTime dateTime)
+    {
+        _logger?.LogWarning(
+            "Non-UTC DateTime detected in {EntityType}.{PropertyName}. Converting to UTC. Original Kind: {Kind}",
+            entry.Metadata.Name,
+            property.Metadata.Name,
+            dateTime.Kind);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

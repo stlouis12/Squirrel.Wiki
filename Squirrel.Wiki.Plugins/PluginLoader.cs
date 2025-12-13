@@ -8,11 +8,12 @@ namespace Squirrel.Wiki.Plugins;
 /// <summary>
 /// Loads and manages plugins from disk
 /// </summary>
-public class PluginLoader : IPluginLoader
+public class PluginLoader : IPluginLoader, IDisposable
 {
     private readonly ILogger<PluginLoader> _logger;
     private readonly Dictionary<string, (IPlugin Plugin, PluginLoadContext Context)> _loadedPlugins = new();
     private readonly object _lock = new();
+    private bool _disposed;
 
     public PluginLoader(ILogger<PluginLoader> logger)
     {
@@ -224,13 +225,6 @@ public class PluginLoader : IPluginLoader
             }
         }
 
-        // Force garbage collection to clean up the unloaded context
-        for (int i = 0; i < 3; i++)
-        {
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-        }
-
         await Task.CompletedTask;
     }
 
@@ -265,5 +259,42 @@ public class PluginLoader : IPluginLoader
         {
             return _loadedPlugins.TryGetValue(pluginId, out var entry) ? entry.Plugin : null;
         }
+    }
+
+    /// <summary>
+    /// Dispose of all loaded plugins and their contexts
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _logger.LogInformation("Disposing PluginLoader and unloading all plugins");
+
+        lock (_lock)
+        {
+            foreach (var entry in _loadedPlugins.Values)
+            {
+                try
+                {
+                    _logger.LogDebug("Shutting down plugin: {Id}", entry.Plugin.Metadata.Id);
+                    entry.Plugin.ShutdownAsync(CancellationToken.None).GetAwaiter().GetResult();
+                    
+                    _logger.LogDebug("Unloading context for plugin: {Id}", entry.Plugin.Metadata.Id);
+                    entry.Context.Unload();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error disposing plugin: {Id}", entry.Plugin.Metadata.Id);
+                }
+            }
+
+            _loadedPlugins.Clear();
+        }
+
+        _disposed = true;
+        _logger.LogInformation("PluginLoader disposed successfully");
     }
 }

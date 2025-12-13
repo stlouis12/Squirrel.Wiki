@@ -35,20 +35,20 @@ const CategoryTree = (function() {
             const categoryNode = expandBtn.closest('.category-node');
             const childrenContainer = categoryNode.querySelector('.category-children');
             const icon = expandBtn.querySelector('i');
-            const isExpanded = expandBtn.getAttribute('data-expanded') === 'true';
+            const isExpanded = expandBtn.dataset.expanded === 'true';
 
             if (isExpanded) {
                 // Collapse
                 childrenContainer.style.display = 'none';
                 icon.classList.remove('bi-chevron-down');
                 icon.classList.add('bi-chevron-right');
-                expandBtn.setAttribute('data-expanded', 'false');
+                expandBtn.dataset.expanded = 'false';
             } else {
                 // Expand
                 childrenContainer.style.display = 'block';
                 icon.classList.remove('bi-chevron-right');
                 icon.classList.add('bi-chevron-down');
-                expandBtn.setAttribute('data-expanded', 'true');
+                expandBtn.dataset.expanded = 'true';
             }
         });
     }
@@ -85,7 +85,7 @@ const CategoryTree = (function() {
                 childrenContainer.style.display = 'block';
                 icon.classList.remove('bi-chevron-right');
                 icon.classList.add('bi-chevron-down');
-                btn.setAttribute('data-expanded', 'true');
+                btn.dataset.expanded = 'true';
             }
         });
     }
@@ -103,7 +103,7 @@ const CategoryTree = (function() {
                 childrenContainer.style.display = 'none';
                 icon.classList.remove('bi-chevron-down');
                 icon.classList.add('bi-chevron-right');
-                btn.setAttribute('data-expanded', 'false');
+                btn.dataset.expanded = 'false';
             }
         });
     }
@@ -127,7 +127,7 @@ const CategoryTree = (function() {
                         currentNode.style.display = 'block';
                         icon.classList.remove('bi-chevron-right');
                         icon.classList.add('bi-chevron-down');
-                        expandBtn.setAttribute('data-expanded', 'true');
+                        expandBtn.dataset.expanded = 'true';
                     }
                 }
             }
@@ -154,7 +154,7 @@ const CategoryTree = (function() {
         
         let maxDepth = 0;
         allNodes.forEach(function(node) {
-            const level = parseInt(node.getAttribute('data-level') || '0');
+            const level = parseInt(node.dataset.level || '0');
             if (level > maxDepth) {
                 maxDepth = level;
             }

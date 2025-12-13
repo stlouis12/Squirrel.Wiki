@@ -18,17 +18,15 @@ namespace Squirrel.Wiki.Web.Controllers;
 public class PluginsController : BaseController
 {
     private readonly IPluginService _pluginService;
-    private readonly IConfigurationService _configurationService;
 
     public PluginsController(
         IPluginService pluginService,
         IConfigurationService configurationService,
         ILogger<PluginsController> logger,
         INotificationService notifications)
-        : base(logger, notifications)
+        : base(logger, notifications, null, null)
     {
         _pluginService = pluginService;
-        _configurationService = configurationService;
     }
 
     /// <summary>

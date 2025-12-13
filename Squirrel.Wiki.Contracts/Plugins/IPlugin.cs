@@ -28,10 +28,10 @@ public interface IPlugin
     /// <summary>
     /// Initialize the plugin with the given service provider
     /// </summary>
-    /// <param name="services">Service provider for dependency injection</param>
+    /// <param name="serviceProvider">Service provider for dependency injection</param>
     /// <param name="cancellationToken">Cancellation token</param>
     Task InitializeAsync(
-        IServiceProvider services,
+        IServiceProvider serviceProvider,
         CancellationToken cancellationToken = default);
 
     /// <summary>

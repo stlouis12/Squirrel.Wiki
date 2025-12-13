@@ -141,11 +141,11 @@
                                 <tr>
                                     <th>@Localizer["UserRole"]</th>
                                     <td>
-                                        @if (User.IsInRole("Admin"))
+                                        @if (User.IsInRole(ADMIN_ROLE))
                                         {
                                             <span class="badge bg-danger">@Localizer["Admin"]</span>
                                         }
-                                        else if (User.IsInRole("Editor"))
+                                        else if (User.IsInRole(EDITOR_ROLE))
                                         {
                                             <span class="badge bg-warning">@Localizer["Editor"]</span>
                                         }

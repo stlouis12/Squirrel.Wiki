@@ -9,6 +9,7 @@ using Squirrel.Wiki.Core.Services.Menus;
 using Squirrel.Wiki.Core.Services.Pages;
 using Squirrel.Wiki.Core.Services.Tags;
 using Squirrel.Wiki.Web.Models;
+using static Squirrel.Wiki.Core.Constants.UserRoles;
 
 namespace Squirrel.Wiki.Web.ViewComponents;
 
@@ -112,69 +113,109 @@ public class SidebarNavigationViewComponent : ViewComponent
                 return null; // Skip this item if user doesn't have permission
             }
 
-            // Handle %ALLTAGS% token
-            if (menuItem.Url.Equals("%ALLTAGS%", StringComparison.OrdinalIgnoreCase))
+            // Try to handle as special token
+            var specialTokenResult = await TryHandleSpecialTokenAsync(menuItem);
+            if (specialTokenResult != null)
             {
-                return await BuildAllTagsItemAsync(menuItem.Text);
+                return specialTokenResult;
             }
+        }
 
-            // Handle %ALLCATEGORIES% token
-            if (menuItem.Url.Equals("%ALLCATEGORIES%", StringComparison.OrdinalIgnoreCase))
-            {
-                return await BuildAllCategoriesItemAsync(menuItem.Text);
-            }
+        // Build standard sidebar item
+        var sidebarItem = BuildStandardSidebarItem(menuItem);
 
-            // Handle %EMBEDDED_SEARCH% token
-            if (menuItem.Url.Equals("%EMBEDDED_SEARCH%", StringComparison.OrdinalIgnoreCase)
-                || menuItem.Url.Equals("%SEARCH%", StringComparison.OrdinalIgnoreCase))
-            {
-                return BuildEmbeddedSearchItemAsync(menuItem.Text);
-            }
+        // Process children recursively
+        await PopulateChildrenAsync(sidebarItem, menuItem.Children);
 
-            // Handle other standard tokens by resolving them
-            if ((menuItem.Url.StartsWith("%") && menuItem.Url.EndsWith("%")) || menuItem.Url.StartsWith("tag:") || menuItem.Url.StartsWith("category:"))
+        return sidebarItem;
+    }
+
+    private async Task<SidebarItemViewModel?> TryHandleSpecialTokenAsync(MenuItemDto menuItem)
+    {
+        var url = menuItem.Url!;
+
+        // Handle %ALLTAGS% token
+        if (url.Equals("%ALLTAGS%", StringComparison.OrdinalIgnoreCase))
+        {
+            return await BuildAllTagsItemAsync(menuItem.Text);
+        }
+
+        // Handle %ALLCATEGORIES% token
+        if (url.Equals("%ALLCATEGORIES%", StringComparison.OrdinalIgnoreCase))
+        {
+            return await BuildAllCategoriesItemAsync(menuItem.Text);
+        }
+
+        // Handle %EMBEDDED_SEARCH% token
+        if (IsSearchToken(url))
+        {
+            return BuildEmbeddedSearchItemAsync(menuItem.Text);
+        }
+
+        // Handle other standard tokens by resolving them
+        if (IsResolvableToken(url))
+        {
+            var resolvedUrl = ResolveUrlToken(url);
+            if (resolvedUrl != null)
             {
-                // Resolve standard URL tokens
-                var resolvedUrl = ResolveUrlToken(menuItem.Url);
-                if (resolvedUrl != null)
+                return new SidebarItemViewModel
                 {
-                    return new SidebarItemViewModel
-                    {
-                        Text = menuItem.Text,
-                        Url = resolvedUrl,
-                        Type = SidebarItemType.Link
-                    };
-                }
+                    Text = menuItem.Text,
+                    Url = resolvedUrl,
+                    Type = SidebarItemType.Link
+                };
             }
         }
 
-        // Determine item type based on URL and children
-        SidebarItemType itemType;
-        if (menuItem.Url == null && menuItem.Children.Any())
-        {
-            // No URL but has children = collapsible header
-            itemType = SidebarItemType.Header;
-        }
-        else if (menuItem.Url != null)
-        {
-            // Has URL = link (even if it has children, which shouldn't normally happen)
-            itemType = SidebarItemType.Link;
-        }
-        else
-        {
-            // No URL and no children = treat as non-clickable text (shouldn't normally happen)
-            itemType = SidebarItemType.Header;
-        }
+        return null; // Not a special token
+    }
 
-        var sidebarItem = new SidebarItemViewModel
+    private static bool IsSearchToken(string url)
+    {
+        return url.Equals("%EMBEDDED_SEARCH%", StringComparison.OrdinalIgnoreCase) ||
+               url.Equals("%SEARCH%", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsResolvableToken(string url)
+    {
+        return (url.StartsWith("%") && url.EndsWith("%")) ||
+               url.StartsWith("tag:") ||
+               url.StartsWith("category:");
+    }
+
+    private SidebarItemViewModel BuildStandardSidebarItem(MenuItemDto menuItem)
+    {
+        var itemType = DetermineItemType(menuItem);
+
+        return new SidebarItemViewModel
         {
             Text = menuItem.Text,
             Url = menuItem.Url,
             Type = itemType
         };
+    }
 
-        // Process children recursively
-        foreach (var child in menuItem.Children)
+    private static SidebarItemType DetermineItemType(MenuItemDto menuItem)
+    {
+        if (menuItem.Url == null && menuItem.Children.Any())
+        {
+            // No URL but has children = collapsible header
+            return SidebarItemType.Header;
+        }
+        
+        if (menuItem.Url != null)
+        {
+            // Has URL = link (even if it has children, which shouldn't normally happen)
+            return SidebarItemType.Link;
+        }
+        
+        // No URL and no children = treat as non-clickable text (shouldn't normally happen)
+        return SidebarItemType.Header;
+    }
+
+    private async Task PopulateChildrenAsync(SidebarItemViewModel sidebarItem, List<MenuItemDto> children)
+    {
+        foreach (var child in children)
         {
             var childItem = await ConvertToSidebarItemAsync(child);
             if (childItem != null)
@@ -182,8 +223,6 @@ public class SidebarNavigationViewComponent : ViewComponent
                 sidebarItem.Children.Add(childItem);
             }
         }
-
-        return sidebarItem;
     }
 
     /// <summary>
@@ -335,14 +374,14 @@ public class SidebarNavigationViewComponent : ViewComponent
         // Check for %ADMIN% token - only for Admin role
         if (url.Equals("%ADMIN%", StringComparison.OrdinalIgnoreCase))
         {
-            return userRole?.Equals("Admin", StringComparison.OrdinalIgnoreCase) == true;
+            return userRole?.Equals(ADMIN_ROLE, StringComparison.OrdinalIgnoreCase) == true;
         }
 
         // Check for %NEWPAGE% token - only for Admin and Editor roles
         if (url.Equals("%NEWPAGE%", StringComparison.OrdinalIgnoreCase))
         {
-            return userRole?.Equals("Admin", StringComparison.OrdinalIgnoreCase) == true ||
-                   userRole?.Equals("Editor", StringComparison.OrdinalIgnoreCase) == true;
+            return userRole?.Equals(ADMIN_ROLE, StringComparison.OrdinalIgnoreCase) == true ||
+                   userRole?.Equals(EDITOR_ROLE, StringComparison.OrdinalIgnoreCase) == true;
         }
 
         // All other items are visible to everyone

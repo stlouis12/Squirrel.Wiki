@@ -11,7 +11,7 @@ public class PluginConfigurationValidator
     /// <summary>
     /// Validates a configuration dictionary against a plugin's configuration schema
     /// </summary>
-    public ValidationResult Validate(
+    public static ValidationResult Validate(
         Dictionary<string, string> configuration,
         IEnumerable<PluginConfigurationItem> schema)
     {
@@ -71,7 +71,7 @@ public class PluginConfigurationValidator
         return result;
     }
 
-    private void ValidateUrl(PluginConfigurationItem item, string value, ValidationResult result)
+    private static void ValidateUrl(PluginConfigurationItem item, string value, ValidationResult result)
     {
         if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
         {
@@ -86,7 +86,7 @@ public class PluginConfigurationValidator
         }
     }
 
-    private void ValidateNumber(PluginConfigurationItem item, string value, ValidationResult result)
+    private static void ValidateNumber(PluginConfigurationItem item, string value, ValidationResult result)
     {
         if (!decimal.TryParse(value, out var number))
         {
@@ -97,7 +97,7 @@ public class PluginConfigurationValidator
         // Additional range validation could be added here if needed
     }
 
-    private void ValidateBoolean(PluginConfigurationItem item, string value, ValidationResult result)
+    private static void ValidateBoolean(PluginConfigurationItem item, string value, ValidationResult result)
     {
         var lowerValue = value.ToLowerInvariant();
         if (lowerValue != "true" && lowerValue != "false" && 
@@ -108,7 +108,7 @@ public class PluginConfigurationValidator
         }
     }
 
-    private void ValidateText(PluginConfigurationItem item, string value, ValidationResult result)
+    private static void ValidateText(PluginConfigurationItem item, string value, ValidationResult result)
     {
         // Basic text validation - could be extended with min/max length
         if (value.Length > 10000)
@@ -117,7 +117,7 @@ public class PluginConfigurationValidator
         }
     }
 
-    private void ValidateDropdown(PluginConfigurationItem item, string value, ValidationResult result)
+    private static void ValidateDropdown(PluginConfigurationItem item, string value, ValidationResult result)
     {
         if (item.DropdownOptions == null || item.DropdownOptions.Length == 0)
         {
@@ -131,7 +131,7 @@ public class PluginConfigurationValidator
         }
     }
 
-    private void ValidatePattern(PluginConfigurationItem item, string value, ValidationResult result)
+    private static void ValidatePattern(PluginConfigurationItem item, string value, ValidationResult result)
     {
         try
         {

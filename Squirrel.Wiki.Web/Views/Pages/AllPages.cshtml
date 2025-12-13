@@ -34,7 +34,7 @@
                     </a>
                 }
             }
-            @if (User.IsInRole("Admin") || User.IsInRole("Editor"))
+            @if (User.IsInRole(ADMIN_ROLE) || User.IsInRole(EDITOR_ROLE))
             {
                 <a href="@Url.Action("New", "Pages")" class="btn btn-success">
                     <i class="bi bi-plus-circle"></i> @Localizer["NewPage"]
@@ -120,7 +120,7 @@
                                        class="btn btn-outline-primary" title="@Localizer["View"]">
                                         <i class="bi bi-eye"></i>
                                     </a>
-                                    @if (User.IsInRole("Admin") || (User.IsInRole("Editor") && !pageItem.IsLocked))
+                                    @if (User.IsInRole(ADMIN_ROLE) || (User.IsInRole(EDITOR_ROLE) && !pageItem.IsLocked))
                                     {
                                         <a href="@Url.Action("Edit", "Pages", new { id = pageItem.Id })" 
                                            class="btn btn-outline-secondary" title="@Localizer["Edit"]">
@@ -131,7 +131,7 @@
                                        class="btn btn-outline-info" title="@Localizer["History"]">
                                         <i class="bi bi-clock-history"></i>
                                     </a>
-                                    @if (User.IsInRole("Admin") || (User.IsInRole("Editor") && !pageItem.IsLocked))
+                                    @if (User.IsInRole(ADMIN_ROLE) || (User.IsInRole(EDITOR_ROLE) && !pageItem.IsLocked))
                                     {
                                         <button type="button" class="btn btn-outline-danger" title="@Localizer["Delete"]" 
                                                 onclick="confirmDelete(@pageItem.Id, '@pageItem.Title')">

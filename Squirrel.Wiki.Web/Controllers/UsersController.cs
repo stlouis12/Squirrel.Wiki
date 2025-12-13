@@ -8,6 +8,7 @@ using Squirrel.Wiki.Core.Services.Users;
 using Squirrel.Wiki.Web.Models.Admin;
 using Squirrel.Wiki.Web.Resources;
 using Squirrel.Wiki.Web.Services;
+using static Squirrel.Wiki.Core.Constants.UserRoles;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -411,8 +412,8 @@ public class UsersController : BaseController
                 email: model.Email,
                 password: model.Password!,
                 displayName: model.DisplayName,
-                isAdmin: model.Roles?.Contains("Admin") ?? false,
-                isEditor: (model.Roles?.Contains("Editor") ?? false) || (model.Roles?.Contains("Admin") ?? false)
+                isAdmin: model.Roles?.Contains(ADMIN_ROLE) ?? false,
+                isEditor: (model.Roles?.Contains(EDITOR_ROLE) ?? false) || (model.Roles?.Contains(ADMIN_ROLE) ?? false)
             );
 
             // Set additional properties
@@ -456,8 +457,8 @@ public class UsersController : BaseController
                 DisplayName = model.DisplayName,
                 FirstName = model.FirstName,
                 LastName = model.LastName,
-                IsAdmin = model.Roles?.Contains("Admin") ?? false,
-                IsEditor = (model.Roles?.Contains("Editor") ?? false) || (model.Roles?.Contains("Admin") ?? false)
+                IsAdmin = model.Roles?.Contains(ADMIN_ROLE) ?? false,
+                IsEditor = (model.Roles?.Contains(EDITOR_ROLE) ?? false) || (model.Roles?.Contains(ADMIN_ROLE) ?? false)
             };
 
             await _userService.UpdateAsync(user.Id, updateDto);

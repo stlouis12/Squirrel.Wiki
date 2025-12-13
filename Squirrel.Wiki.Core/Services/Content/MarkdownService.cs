@@ -16,10 +16,10 @@ namespace Squirrel.Wiki.Core.Services.Content;
 /// </summary>
 public class MarkdownService : BaseService, IMarkdownService
 {
-    private MarkdownPipeline _pipeline;
+    private readonly MarkdownPipeline _pipeline;
     private readonly ISlugGenerator _slugGenerator;
     private readonly IServiceProvider _serviceProvider;
-    private List<IMarkdownExtensionPlugin> _extensionPlugins = new();
+    private readonly List<IMarkdownExtensionPlugin> _extensionPlugins = new();
     private static readonly Regex WikiLinkRegex = new(@"\[\[([^\]]+)\]\]", RegexOptions.Compiled);
     private static readonly Regex MarkdownLinkRegex = new(@"\[([^\]]+)\]\(([^\)]+)\)", RegexOptions.Compiled);
 
@@ -394,108 +394,17 @@ public class MarkdownService : BaseService, IMarkdownService
 
         try
         {
-            // Get file repository from service provider
-            var fileRepository = _serviceProvider.GetService(typeof(IFileRepository)) as IFileRepository;
+            var fileRepository = GetFileRepository();
             if (fileRepository == null)
             {
-                LogWarning("File repository not available for processing file references");
                 return html;
             }
 
-            // Pattern 1: Match <img src="guid"> or <img src="file:guid">
-            // This handles ![Alt](guid) after markdown conversion
-            // GUID pattern: 8-4-4-4-12 hex digits
-            var imagePattern = new Regex(
-                @"<img\s+([^>]*\s+)?src=""(?:file:)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})""([^>]*)>",
-                RegexOptions.IgnoreCase);
+            // Process image references
+            html = await ProcessImageReferencesAsync(html, fileRepository, cancellationToken);
 
-            var imageMatches = imagePattern.Matches(html);
-            var imageReplacements = new Dictionary<string, string>();
-
-            foreach (Match match in imageMatches)
-            {
-                var fullMatch = match.Value;
-                var beforeSrc = match.Groups[1].Value;
-                var fileIdStr = match.Groups[2].Value;
-                var afterSrc = match.Groups[3].Value;
-
-                if (Guid.TryParse(fileIdStr, out var fileId))
-                {
-                    // Look up file in database
-                    var file = await fileRepository.GetByIdAsync(fileId, cancellationToken);
-                    
-                    if (file != null && !file.IsDeleted)
-                    {
-                        // Convert to download URL
-                        var downloadUrl = $"/Files/Download/{fileId}";
-                        var newImg = $"<img {beforeSrc}src=\"{downloadUrl}\"{afterSrc}>";
-                        
-                        if (!imageReplacements.ContainsKey(fullMatch))
-                        {
-                            imageReplacements[fullMatch] = newImg;
-                            LogDebug("Resolved file reference for image: {FileId} -> {FileName}", 
-                                fileId, file.FileName);
-                        }
-                    }
-                    else
-                    {
-                        LogWarning("File reference not found or deleted: {FileId}", fileId);
-                    }
-                }
-            }
-
-            // Apply image replacements
-            foreach (var replacement in imageReplacements)
-            {
-                html = html.Replace(replacement.Key, replacement.Value);
-            }
-
-            // Pattern 2: Match <a href="guid"> or <a href="file:guid">
-            // This handles [Link](guid) after markdown conversion
-            var linkPattern = new Regex(
-                @"<a\s+([^>]*\s+)?href=""(?:file:)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})""([^>]*)>",
-                RegexOptions.IgnoreCase);
-
-            var linkMatches = linkPattern.Matches(html);
-            var linkReplacements = new Dictionary<string, string>();
-
-            foreach (Match match in linkMatches)
-            {
-                var fullMatch = match.Value;
-                var beforeHref = match.Groups[1].Value;
-                var fileIdStr = match.Groups[2].Value;
-                var afterHref = match.Groups[3].Value;
-
-                if (Guid.TryParse(fileIdStr, out var fileId))
-                {
-                    // Look up file in database
-                    var file = await fileRepository.GetByIdAsync(fileId, cancellationToken);
-                    
-                    if (file != null && !file.IsDeleted)
-                    {
-                        // Convert to download URL
-                        var downloadUrl = $"/Files/Download/{fileId}";
-                        var newLink = $"<a {beforeHref}href=\"{downloadUrl}\"{afterHref}>";
-                        
-                        if (!linkReplacements.ContainsKey(fullMatch))
-                        {
-                            linkReplacements[fullMatch] = newLink;
-                            LogDebug("Resolved file reference for link: {FileId} -> {FileName}", 
-                                fileId, file.FileName);
-                        }
-                    }
-                    else
-                    {
-                        LogWarning("File reference not found or deleted: {FileId}", fileId);
-                    }
-                }
-            }
-
-            // Apply link replacements
-            foreach (var replacement in linkReplacements)
-            {
-                html = html.Replace(replacement.Key, replacement.Value);
-            }
+            // Process link references
+            html = await ProcessLinkReferencesAsync(html, fileRepository, cancellationToken);
 
             return html;
         }
@@ -504,5 +413,145 @@ public class MarkdownService : BaseService, IMarkdownService
             LogError(ex, "Error processing file references in HTML");
             return html; // Return original HTML on error
         }
+    }
+
+    /// <summary>
+    /// Gets the file repository from the service provider
+    /// </summary>
+    private IFileRepository? GetFileRepository()
+    {
+        var fileRepository = _serviceProvider.GetService(typeof(IFileRepository)) as IFileRepository;
+        if (fileRepository == null)
+        {
+            LogWarning("File repository not available for processing file references");
+        }
+        return fileRepository;
+    }
+
+    /// <summary>
+    /// Processes image file references in HTML
+    /// </summary>
+    private async Task<string> ProcessImageReferencesAsync(
+        string html,
+        IFileRepository fileRepository,
+        CancellationToken cancellationToken)
+    {
+        // Pattern: Match <img src="guid"> or <img src="file:guid">
+        var imagePattern = new Regex(
+            @"<img\s+([^>]*\s+)?src=""(?:file:)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})""([^>]*)>",
+            RegexOptions.IgnoreCase);
+
+        var replacements = await BuildFileReplacementsAsync(
+            imagePattern,
+            html,
+            fileRepository,
+            (beforeAttr, fileId, afterAttr) => $"<img {beforeAttr}src=\"/Files/Download/{fileId}\"{afterAttr}>",
+            "image",
+            cancellationToken);
+
+        return ApplyReplacements(html, replacements);
+    }
+
+    /// <summary>
+    /// Processes link file references in HTML
+    /// </summary>
+    private async Task<string> ProcessLinkReferencesAsync(
+        string html,
+        IFileRepository fileRepository,
+        CancellationToken cancellationToken)
+    {
+        // Pattern: Match <a href="guid"> or <a href="file:guid">
+        var linkPattern = new Regex(
+            @"<a\s+([^>]*\s+)?href=""(?:file:)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})""([^>]*)>",
+            RegexOptions.IgnoreCase);
+
+        var replacements = await BuildFileReplacementsAsync(
+            linkPattern,
+            html,
+            fileRepository,
+            (beforeAttr, fileId, afterAttr) => $"<a {beforeAttr}href=\"/Files/Download/{fileId}\"{afterAttr}>",
+            "link",
+            cancellationToken);
+
+        return ApplyReplacements(html, replacements);
+    }
+
+    /// <summary>
+    /// Builds a dictionary of file reference replacements
+    /// </summary>
+    private async Task<Dictionary<string, string>> BuildFileReplacementsAsync(
+        Regex pattern,
+        string html,
+        IFileRepository fileRepository,
+        Func<string, Guid, string, string> buildReplacement,
+        string referenceType,
+        CancellationToken cancellationToken)
+    {
+        var matches = pattern.Matches(html);
+        var replacements = new Dictionary<string, string>();
+
+        foreach (Match match in matches)
+        {
+            var replacement = await ProcessFileMatchAsync(
+                match,
+                fileRepository,
+                buildReplacement,
+                referenceType,
+                cancellationToken);
+
+            if (replacement.HasValue)
+            {
+                replacements[replacement.Value.original] = replacement.Value.replacement;
+            }
+        }
+
+        return replacements;
+    }
+
+    /// <summary>
+    /// Processes a single file reference match
+    /// </summary>
+    private async Task<(string original, string replacement)?> ProcessFileMatchAsync(
+        Match match,
+        IFileRepository fileRepository,
+        Func<string, Guid, string, string> buildReplacement,
+        string referenceType,
+        CancellationToken cancellationToken)
+    {
+        var fullMatch = match.Value;
+        var beforeAttr = match.Groups[1].Value;
+        var fileIdStr = match.Groups[2].Value;
+        var afterAttr = match.Groups[3].Value;
+
+        if (!Guid.TryParse(fileIdStr, out var fileId))
+        {
+            return null;
+        }
+
+        var file = await fileRepository.GetByIdAsync(fileId, cancellationToken);
+
+        if (file == null || file.IsDeleted)
+        {
+            LogWarning("File reference not found or deleted: {FileId}", fileId);
+            return null;
+        }
+
+        var newTag = buildReplacement(beforeAttr, fileId, afterAttr);
+        LogDebug("Resolved file reference for {Type}: {FileId} -> {FileName}",
+            referenceType, fileId, file.FileName);
+
+        return (fullMatch, newTag);
+    }
+
+    /// <summary>
+    /// Applies all replacements to the HTML string
+    /// </summary>
+    private static string ApplyReplacements(string html, Dictionary<string, string> replacements)
+    {
+        foreach (var replacement in replacements)
+        {
+            html = html.Replace(replacement.Key, replacement.Value);
+        }
+        return html;
     }
 }

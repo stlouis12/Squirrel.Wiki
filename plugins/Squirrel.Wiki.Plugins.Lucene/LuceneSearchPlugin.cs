@@ -65,12 +65,12 @@ public class LuceneSearchPlugin : PluginBase, ISearchPlugin
         return Metadata.Configuration ?? Enumerable.Empty<PluginConfigurationItem>();
     }
 
-    public override async Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken = default)
+    public override async Task InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
     {
-        await base.InitializeAsync(services, cancellationToken);
+        await base.InitializeAsync(serviceProvider, cancellationToken);
         
         // Resolve dependencies from service provider
-        _loggerFactory = services.GetRequiredService<ILoggerFactory>();
+        _loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
         _logger = _loggerFactory.CreateLogger<LuceneSearchPlugin>();
         
         // Create the search strategy

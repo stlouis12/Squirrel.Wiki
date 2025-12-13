@@ -69,16 +69,7 @@ public class LuceneSearchStrategy : ISearchStrategy
 
         if (string.IsNullOrWhiteSpace(request.Query))
         {
-            return new SearchResponse
-            {
-                Query = request.Query,
-                TotalResults = 0,
-                Page = request.Page,
-                PageSize = request.PageSize,
-                TotalPages = 0,
-                Results = new List<SearchResult>(),
-                ExecutionTimeMs = 0
-            };
+            return CreateEmptyResponse(request, 0);
         }
 
         _logger.LogDebug("Lucene search for: {Query}", request.Query);
@@ -90,57 +81,8 @@ public class LuceneSearchStrategy : ISearchStrategy
             var searcher = new IndexSearcher(reader);
             var analyzer = new StandardAnalyzer(LUCENE_VERSION);
 
-            // Build query based on search fields
-            var searchFields = request.SearchFields?.ToArray() ?? new[] { "content", "title", "tags" };
-            
-            Query query;
-            
-            // For file searches, use WildcardQuery directly for substring matching
-            var isFileSearch = request.DocumentTypes != null && request.DocumentTypes.Contains("file");
-            
-            if (isFileSearch && !request.MinSimilarity.HasValue)
-            {
-                // Build a BooleanQuery with WildcardQuery for each field to support substring matching
-                var booleanQuery = new BooleanQuery();
-                var wildcardPattern = $"*{request.Query.ToLowerInvariant()}*";
-                
-                foreach (var field in searchFields)
-                {
-                    var wildcardQuery = new WildcardQuery(new Term(field, wildcardPattern));
-                    
-                    // Apply field boost if specified
-                    if (request.FieldBoosts != null && request.FieldBoosts.TryGetValue(field, out var boost))
-                    {
-                        wildcardQuery.Boost = boost;
-                    }
-                    
-                    booleanQuery.Add(wildcardQuery, Occur.SHOULD);
-                }
-                
-                query = booleanQuery;
-            }
-            else
-            {
-                // Use standard parser for non-file searches or fuzzy searches
-                var parser = new MultiFieldQueryParser(LUCENE_VERSION, searchFields, analyzer, request.FieldBoosts);
-                
-                try
-                {
-                    var queryString = request.MinSimilarity.HasValue 
-                        ? $"{request.Query}~" 
-                        : request.Query;
-                        
-                    query = parser.Parse(queryString);
-                }
-                catch (ParseException)
-                {
-                    // Escape special characters if parsing fails
-                    var escapedQuery = QueryParserBase.Escape(request.Query);
-                    query = parser.Parse(escapedQuery);
-                }
-            }
-
-            // Apply filters
+            // Build and execute query
+            var query = BuildSearchQuery(request, analyzer);
             var filter = BuildFilter(request);
             
             _logger.LogDebug("Lucene query: {Query}, Filter: {HasFilter}", query.ToString(), filter != null);
@@ -149,108 +91,185 @@ public class LuceneSearchStrategy : ISearchStrategy
                 ? searcher.Search(query, filter, 1000)
                 : searcher.Search(query, 1000);
 
-            var results = new List<SearchResult>();
+            // Convert results
+            var results = ConvertSearchResults(topDocs, searcher, request.IncludeContent);
 
-            foreach (var scoreDoc in topDocs.ScoreDocs)
-            {
-                var doc = searcher.Doc(scoreDoc.Doc);
-                
-                var result = new SearchResult
-                {
-                    DocumentId = doc.Get("id"),
-                    Title = doc.Get("title"),
-                    Slug = doc.Get("slug") ?? string.Empty,
-                    Excerpt = doc.Get("contentsummary") ?? string.Empty,
-                    Content = request.IncludeContent ? doc.Get("fullcontent") : null,
-                    Score = scoreDoc.Score,
-                    Author = doc.Get("modifiedby") ?? doc.Get("createdby"),
-                    CreatedOn = DateTime.Parse(doc.Get("createdon")),
-                    ModifiedOn = DateTime.Parse(doc.Get("modifiedon")),
-                    Tags = doc.Get("tags")?.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList() ?? new List<string>()
-                };
-
-                // Parse category if present
-                var categoryIdStr = doc.Get("categoryid");
-                if (!string.IsNullOrEmpty(categoryIdStr) && int.TryParse(categoryIdStr, out var categoryId))
-                {
-                    result.CategoryId = categoryId;
-                    result.CategoryName = doc.Get("categoryname");
-                }
-
-                // Add file-specific metadata to highlights dictionary for easy access
-                var documentType = doc.Get("documenttype");
-                if (!string.IsNullOrEmpty(documentType))
-                {
-                    result.Highlights["DocumentType"] = new List<string> { documentType };
-                    
-                    var fileName = doc.Get("filename");
-                    if (!string.IsNullOrEmpty(fileName))
-                        result.Highlights["FileName"] = new List<string> { fileName };
-                    
-                    var fileExtension = doc.Get("fileextension");
-                    if (!string.IsNullOrEmpty(fileExtension))
-                        result.Highlights["FileExtension"] = new List<string> { fileExtension };
-                    
-                    var contentType = doc.Get("contenttype");
-                    if (!string.IsNullOrEmpty(contentType))
-                        result.Highlights["ContentType"] = new List<string> { contentType };
-                    
-                    var fileSize = doc.Get("filesize");
-                    if (!string.IsNullOrEmpty(fileSize))
-                        result.Highlights["FileSize"] = new List<string> { fileSize };
-                    
-                    var folderPath = doc.Get("folderpath");
-                    if (!string.IsNullOrEmpty(folderPath))
-                        result.Highlights["FolderPath"] = new List<string> { folderPath };
-                    
-                    var folderId = doc.Get("folderid");
-                    if (!string.IsNullOrEmpty(folderId))
-                        result.Highlights["FolderId"] = new List<string> { folderId };
-                    
-                    var visibility = doc.Get("visibility");
-                    if (!string.IsNullOrEmpty(visibility))
-                        result.Highlights["Visibility"] = new List<string> { visibility };
-                }
-
-                results.Add(result);
-            }
-
-            // Apply pagination
-            var totalResults = results.Count;
-            var totalPages = (int)Math.Ceiling(totalResults / (double)request.PageSize);
-            var paginatedResults = results
-                .Skip((request.Page - 1) * request.PageSize)
-                .Take(request.PageSize)
-                .ToList();
-
+            // Apply pagination and return response
             var executionTime = (long)(DateTime.UtcNow - startTime).TotalMilliseconds;
-
-            return new SearchResponse
-            {
-                Query = request.Query,
-                TotalResults = totalResults,
-                Page = request.Page,
-                PageSize = request.PageSize,
-                TotalPages = totalPages,
-                Results = paginatedResults,
-                ExecutionTimeMs = executionTime
-            };
+            return CreatePaginatedResponse(request, results, executionTime);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error searching Lucene index");
-            
-            return new SearchResponse
-            {
-                Query = request.Query,
-                TotalResults = 0,
-                Page = request.Page,
-                PageSize = request.PageSize,
-                TotalPages = 0,
-                Results = new List<SearchResult>(),
-                ExecutionTimeMs = (long)(DateTime.UtcNow - startTime).TotalMilliseconds
-            };
+            var executionTime = (long)(DateTime.UtcNow - startTime).TotalMilliseconds;
+            return CreateEmptyResponse(request, executionTime);
         }
+    }
+
+    private static Query BuildSearchQuery(SearchRequest request, StandardAnalyzer analyzer)
+    {
+        var searchFields = request.SearchFields?.ToArray() ?? new[] { "content", "title", "tags" };
+        var isFileSearch = request.DocumentTypes != null && request.DocumentTypes.Contains("file");
+
+        if (isFileSearch && !request.MinSimilarity.HasValue)
+        {
+            return BuildWildcardQuery(request.Query, searchFields, request.FieldBoosts);
+        }
+
+        return BuildStandardQuery(request.Query, searchFields, analyzer, request.FieldBoosts, request.MinSimilarity);
+    }
+
+    private static Query BuildWildcardQuery(string queryText, string[] searchFields, Dictionary<string, float>? fieldBoosts)
+    {
+        var booleanQuery = new BooleanQuery();
+        var wildcardPattern = $"*{queryText.ToLowerInvariant()}*";
+
+        foreach (var field in searchFields)
+        {
+            var wildcardQuery = new WildcardQuery(new Term(field, wildcardPattern));
+
+            // Apply field boost if specified
+            if (fieldBoosts != null && fieldBoosts.TryGetValue(field, out var boost))
+            {
+                wildcardQuery.Boost = boost;
+            }
+
+            booleanQuery.Add(wildcardQuery, Occur.SHOULD);
+        }
+
+        return booleanQuery;
+    }
+
+    private static Query BuildStandardQuery(
+        string queryText, 
+        string[] searchFields, 
+        StandardAnalyzer analyzer, 
+        Dictionary<string, float>? fieldBoosts,
+        float? minSimilarity)
+    {
+        var parser = new MultiFieldQueryParser(LUCENE_VERSION, searchFields, analyzer, fieldBoosts);
+
+        try
+        {
+            var queryString = minSimilarity.HasValue 
+                ? $"{queryText}~" 
+                : queryText;
+
+            return parser.Parse(queryString);
+        }
+        catch (ParseException)
+        {
+            // Escape special characters if parsing fails
+            var escapedQuery = QueryParserBase.Escape(queryText);
+            return parser.Parse(escapedQuery);
+        }
+    }
+
+    private List<SearchResult> ConvertSearchResults(TopDocs topDocs, IndexSearcher searcher, bool includeContent)
+    {
+        var results = new List<SearchResult>();
+
+        foreach (var scoreDoc in topDocs.ScoreDocs)
+        {
+            var doc = searcher.Doc(scoreDoc.Doc);
+            var result = ConvertDocumentToSearchResult(doc, scoreDoc.Score, includeContent);
+            results.Add(result);
+        }
+
+        return results;
+    }
+
+    private SearchResult ConvertDocumentToSearchResult(Document doc, float score, bool includeContent)
+    {
+        var result = new SearchResult
+        {
+            DocumentId = doc.Get("id"),
+            Title = doc.Get("title"),
+            Slug = doc.Get("slug") ?? string.Empty,
+            Excerpt = doc.Get("contentsummary") ?? string.Empty,
+            Content = includeContent ? doc.Get("fullcontent") : null,
+            Score = score,
+            Author = doc.Get("modifiedby") ?? doc.Get("createdby"),
+            CreatedOn = DateTime.Parse(doc.Get("createdon")),
+            ModifiedOn = DateTime.Parse(doc.Get("modifiedon")),
+            Tags = doc.Get("tags")?.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList() ?? new List<string>()
+        };
+
+        PopulateCategoryInfo(result, doc);
+        PopulateFileMetadata(result, doc);
+
+        return result;
+    }
+
+    private static void PopulateCategoryInfo(SearchResult result, Document doc)
+    {
+        var categoryIdStr = doc.Get("categoryid");
+        if (!string.IsNullOrEmpty(categoryIdStr) && int.TryParse(categoryIdStr, out var categoryId))
+        {
+            result.CategoryId = categoryId;
+            result.CategoryName = doc.Get("categoryname");
+        }
+    }
+
+    private static void PopulateFileMetadata(SearchResult result, Document doc)
+    {
+        var documentType = doc.Get("documenttype");
+        if (string.IsNullOrEmpty(documentType))
+            return;
+
+        result.Highlights["DocumentType"] = new List<string> { documentType };
+
+        AddHighlightIfPresent(result, doc, "filename", "FileName");
+        AddHighlightIfPresent(result, doc, "fileextension", "FileExtension");
+        AddHighlightIfPresent(result, doc, "contenttype", "ContentType");
+        AddHighlightIfPresent(result, doc, "filesize", "FileSize");
+        AddHighlightIfPresent(result, doc, "folderpath", "FolderPath");
+        AddHighlightIfPresent(result, doc, "folderid", "FolderId");
+        AddHighlightIfPresent(result, doc, "visibility", "Visibility");
+    }
+
+    private static void AddHighlightIfPresent(SearchResult result, Document doc, string fieldName, string highlightKey)
+    {
+        var value = doc.Get(fieldName);
+        if (!string.IsNullOrEmpty(value))
+        {
+            result.Highlights[highlightKey] = new List<string> { value };
+        }
+    }
+
+    private SearchResponse CreateEmptyResponse(SearchRequest request, long executionTimeMs)
+    {
+        return new SearchResponse
+        {
+            Query = request.Query,
+            TotalResults = 0,
+            Page = request.Page,
+            PageSize = request.PageSize,
+            TotalPages = 0,
+            Results = new List<SearchResult>(),
+            ExecutionTimeMs = executionTimeMs
+        };
+    }
+
+    private SearchResponse CreatePaginatedResponse(SearchRequest request, List<SearchResult> results, long executionTimeMs)
+    {
+        var totalResults = results.Count;
+        var totalPages = (int)Math.Ceiling(totalResults / (double)request.PageSize);
+        var paginatedResults = results
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .ToList();
+
+        return new SearchResponse
+        {
+            Query = request.Query,
+            TotalResults = totalResults,
+            Page = request.Page,
+            PageSize = request.PageSize,
+            TotalPages = totalPages,
+            Results = paginatedResults,
+            ExecutionTimeMs = executionTimeMs
+        };
     }
 
     public async Task IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
@@ -583,7 +602,7 @@ public class LuceneSearchStrategy : ISearchStrategy
         }
     }
 
-    private Document CreateLuceneDocument(SearchDocument document)
+    private static Document CreateLuceneDocument(SearchDocument document)
     {
         var doc = new Document();
         
@@ -667,7 +686,7 @@ public class LuceneSearchStrategy : ISearchStrategy
         return doc;
     }
 
-    private Filter? BuildFilter(SearchRequest request)
+    private static Filter? BuildFilter(SearchRequest request)
     {
         var booleanQuery = new BooleanQuery();
         var hasFilters = false;
@@ -710,7 +729,7 @@ public class LuceneSearchStrategy : ISearchStrategy
         return hasFilters ? new QueryWrapperFilter(booleanQuery) : null;
     }
 
-    private string GenerateContentSummary(string content, int maxLength = 200)
+    private static string GenerateContentSummary(string content, int maxLength = 200)
     {
         if (string.IsNullOrWhiteSpace(content))
             return string.Empty;

@@ -99,14 +99,14 @@ public class SearchStrategyService : BaseService, ISearchService
         return MapToSearchResultsDto(response);
     }
 
-    public async Task<SearchResultsDto> SearchInCategoryAsync(string query, int categoryId, int pageNum = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<SearchResultsDto> SearchInCategoryAsync(string query, int categoryId, int pageNumber = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         var strategy = await GetActiveStrategyAsync(cancellationToken);
         
         var request = new SearchRequest
         {
             Query = query,
-            Page = pageNum,
+            Page = pageNumber,
             PageSize = pageSize,
             CategoryIds = new List<int> { categoryId }
         };
@@ -116,14 +116,14 @@ public class SearchStrategyService : BaseService, ISearchService
         return MapToSearchResultsDto(response);
     }
 
-    public async Task<SearchResultsDto> SearchByTagsAsync(List<string> tags, int pageNum = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<SearchResultsDto> SearchByTagsAsync(List<string> tags, int pageNumber = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         var strategy = await GetActiveStrategyAsync(cancellationToken);
         
         var request = new SearchRequest
         {
             Query = string.Empty,
-            Page = pageNum,
+            Page = pageNumber,
             PageSize = pageSize,
             Tags = tags
         };
@@ -250,14 +250,14 @@ public class SearchStrategyService : BaseService, ISearchService
         });
     }
 
-    public async Task<SearchResultsDto> FuzzySearchAsync(string query, float minSimilarity = 0.7f, int pageNum = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<SearchResultsDto> FuzzySearchAsync(string query, float minSimilarity = 0.7f, int pageNumber = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         var strategy = await GetActiveStrategyAsync(cancellationToken);
         
         var request = new SearchRequest
         {
             Query = query,
-            Page = pageNum,
+            Page = pageNumber,
             PageSize = pageSize,
             MinSimilarity = minSimilarity
         };
@@ -348,58 +348,68 @@ public class SearchStrategyService : BaseService, ISearchService
             Page = response.Page,
             PageSize = response.PageSize,
             TotalPages = response.TotalPages,
-            Results = response.Results.Select(r =>
-            {
-                // Try to determine if this is a file by checking if DocumentId is a GUID
-                var isFile = Guid.TryParse(r.DocumentId, out var _);
-
-                var result = new SearchResultItemDto
-                {
-                    Type = isFile ? SearchResultType.File : SearchResultType.Page,
-                    Title = r.Title,
-                    Slug = r.Slug,
-                    Excerpt = r.Excerpt,
-                    ModifiedBy = r.Author,
-                    ModifiedOn = r.ModifiedOn,
-                    Score = r.Score
-                };
-
-                // Set PageId or FileId based on type
-                if (isFile)
-                {
-                    if (Guid.TryParse(r.DocumentId, out var fileId))
-                    {
-                        result.FileId = fileId;
-                    }
-
-                    // Extract file metadata from Highlights (if available) or use defaults
-                    if (r.Highlights.TryGetValue("ContentType", out var contentType))
-                        result.ContentType = contentType.FirstOrDefault();
-                    
-                    if (r.Highlights.TryGetValue("FileSize", out var fileSize) && 
-                        long.TryParse(fileSize.FirstOrDefault(), out var size))
-                        result.FileSize = size;
-                    
-                    if (r.Highlights.TryGetValue("FolderPath", out var folderPath))
-                        result.FolderPath = folderPath.FirstOrDefault();
-                    
-                    // Set download URL
-                    result.DownloadUrl = $"/files/download/{r.DocumentId}";
-                }
-                else
-                {
-                    if (int.TryParse(r.DocumentId, out var pageId))
-                    {
-                        result.PageId = pageId;
-                    }
-
-                    // Set page metadata
-                    result.CategoryName = r.CategoryName;
-                    result.Tags = r.Tags;
-                }
-
-                return result;
-            }).ToList()
+            Results = response.Results.Select(MapToSearchResultItemDto).ToList()
         };
+    }
+
+    private SearchResultItemDto MapToSearchResultItemDto(SearchResult searchResult)
+    {
+        var isFile = Guid.TryParse(searchResult.DocumentId, out var _);
+
+        var result = new SearchResultItemDto
+        {
+            Type = isFile ? SearchResultType.File : SearchResultType.Page,
+            Title = searchResult.Title,
+            Slug = searchResult.Slug,
+            Excerpt = searchResult.Excerpt,
+            ModifiedBy = searchResult.Author,
+            ModifiedOn = searchResult.ModifiedOn,
+            Score = searchResult.Score
+        };
+
+        if (isFile)
+        {
+            PopulateFileMetadata(result, searchResult);
+        }
+        else
+        {
+            PopulatePageMetadata(result, searchResult);
+        }
+
+        return result;
+    }
+
+    private static void PopulateFileMetadata(SearchResultItemDto result, SearchResult searchResult)
+    {
+        if (Guid.TryParse(searchResult.DocumentId, out var fileId))
+        {
+            result.FileId = fileId;
+        }
+
+        // Extract file metadata from Highlights (if available)
+        if (searchResult.Highlights.TryGetValue("ContentType", out var contentType))
+            result.ContentType = contentType.FirstOrDefault();
+
+        if (searchResult.Highlights.TryGetValue("FileSize", out var fileSize) &&
+            long.TryParse(fileSize.FirstOrDefault(), out var size))
+            result.FileSize = size;
+
+        if (searchResult.Highlights.TryGetValue("FolderPath", out var folderPath))
+            result.FolderPath = folderPath.FirstOrDefault();
+
+        // Set download URL
+        result.DownloadUrl = $"/files/download/{searchResult.DocumentId}";
+    }
+
+    private static void PopulatePageMetadata(SearchResultItemDto result, SearchResult searchResult)
+    {
+        if (int.TryParse(searchResult.DocumentId, out var pageId))
+        {
+            result.PageId = pageId;
+        }
+
+        // Set page metadata
+        result.CategoryName = searchResult.CategoryName;
+        result.Tags = searchResult.Tags;
     }
 }

@@ -23,19 +23,14 @@ public abstract class BaseController : Controller
     protected readonly ITimezoneService? _timezoneService;
     protected readonly IStringLocalizer<SharedResources>? _localizer;
 
-    protected BaseController(ILogger logger, INotificationService notifications)
-    {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
-    }
-
     protected BaseController(
         ILogger logger, 
         INotificationService notifications, 
-        ITimezoneService? timezoneService = null,
-        IStringLocalizer<SharedResources>? localizer = null)
-        : this(logger, notifications)
+        ITimezoneService? timezoneService, 
+        IStringLocalizer<SharedResources>? localizer)
     {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
         _timezoneService = timezoneService;
         _localizer = localizer;
     }
