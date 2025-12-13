@@ -11,6 +11,7 @@ using Squirrel.Wiki.Core.Services.Users;
 using Squirrel.Wiki.Web.Middleware;
 using System.Globalization;
 using PathHelper = Squirrel.Wiki.Core.Services.Infrastructure.PathHelper;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
 
 namespace Squirrel.Wiki.Web.Extensions;
 
@@ -21,7 +22,7 @@ public static class WebApplicationExtensions
         MinimalConfigurationService minimalConfig,
         string appDataPath)
     {
-        string defaultLanguage = "en";
+        string defaultLanguage;
 
         using var scope = app.Services.CreateScope();
         var services = scope.ServiceProvider;
@@ -32,8 +33,8 @@ public static class WebApplicationExtensions
             var logger = services.GetRequiredService<ILogger<Program>>();
 
             // Get database initialization settings
-            var autoMigrateStr = minimalConfig.GetValue("SQUIRREL_DATABASE_AUTO_MIGRATE", "true");
-            var seedDataStr = minimalConfig.GetValue("SQUIRREL_DATABASE_SEED_DATA", "true");
+            var autoMigrateStr = minimalConfig.GetValue(SQUIRREL_DATABASE_AUTO_MIGRATE, "true");
+            var seedDataStr = minimalConfig.GetValue(SQUIRREL_DATABASE_SEED_DATA, "true");
             var autoMigrate = bool.Parse(autoMigrateStr);
             var seedData = bool.Parse(seedDataStr);
 
@@ -46,7 +47,7 @@ public static class WebApplicationExtensions
 
             if (seedData)
             {
-                var customSeedDataPath = minimalConfig.GetValue("SQUIRREL_SEED_DATA_FILE_PATH");
+                var customSeedDataPath = minimalConfig.GetValue(SQUIRREL_SEED_DATA_FILE_PATH);
 
                 if (!string.IsNullOrEmpty(customSeedDataPath))
                 {
@@ -82,9 +83,9 @@ public static class WebApplicationExtensions
 
             // Get default language
             var configService = services.GetRequiredService<IConfigurationService>();
-            defaultLanguage = await configService.GetValueAsync<string>("SQUIRREL_DEFAULT_LANGUAGE") ?? "en";
+            defaultLanguage = await configService.GetValueAsync<string>(SQUIRREL_DEFAULT_LANGUAGE) ?? "en";
 
-            var source = configService.GetSource("SQUIRREL_DEFAULT_LANGUAGE");
+            var source = configService.GetSource(SQUIRREL_DEFAULT_LANGUAGE);
             logger.LogInformation("Default language loaded from {Source}: {Language}", source, defaultLanguage);
         }
         catch (Exception ex)
@@ -100,7 +101,7 @@ public static class WebApplicationExtensions
     public static WebApplication ConfigureSquirrelWikiMiddleware(this WebApplication app, string defaultLanguage)
     {
         // Configure request localization
-        var languageMetadata = ConfigurationMetadataRegistry.GetMetadata("SQUIRREL_DEFAULT_LANGUAGE");
+        var languageMetadata = ConfigurationMetadataRegistry.GetMetadata(SQUIRREL_DEFAULT_LANGUAGE);
         var supportedLanguages = languageMetadata.Validation?.AllowedValues ?? new[] { "en" };
         var supportedCultures = supportedLanguages.Select(lang => new CultureInfo(lang)).ToArray();
 

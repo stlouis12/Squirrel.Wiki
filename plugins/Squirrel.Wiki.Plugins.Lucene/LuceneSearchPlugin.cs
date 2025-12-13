@@ -7,6 +7,7 @@ using Squirrel.Wiki.Contracts.Search;
 using Squirrel.Wiki.Core.Database.Repositories;
 using Squirrel.Wiki.Core.Services.Infrastructure;
 using Squirrel.Wiki.Plugins;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
 
 namespace Squirrel.Wiki.Plugins.Lucene;
 
@@ -88,7 +89,7 @@ public class LuceneSearchPlugin : PluginBase, ISearchPlugin
             
             // Get App_Data path from configuration
             var appDataPath = Configuration != null
-                ? await Configuration.GetValueAsync<string>("SQUIRREL_APP_DATA_PATH")
+                ? await Configuration.GetValueAsync<string>(SQUIRREL_APP_DATA_PATH)
                 : null;
             
             // Resolve and ensure the index path exists using PathHelper

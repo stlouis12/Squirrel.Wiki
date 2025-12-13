@@ -1,3 +1,4 @@
+@using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys
 @model Squirrel.Wiki.Web.Models.Admin.SettingsViewModel
 @{
     ViewData["Title"] = Localizer["Settings"];
@@ -125,7 +126,7 @@
                                                                 @foreach (var option in setting.Options)
                                                                 {
                                                                     <option value="@option" selected="@(setting.Value == option)">
-                                                                        @if (setting.Key == "SQUIRREL_TIMEZONE" && Model.TimezoneDisplayNames.ContainsKey(option))
+                                                                        @if (setting.Key == SQUIRREL_TIMEZONE && Model.TimezoneDisplayNames.ContainsKey(option))
                                                                         {
                                                                             @Model.TimezoneDisplayNames[option]
                                                                         }

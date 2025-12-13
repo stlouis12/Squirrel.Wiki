@@ -9,6 +9,7 @@ using Squirrel.Wiki.Core.Exceptions;
 using Squirrel.Wiki.Core.Models;
 using Squirrel.Wiki.Core.Services.Caching;
 using Squirrel.Wiki.Core.Services.Configuration;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
 
 namespace Squirrel.Wiki.Core.Services.Users;
 
@@ -316,7 +317,7 @@ public class UserService : BaseService, IUserService
         if (!isPasswordValid)
         {
             // Get max login attempts from configuration (default to 5 if not set)
-            var maxLoginAttempts = await Configuration.GetValueAsync<int>("SQUIRREL_MAX_LOGIN_ATTEMPTS", cancellationToken);
+            var maxLoginAttempts = await Configuration.GetValueAsync<int>(SQUIRREL_MAX_LOGIN_ATTEMPTS, cancellationToken);
             if (maxLoginAttempts <= 0)
             {
                 maxLoginAttempts = 5; // Default fallback
@@ -329,7 +330,7 @@ public class UserService : BaseService, IUserService
             if (user.FailedLoginAttempts >= maxLoginAttempts)
             {
                 // Get account lock duration from configuration (default to 30 minutes if not set)
-                var lockDurationMinutes = await Configuration.GetValueAsync<int>("SQUIRREL_ACCOUNT_LOCK_DURATION_MINUTES", cancellationToken);
+                var lockDurationMinutes = await Configuration.GetValueAsync<int>(SQUIRREL_ACCOUNT_LOCK_DURATION_MINUTES, cancellationToken);
                 if (lockDurationMinutes <= 0)
                 {
                     lockDurationMinutes = 30; // Default fallback

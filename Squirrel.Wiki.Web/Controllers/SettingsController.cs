@@ -9,6 +9,7 @@ using Squirrel.Wiki.Core.Services.Configuration;
 using Squirrel.Wiki.Web.Models.Admin;
 using Squirrel.Wiki.Web.Resources;
 using Squirrel.Wiki.Web.Services;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
 
 namespace Squirrel.Wiki.Web.Controllers;
 
@@ -352,7 +353,7 @@ public class SettingsController : BaseController
             // Handle special case for Redis settings - disable if Redis not selected
             if (category == "Performance")
             {
-                existingSettings.TryGetValue("SQUIRREL_CACHE_PROVIDER", out var cacheProviderRaw);
+                existingSettings.TryGetValue(SQUIRREL_CACHE_PROVIDER, out var cacheProviderRaw);
                 string? cacheProvider = DeserializeValue(cacheProviderRaw);
                 bool isRedisEnabled = string.Equals(cacheProvider ?? "Memory", "Redis", StringComparison.OrdinalIgnoreCase);
 
@@ -461,7 +462,7 @@ public class SettingsController : BaseController
         {
             options = metadata.Validation.AllowedValues.ToList();
         }
-        else if (metadata.Key == "SQUIRREL_TIMEZONE")
+        else if (metadata.Key == SQUIRREL_TIMEZONE)
         {
             options = _timezoneService.GetAvailableTimezoneIds().ToList();
         }
@@ -494,7 +495,7 @@ public class SettingsController : BaseController
             return SettingType.Dropdown;
 
         // Special case: timezone setting should be a dropdown
-        if (key == "SQUIRREL_TIMEZONE")
+        if (key == SQUIRREL_TIMEZONE)
             return SettingType.Dropdown;
 
         if (validation?.MustBeUrl == true)

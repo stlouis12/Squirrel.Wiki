@@ -165,7 +165,7 @@ public class LuceneSearchStrategy : ISearchStrategy
         }
     }
 
-    private List<SearchResult> ConvertSearchResults(TopDocs topDocs, IndexSearcher searcher, bool includeContent)
+    private static List<SearchResult> ConvertSearchResults(TopDocs topDocs, IndexSearcher searcher, bool includeContent)
     {
         var results = new List<SearchResult>();
 
@@ -179,7 +179,7 @@ public class LuceneSearchStrategy : ISearchStrategy
         return results;
     }
 
-    private SearchResult ConvertDocumentToSearchResult(Document doc, float score, bool includeContent)
+    private static SearchResult ConvertDocumentToSearchResult(Document doc, float score, bool includeContent)
     {
         var result = new SearchResult
         {
@@ -237,7 +237,7 @@ public class LuceneSearchStrategy : ISearchStrategy
         }
     }
 
-    private SearchResponse CreateEmptyResponse(SearchRequest request, long executionTimeMs)
+    private static SearchResponse CreateEmptyResponse(SearchRequest request, long executionTimeMs)
     {
         return new SearchResponse
         {
@@ -251,7 +251,7 @@ public class LuceneSearchStrategy : ISearchStrategy
         };
     }
 
-    private SearchResponse CreatePaginatedResponse(SearchRequest request, List<SearchResult> results, long executionTimeMs)
+    private static SearchResponse CreatePaginatedResponse(SearchRequest request, List<SearchResult> results, long executionTimeMs)
     {
         var totalResults = results.Count;
         var totalPages = (int)Math.Ceiling(totalResults / (double)request.PageSize);
@@ -752,7 +752,7 @@ public class LuceneSearchStrategy : ISearchStrategy
         }
     }
 
-    private long GetDirectorySize(DirectoryInfo directory)
+    private static long GetDirectorySize(DirectoryInfo directory)
     {
         long size = 0;
         

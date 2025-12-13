@@ -183,7 +183,7 @@ public class SidebarNavigationViewComponent : ViewComponent
                url.StartsWith("category:");
     }
 
-    private SidebarItemViewModel BuildStandardSidebarItem(MenuItemDto menuItem)
+    private static SidebarItemViewModel BuildStandardSidebarItem(MenuItemDto menuItem)
     {
         var itemType = DetermineItemType(menuItem);
 
@@ -340,7 +340,7 @@ public class SidebarNavigationViewComponent : ViewComponent
     /// <summary>
     /// Builds a sidebar item for the %EMBEDDED_SEARCH% token
     /// </summary>
-    private SidebarItemViewModel BuildEmbeddedSearchItemAsync(string headerText)
+    private static SidebarItemViewModel BuildEmbeddedSearchItemAsync(string headerText)
     {
         return new SidebarItemViewModel
         {

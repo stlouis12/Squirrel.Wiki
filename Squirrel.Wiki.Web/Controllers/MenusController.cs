@@ -395,7 +395,7 @@ public class MenusController : BaseController
 
     #region Private Helper Methods
 
-    private void PopulateMenuTypes(EditMenuViewModel model)
+    private static void PopulateMenuTypes(EditMenuViewModel model)
     {
         model.MenuTypes = Enum.GetValues<MenuType>()
             .Select(mt => new SelectListItem

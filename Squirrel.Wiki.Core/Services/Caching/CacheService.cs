@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Squirrel.Wiki.Contracts.Configuration;
 using System.Collections.Concurrent;
 using System.Text.Json;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
 
 namespace Squirrel.Wiki.Core.Services.Caching;
 
@@ -37,7 +38,7 @@ public class CacheService : ICacheService
             {
                 // Use ConfigurationService (cached, fast)
                 var enabled = _configuration.GetValueAsync<bool>(
-                    "SQUIRREL_ENABLE_CACHING").GetAwaiter().GetResult();
+                    SQUIRREL_ENABLE_CACHING).GetAwaiter().GetResult();
                 return enabled;
             }
             catch (Exception ex)
@@ -53,7 +54,7 @@ public class CacheService : ICacheService
         try
         {
             var minutes = _configuration.GetValueAsync<int>(
-                "SQUIRREL_CACHE_DURATION_MINUTES").GetAwaiter().GetResult();
+                SQUIRREL_CACHE_DURATION_MINUTES).GetAwaiter().GetResult();
             return TimeSpan.FromMinutes(minutes);
         }
         catch (Exception ex)
