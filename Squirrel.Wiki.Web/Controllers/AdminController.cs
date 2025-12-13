@@ -116,57 +116,6 @@ public class AdminController : BaseController
         }
     }
 
-    /// <summary>
-    /// Clears cache with Result Pattern
-    /// </summary>
-    private Result<bool> ClearCacheWithResult()
-    {
-        try
-        {
-            // Note: IDistributedCache doesn't have a clear all method
-            // In production with Redis, you'd need to use StackExchange.Redis directly
-            // For now, we'll just log the action
-            
-            _logger.LogInformation("Cache clear requested by {User}", User.Identity?.Name);
-            
-            return Result<bool>.Success(true);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error clearing cache");
-            return Result<bool>.Failure(
-                ex.Message,
-                "CACHE_CLEAR_ERROR"
-            );
-        }
-    }
-
-    /// <summary>
-    /// Rebuilds search index with Result Pattern
-    /// </summary>
-    private async Task<Result<bool>> RebuildSearchIndexWithResult()
-    {
-        try
-        {
-            _logger.LogInformation("Search index rebuild requested by {User}", User.Identity?.Name);
-            
-            // Use the RebuildIndexAsync method which handles everything
-            await _searchService.RebuildIndexAsync();
-
-            _logger.LogInformation("Search index rebuilt successfully");
-            
-            return Result<bool>.Success(true);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error rebuilding search index");
-            return Result<bool>.Failure(
-                ex.Message,
-                "SEARCH_INDEX_REBUILD_ERROR"
-            );
-        }
-    }
-
     #endregion
 
     #region Private Helper Methods

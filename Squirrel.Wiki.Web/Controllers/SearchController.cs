@@ -155,7 +155,7 @@ public class SearchController : BaseController
             var results = await _searchService.SearchAsync(query, page, pageSize, cancellationToken);
             
             _logger.LogInformation("Search completed - Query: '{Query}', Results: {ResultCount}, Total: {TotalResults}", 
-                query, results.Results.Count(), results.TotalResults);
+                query, results.Results.Count, results.TotalResults);
             
             // Filter results based on authorization using new policy-based authorization
             var authorizedResults = new List<SearchResultItemViewModel>();
