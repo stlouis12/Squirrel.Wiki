@@ -29,7 +29,7 @@
     <PackageReference Include="HtmlSanitizer" Version="9.0.889" />
     
     <!-- Caching -->
-    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.1" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.0" />
     
     <!-- Configuration -->
