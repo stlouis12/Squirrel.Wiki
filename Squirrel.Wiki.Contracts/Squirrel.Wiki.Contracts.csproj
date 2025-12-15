@@ -8,7 +8,7 @@
 
   <ItemGroup>
     <!-- Minimal dependencies - only abstractions -->
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" />
     <PackageReference Include="Markdig" Version="0.44.0" />
   </ItemGroup>
 
