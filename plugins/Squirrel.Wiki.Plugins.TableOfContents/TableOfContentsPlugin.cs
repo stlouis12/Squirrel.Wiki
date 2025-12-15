@@ -272,12 +272,10 @@ public class TableOfContentsPlugin : PluginBase, IMarkdownExtensionPlugin
         CancellationToken cancellationToken = default)
     {
         // Validate MaxDepth
-        if (config.TryGetValue("MaxDepth", out var maxDepthStr))
+        if (config.TryGetValue("MaxDepth", out var maxDepthStr) &&
+            (!int.TryParse(maxDepthStr, out var maxDepth) || maxDepth < 1 || maxDepth > 6))
         {
-            if (!int.TryParse(maxDepthStr, out var maxDepth) || maxDepth < 1 || maxDepth > 6)
-            {
-                return Task.FromResult(false);
-            }
+            return Task.FromResult(false);
         }
 
         return Task.FromResult(true);
