@@ -149,7 +149,7 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
         
         var items = new List<CategorySelectItem>();
         excludedIds ??= new HashSet<int>();
-        
+
         FlattenTreeRecursive(tree, items, excludedIds, "");
         
         // Cache the result (fire and forget)
@@ -163,7 +163,7 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
     /// <summary>
     /// Maps a CategoryDto to a CategoryTreeNode
     /// </summary>
-    private CategoryTreeNode MapToTreeNode(CategoryDto category)
+    private static CategoryTreeNode MapToTreeNode(CategoryDto category)
     {
         return new CategoryTreeNode
         {
@@ -185,7 +185,7 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
     /// <summary>
     /// Sorts tree nodes by name
     /// </summary>
-    private void SortTree(List<CategoryTreeNode> nodes, bool recursive)
+    private static void SortTree(List<CategoryTreeNode> nodes, bool recursive)
     {
         nodes.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
         
@@ -204,7 +204,7 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
     /// <summary>
     /// Limits tree depth to specified maximum
     /// </summary>
-    private List<CategoryTreeNode> LimitDepth(List<CategoryTreeNode> tree, int maxDepth)
+    private static List<CategoryTreeNode> LimitDepth(List<CategoryTreeNode> tree, int maxDepth)
     {
         if (maxDepth <= 0) return new List<CategoryTreeNode>();
         
@@ -221,7 +221,7 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
     /// <summary>
     /// Recursively limits node depth
     /// </summary>
-    private CategoryTreeNode LimitNodeDepth(CategoryTreeNode node, int maxDepth, int currentDepth)
+    private static CategoryTreeNode LimitNodeDepth(CategoryTreeNode node, int maxDepth, int currentDepth)
     {
         var limitedNode = new CategoryTreeNode
         {
@@ -294,7 +294,7 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
     /// Recursively flattens tree into a list with indentation
     /// Note: Visual hierarchy is handled by CategorySelectItem.DisplayName property
     /// </summary>
-    private void FlattenTreeRecursive(
+    private static void FlattenTreeRecursive(
         IEnumerable<CategoryTreeNode> nodes,
         List<CategorySelectItem> items,
         HashSet<int> excludedIds,
@@ -338,7 +338,7 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
     /// <summary>
     /// Generates cache key suffix for flattened tree
     /// </summary>
-    private string GenerateFlattenCacheKeySuffix(
+    private static string GenerateFlattenCacheKeySuffix(
         IEnumerable<CategoryTreeNode> tree,
         HashSet<int>? excludedIds)
     {
@@ -354,7 +354,7 @@ public class CategoryTreeBuilder : BaseService, ICategoryTreeBuilder
     /// <summary>
     /// Gets all node IDs from tree recursively
     /// </summary>
-    private IEnumerable<int> GetAllNodeIds(IEnumerable<CategoryTreeNode> nodes)
+    private static IEnumerable<int> GetAllNodeIds(IEnumerable<CategoryTreeNode> nodes)
     {
         foreach (var node in nodes)
         {

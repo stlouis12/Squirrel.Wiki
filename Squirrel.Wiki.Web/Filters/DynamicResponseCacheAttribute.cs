@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Squirrel.Wiki.Core.Services;
 using Squirrel.Wiki.Core.Services.Configuration;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
 
 namespace Squirrel.Wiki.Web.Filters;
 
@@ -87,8 +88,8 @@ public class DynamicResponseCacheAttribute : ActionFilterAttribute
         else
         {
             // Read from settings (which handles environment variable overrides)
-            var enableCachingSetting = await settingsService.GetSettingAsync<bool?>("SQUIRREL_ENABLE_RESPONSE_CACHING");
-            var cacheDurationSetting = await settingsService.GetSettingAsync<int?>("SQUIRREL_RESPONSE_CACHE_DURATION_MINUTES");
+            var enableCachingSetting = await settingsService.GetSettingAsync<bool?>(SQUIRREL_ENABLE_RESPONSE_CACHING);
+            var cacheDurationSetting = await settingsService.GetSettingAsync<int?>(SQUIRREL_RESPONSE_CACHE_DURATION_MINUTES);
 
             // Use settings with defaults
             enableCaching = enableCachingSetting ?? true;  // Default to true

@@ -10,6 +10,7 @@ using Squirrel.Wiki.Core.Services.Caching;
 using Squirrel.Wiki.Core.Services.Configuration;
 using Squirrel.Wiki.Core.Services.Content;
 using Squirrel.Wiki.Core.Services.Tags;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
 
 namespace Squirrel.Wiki.Core.Services.Pages;
 
@@ -280,7 +281,7 @@ public class PageService : BaseService, IPageService
         await _pageRepository.UpdateAsync(page, cancellationToken);
 
         // Check if page versioning is enabled
-        var enableVersioning = await Configuration.GetValueAsync<bool>("SQUIRREL_ENABLE_PAGE_VERSIONING", cancellationToken);
+        var enableVersioning = await Configuration.GetValueAsync<bool>(SQUIRREL_ENABLE_PAGE_VERSIONING, cancellationToken);
 
         if (enableVersioning)
         {

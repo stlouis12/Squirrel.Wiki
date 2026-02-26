@@ -401,7 +401,7 @@ public class CategoriesController : BaseController
     /// <summary>
     /// Recursively add all descendants to the excluded set
     /// </summary>
-    private async Task AddDescendantsAsync(int categoryId, HashSet<int> excludedIds, IEnumerable<CategoryDto> allCategories)
+    private static async Task AddDescendantsAsync(int categoryId, HashSet<int> excludedIds, IEnumerable<CategoryDto> allCategories)
     {
         var children = allCategories.Where(c => c.ParentId == categoryId);
         foreach (var child in children)

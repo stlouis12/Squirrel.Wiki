@@ -855,7 +855,7 @@ public class PagesController : BaseController
     /// <summary>
     /// Maps category DTOs to view models with hierarchy information
     /// </summary>
-    private List<CategoryViewModel> MapCategoriesToViewModel(IEnumerable<CategoryDto> categories)
+    private static List<CategoryViewModel> MapCategoriesToViewModel(IEnumerable<CategoryDto> categories)
     {
         var categoryList = categories.ToList();
         var result = new List<CategoryViewModel>();

@@ -269,7 +269,10 @@
                                                 {
                                                     if (item.IsSecret)
                                                     {
-                                                        <code>@Model.CurrentValues[item.Key]</code>
+                                                        <code>********</code>
+                                                        <small class="text-muted ms-2">
+                                                            <i class="fas fa-lock"></i> @Localizer["Hidden"]
+                                                        </small>
                                                     }
                                                     else
                                                     {
