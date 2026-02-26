@@ -26,6 +26,7 @@ using Squirrel.Wiki.Core.Services.Users;
 using Squirrel.Wiki.Web.Resources;
 using PathHelper = Squirrel.Wiki.Core.Services.Infrastructure.PathHelper;
 using static Squirrel.Wiki.Core.Constants.UserRoles;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
 
 namespace Squirrel.Wiki.Web.Extensions;
 
@@ -37,12 +38,12 @@ public static class ServiceCollectionExtensions
         string appDataPath,
         ILogger logger)
     {
-        var connectionString = minimalConfig.GetValue("SQUIRREL_DATABASE_CONNECTION_STRING");
-        var databaseProvider = minimalConfig.GetValue("SQUIRREL_DATABASE_PROVIDER");
+        var connectionString = minimalConfig.GetValue(SQUIRREL_DATABASE_CONNECTION_STRING);
+        var databaseProvider = minimalConfig.GetValue(SQUIRREL_DATABASE_PROVIDER);
 
         logger.LogInformation("Database provider: {Provider} (from {Source})",
             databaseProvider,
-            minimalConfig.HasValue("SQUIRREL_DATABASE_PROVIDER") ? "environment variable" : "appsettings.json");
+            minimalConfig.HasValue(SQUIRREL_DATABASE_PROVIDER) ? "environment variable" : "appsettings.json");
 
         // For SQLite, resolve relative paths using the configured app data path
         if (databaseProvider.Equals("SQLite", StringComparison.OrdinalIgnoreCase) &&
@@ -121,15 +122,15 @@ public static class ServiceCollectionExtensions
         MinimalConfigurationService minimalConfig,
         ILogger logger)
     {
-        var cacheProvider = minimalConfig.GetValue("SQUIRREL_CACHE_PROVIDER", "Memory");
+        var cacheProvider = minimalConfig.GetValue(SQUIRREL_CACHE_PROVIDER, "Memory");
         logger.LogInformation("Configuring cache provider: {Provider} (from {Source})",
             cacheProvider,
-            minimalConfig.GetSource("SQUIRREL_CACHE_PROVIDER"));
+            minimalConfig.GetSource(SQUIRREL_CACHE_PROVIDER));
 
         if (cacheProvider.Equals("Redis", StringComparison.OrdinalIgnoreCase))
         {
-            var redisConfiguration = minimalConfig.GetValue("SQUIRREL_REDIS_CONFIGURATION", "localhost:6379");
-            var redisInstanceName = minimalConfig.GetValue("SQUIRREL_REDIS_INSTANCE_NAME", "Squirrel_");
+            var redisConfiguration = minimalConfig.GetValue(SQUIRREL_REDIS_CONFIGURATION, "localhost:6379");
+            var redisInstanceName = minimalConfig.GetValue(SQUIRREL_REDIS_INSTANCE_NAME, "Squirrel_");
 
             logger.LogInformation("Configuring Redis cache: {Configuration}, Instance: {Instance}",
                 redisConfiguration, redisInstanceName);
@@ -316,8 +317,8 @@ public static class ServiceCollectionExtensions
         ILogger logger)
     {
         var healthChecksBuilder = services.AddHealthChecks();
-        var databaseProvider = minimalConfig.GetValue("SQUIRREL_DATABASE_PROVIDER");
-        var connectionString = minimalConfig.GetValue("SQUIRREL_DATABASE_CONNECTION_STRING");
+        var databaseProvider = minimalConfig.GetValue(SQUIRREL_DATABASE_PROVIDER);
+        var connectionString = minimalConfig.GetValue(SQUIRREL_DATABASE_CONNECTION_STRING);
 
         // Add database health check based on provider
         switch (databaseProvider.ToLowerInvariant())
@@ -342,10 +343,10 @@ public static class ServiceCollectionExtensions
         }
 
         // Add Redis health check if enabled
-        var cacheProvider = minimalConfig.GetValue("SQUIRREL_CACHE_PROVIDER", "Memory");
+        var cacheProvider = minimalConfig.GetValue(SQUIRREL_CACHE_PROVIDER, "Memory");
         if (cacheProvider.Equals("Redis", StringComparison.OrdinalIgnoreCase))
         {
-            var redisConfiguration = minimalConfig.GetValue("SQUIRREL_REDIS_CONFIGURATION", "localhost:6379");
+            var redisConfiguration = minimalConfig.GetValue(SQUIRREL_REDIS_CONFIGURATION, "localhost:6379");
             healthChecksBuilder.AddRedis(redisConfiguration, name: "redis", tags: new[] { "ready", "cache" });
             logger.LogInformation("Added Redis health check");
         }

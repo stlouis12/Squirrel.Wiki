@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using MySql.EntityFrameworkCore.Extensions;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
 
 namespace Squirrel.Wiki.Core.Database;
 
@@ -16,7 +17,7 @@ public class SquirrelDbContextFactory : IDesignTimeDbContextFactory<SquirrelDbCo
         
         // Use SQUIRREL_DATABASE_PROVIDER environment variable to determine which provider
         // Default to PostgreSQL if not specified
-        var provider = Environment.GetEnvironmentVariable("SQUIRREL_DATABASE_PROVIDER") ?? "PostgreSQL";
+        var provider = Environment.GetEnvironmentVariable(SQUIRREL_DATABASE_PROVIDER) ?? "PostgreSQL";
         
         switch (provider.ToLowerInvariant())
         {

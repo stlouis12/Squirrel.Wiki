@@ -8,6 +8,7 @@ using Squirrel.Wiki.Core.Services.Infrastructure;
 using Squirrel.Wiki.Web.Extensions;
 using Squirrel.Wiki.Web.Resources;
 using PathHelper = Squirrel.Wiki.Core.Services.Infrastructure.PathHelper;
+using static Squirrel.Wiki.Core.Configuration.ConfigurationMetadataRegistry.ConfigurationKeys;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,13 +53,13 @@ var minimalConfig = new MinimalConfigurationService(startupLogger);
 builder.WebHost.ConfigureSquirrelWikiKestrel(startupLogger);
 
 // Add session support for OIDC authentication
-var sessionTimeoutMinutes = int.TryParse(minimalConfig.GetValue("SQUIRREL_SESSION_TIMEOUT_MINUTES"), out var timeout) && timeout > 0 
+var sessionTimeoutMinutes = int.TryParse(minimalConfig.GetValue(SQUIRREL_SESSION_TIMEOUT_MINUTES), out var timeout) && timeout > 0 
     ? timeout 
     : 480; // Default to 8 hours
 
 Log.Information("Session timeout configured: {Minutes} minutes (from {Source})",
     sessionTimeoutMinutes,
-    minimalConfig.GetSource("SQUIRREL_SESSION_TIMEOUT_MINUTES"));
+    minimalConfig.GetSource(SQUIRREL_SESSION_TIMEOUT_MINUTES));
 
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
@@ -70,11 +71,11 @@ builder.Services.AddSession(options =>
 });
 
 // Get application data path
-var appDataPath = minimalConfig.GetValue("SQUIRREL_APP_DATA_PATH", "App_Data");
+var appDataPath = minimalConfig.GetValue(SQUIRREL_APP_DATA_PATH, "App_Data");
 var resolvedAppDataPath = PathHelper.ResolveAndEnsurePath(appDataPath);
 Log.Information("Application data path: {AppDataPath} (from {Source})",
     resolvedAppDataPath,
-    minimalConfig.GetSource("SQUIRREL_APP_DATA_PATH"));
+    minimalConfig.GetSource(SQUIRREL_APP_DATA_PATH));
 
 // Configure Squirrel Wiki services using extension methods
 builder.Services.AddSquirrelWikiRequestSizeLimits(startupLogger);
