@@ -37,7 +37,7 @@
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.1" />
     
     <!-- Dependency Injection -->
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.3" />
     
     <!-- HTTP Context Accessor for UserContext -->
     <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
@@ -46,7 +46,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="10.0.0" />
     
     <!-- Data Protection for encryption -->
-    <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="10.0.3" />
     
     <!-- Logging -->
     <PackageReference Include="Serilog" Version="4.0.0" />
