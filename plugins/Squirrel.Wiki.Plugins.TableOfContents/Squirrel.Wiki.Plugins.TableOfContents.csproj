@@ -7,7 +7,7 @@
 
   <ItemGroup>
     <!-- Markdig is provided by the host application, so we reference it without copying -->
-    <PackageReference Include="Markdig" Version="0.44.0">
+    <PackageReference Include="Markdig" Version="1.1.0">
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
   </ItemGroup>
